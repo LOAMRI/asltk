@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "asltk"
-version = "0.1.0"
-description = ""
-authors = ["Antonio Senra Filho <acsenrafilho@gmail.com>"]
+version = "0.0.1"
+description = "A quick to use library to process images for MRI Arterial Spin Labeling imaging protocols."
+authors = ["Antonio Senra Filho <acsenrafilho@alumni.usp.br>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
