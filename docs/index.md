@@ -1,6 +1,6 @@
 # ASLtk - Arterial Spin Labeling toolkit
 
-![project logo](assets/asltk-logo.png){ width="250" .center}
+![project logo](assets/asltk-logo.png){ width="350" .center}
 
 For full documentation visit [mkdocs.org](https://www.mkdocs.org).
 
