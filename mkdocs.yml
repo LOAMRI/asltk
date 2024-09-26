@@ -1,0 +1,19 @@
+site_name: asltk
+repo_url: https://github.com/LOAMRI/asltk
+repo_name: LOAMRI/asltk
+edit_uri: tree/main/docs
+
+theme:
+  name: material
+  language: en
+  logo: assets/asltk-logo.png
+  favicon: assets/asltk-logo.png
+  palette:
+    scheme: black
+    accent: orange
+
+markdown_extensions:
+  - attr_list
+
+extra_css:
+  - stylesheets/extra.css
