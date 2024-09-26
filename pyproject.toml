@@ -15,6 +15,8 @@ pytest-cov = "^5.0.0"
 blue = "^0.9.1"
 isort = "^5.13.2"
 taskipy = "^1.13.0"
+SimpleITK = "^2.4.0"
+numpy = "^2.1.1"
 
 
 [tool.poetry.group.doc.dependencies]
@@ -31,7 +33,7 @@ profile = "black"
 line_length = 79
 
 [tool.taskipy.tasks]
-lint = "blue --check --diff . && isort --check --diff ."
+lint = "blue . && isort ."
 docs = "mkdocs serve"
 pre_test="task lint"
 test = "pytest -s -x --cov=asltk -vv"
