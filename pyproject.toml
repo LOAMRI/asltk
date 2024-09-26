@@ -26,6 +26,17 @@ mkdocstrings-python = "^1.11.1"
 pythonpath = "."
 addopts = "--doctest-modules"
 
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.taskipy.tasks]
+lint = "blue --check --diff . && isort --check --diff ."
+docs = "mkdocs serve"
+pre_test="task lint"
+test = "pytest -s -x --cov=asltk -vv"
+post_test = "coverage html"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
