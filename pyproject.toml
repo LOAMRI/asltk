@@ -22,6 +22,10 @@ mkdocs-material = "^9.5.34"
 mkdocstrings = "^0.26.1"
 mkdocstrings-python = "^1.11.1"
 
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = "--doctest-modules"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
