@@ -11,6 +11,10 @@ theme:
   palette:
     scheme: black
     accent: orange
+  font:
+    text: Poppins
+  icon:
+    repo: fontawesome/brands/github
 
 markdown_extensions:
   - attr_list
