@@ -1,3 +1,5 @@
-# Main developers
+# About
+
+## Main developers
 
 The core functionalities ... 
