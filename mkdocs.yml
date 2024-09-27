@@ -25,3 +25,12 @@ extra_css:
 nav:
   - 'index.md'
   - 'about.md'
+  - 'api/asldata.md'
+  - 'api/reconstruction.md'
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [asltk]
