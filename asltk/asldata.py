@@ -3,6 +3,8 @@ import os
 import numpy as np
 import SimpleITK as sitk
 
+from asltk.utils import load_image, save_image
+
 
 class ASLData:
     def __init__(
@@ -61,10 +63,10 @@ class ASLData:
         }
 
         if kwargs.get('pcasl') is not None:
-            self.load_image(kwargs.get('pcasl'), spec='pcasl')
+            self._asl_image = load_image(kwargs.get('pcasl'))
 
         if kwargs.get('m0') is not None:
-            self.load_image(kwargs.get('m0'), spec='m0')
+            self._m0_image = load_image(kwargs.get('m0'))
 
         self._parameters['ld'] = (
             [] if kwargs.get('ld_values') is None else kwargs.get('ld_value')
@@ -79,52 +81,12 @@ class ASLData:
         if kwargs.get('dw_values'):
             self._parameters['dw'] = kwargs.get('dw_values')
 
-    def load_image(self, full_path: str, spec: str):
-        """Load an image file path using the standard SimpleITK API.
-
-        The output format for object handler is a numpy array, collected from
-        the SimpleITK reading data method.
-
-        For more details about the image formatts accepted, check the official
-        documentation at: https://simpleitk.org/
-
-        The ASLData class assumes as a caller method to expose the image array
-        directly to the user, hence calling the object instance will return the
-        image array directly.
-
-        Args:
-            full_path (str): Absolute path for the image file
-            spec (str): The type of image data that is being loaded. Use the
-            following options: 'm0', 'pcasl'.
-
-        Examples:
-            >>> data=ASLData()
-            >>> data.load_image("./tests/files/t1-mri.nrrd", 'm0')
-            >>> type(data('m0'))
-            <class 'numpy.ndarray'>
-
-        Returns:
-            (numpy.array): The loaded image as the determined type
-        """
-        self._check_input_path(full_path)
-        img = sitk.ReadImage(full_path)
+    def set_image(self, full_path: str, spec: str):
         match spec:
             case 'm0':
-                self._m0_image = sitk.GetArrayFromImage(img)
+                self._m0_image = load_image(full_path)
             case 'pcasl':
-                self._asl_image = sitk.GetArrayFromImage(img)
-
-    def save_image(self, full_path: str):
-        """Save image to a file path.
-
-        All the available image formats provided in the SimpleITK API can be
-        used here.
-
-        Args:
-            full_path (str): Full absolute path with image file name provided.
-        """
-        sitk_img = sitk.GetImageFromArray(self._asl_image)
-        sitk.WriteImage(sitk_img, full_path)
+                self._asl_image = load_image(full_path)
 
     def get_ld(self):
         """Obtain the LD array values"""
@@ -228,7 +190,3 @@ class ASLData:
                 raise ValueError(
                     f'{param_type} values must be postive non zero numbers.'
                 )
-
-    def _check_input_path(self, path):
-        if not os.path.exists(path):
-            raise ValueError('Image path is not valid or image not found.')
