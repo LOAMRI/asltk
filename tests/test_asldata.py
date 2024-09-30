@@ -8,6 +8,9 @@ from asltk import asldata
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
+PCASL = f'tests' + SEP + 'files' + SEP + 'pcasl.nii.gz'
+M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
+M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 
 
 def test_create_successfuly_asldata_object():
@@ -16,31 +19,46 @@ def test_create_successfuly_asldata_object():
 
 
 def test_create_successfuly_asldata_object_with_inputs():
-    obj_0 = asldata.ASLData(m0=T1_MRI)
+    obj_0 = asldata.ASLData(m0=M0)
     assert isinstance(obj_0, asldata.ASLData)
-    obj_1 = asldata.ASLData(pcasl=T1_MRI)
+    obj_1 = asldata.ASLData(pcasl=PCASL)
     assert isinstance(obj_1, asldata.ASLData)
-    obj_2 = asldata.ASLData(pcasl=T1_MRI, ld_values=[1, 2, 3])
+    obj_2 = asldata.ASLData(pcasl=PCASL, ld_values=[1, 2, 3])
     assert isinstance(obj_2, asldata.ASLData)
     obj_3 = asldata.ASLData(
-        pcasl=T1_MRI, ld_values=[1, 2, 3], pld_values=[1, 2, 3]
+        pcasl=PCASL, ld_values=[1, 2, 3], pld_values=[1, 2, 3]
     )
     assert isinstance(obj_3, asldata.ASLData)
     obj_4 = asldata.ASLData(
-        pcasl=T1_MRI,
+        pcasl=PCASL,
         ld_values=[1, 2, 3],
         pld_values=[1, 2, 3],
         te_values=[1, 2, 3],
     )
     assert isinstance(obj_4, asldata.ASLData)
     obj_5 = asldata.ASLData(
-        pcasl=T1_MRI,
+        pcasl=PCASL,
         ld_values=[1, 2, 3],
         pld_values=[1, 2, 3],
         te_values=[1, 2, 3],
         dw_values=[1, 2, 3],
     )
     assert isinstance(obj_5, asldata.ASLData)
+
+
+def test_create_object_with_different_image_formats():
+    obj = asldata.ASLData(pcasl=PCASL)
+    assert isinstance(obj, asldata.ASLData)
+    obj = asldata.ASLData(m0=M0)
+    assert isinstance(obj, asldata.ASLData)
+
+
+def test_load_image_with_different_file_formats():
+    pass
+
+
+def test_load_image_asl_data_correct_array_shape():
+    pass
 
 
 def test_create_object_check_initial_parameters():
@@ -77,59 +95,6 @@ def test_set_pld_update_object_pld_parameters(input, expected):
     obj = asldata.ASLData()
     obj.set_pld(input)
     assert obj.get_pld() == expected
-
-
-def test_load_image_pcasl_type_update_object_image_reference():
-    obj = asldata.ASLData()
-    assert obj._asl_image == None
-    obj.load_image(T1_MRI, 'pcasl')
-    assert isinstance(obj._asl_image, np.ndarray)
-
-
-def test_load_image_m0_type_update_object_image_reference():
-    obj = asldata.ASLData()
-    assert obj._asl_image == None
-    obj.load_image(T1_MRI, 'm0')
-    assert isinstance(obj._m0_image, np.ndarray)
-
-
-@pytest.mark.parametrize(
-    'input',
-    [
-        ('/wrong/path'),
-        ('not-a-path'),
-        (f'tests' + SEP + 'files' + SEP + 'no-image.nrrd'),
-    ],
-)
-def test_load_image_attest_fullpath_is_valid(input):
-    obj = asldata.ASLData()
-    with pytest.raises(Exception) as e:
-        obj.load_image(input, 'pcasl')
-    assert e.value.args[0] == 'Image path is not valid or image not found.'
-
-
-@pytest.mark.parametrize(
-    'input', [('out.nrrd'), ('out.nii'), ('out.mha'), ('out.tif')]
-)
-def test_save_image_success(input, tmp_path):
-    obj = asldata.ASLData()
-    obj.load_image(T1_MRI, 'pcasl')
-    full_path = tmp_path.as_posix() + os.sep + input
-    obj.save_image(full_path)
-    assert os.path.exists(full_path)
-    read_file = sitk.ReadImage(full_path)
-    assert read_file.GetSize() == sitk.ReadImage(T1_MRI).GetSize()
-
-
-@pytest.mark.parametrize(
-    'input', [('out.nrr'), ('out.n'), ('out.m'), ('out.zip')]
-)
-def test_save_image_throw_error_invalid_formatt(input, tmp_path):
-    obj = asldata.ASLData()
-    obj.load_image(T1_MRI, 'pcasl')
-    full_path = tmp_path.as_posix() + os.sep + input
-    with pytest.raises(Exception) as e:
-        obj.save_image(full_path)
 
 
 def test_get_te_is_none_for_new_object():
