@@ -17,6 +17,7 @@ isort = "^5.13.2"
 taskipy = "^1.13.0"
 SimpleITK = "^2.4.0"
 numpy = "^2.1.1"
+rich = "^13.8.1"
 
 
 [tool.poetry.group.doc.dependencies]
