@@ -21,14 +21,30 @@ def test_create_successfuly_asldata_object():
 def test_create_successfuly_asldata_object_with_inputs():
     obj_0 = asldata.ASLData(m0=M0)
     assert isinstance(obj_0, asldata.ASLData)
+    assert len(obj_0.get_ld()) == 0
+    assert len(obj_0.get_pld()) == 0
+    assert obj_0.get_te() == None
+    assert obj_0.get_dw() == None
     obj_1 = asldata.ASLData(pcasl=PCASL)
     assert isinstance(obj_1, asldata.ASLData)
+    assert len(obj_1.get_ld()) == 0
+    assert len(obj_1.get_pld()) == 0
+    assert obj_1.get_te() == None
+    assert obj_1.get_dw() == None
     obj_2 = asldata.ASLData(pcasl=PCASL, ld_values=[1, 2, 3])
     assert isinstance(obj_2, asldata.ASLData)
+    assert len(obj_2.get_ld()) == 3
+    assert len(obj_2.get_pld()) == 0
+    assert obj_2.get_te() == None
+    assert obj_2.get_dw() == None
     obj_3 = asldata.ASLData(
         pcasl=PCASL, ld_values=[1, 2, 3], pld_values=[1, 2, 3]
     )
     assert isinstance(obj_3, asldata.ASLData)
+    assert len(obj_3.get_ld()) == 3
+    assert len(obj_3.get_pld()) == 3
+    assert obj_3.get_te() == None
+    assert obj_3.get_dw() == None
     obj_4 = asldata.ASLData(
         pcasl=PCASL,
         ld_values=[1, 2, 3],
@@ -36,6 +52,10 @@ def test_create_successfuly_asldata_object_with_inputs():
         te_values=[1, 2, 3],
     )
     assert isinstance(obj_4, asldata.ASLData)
+    assert len(obj_4.get_ld()) == 3
+    assert len(obj_4.get_pld()) == 3
+    assert len(obj_4.get_te()) == 3
+    assert obj_4.get_dw() == None
     obj_5 = asldata.ASLData(
         pcasl=PCASL,
         ld_values=[1, 2, 3],
@@ -44,6 +64,10 @@ def test_create_successfuly_asldata_object_with_inputs():
         dw_values=[1, 2, 3],
     )
     assert isinstance(obj_5, asldata.ASLData)
+    assert len(obj_5.get_ld()) == 3
+    assert len(obj_5.get_pld()) == 3
+    assert len(obj_5.get_te()) == 3
+    assert len(obj_5.get_dw()) == 3
 
 
 def test_create_object_with_different_image_formats():
@@ -218,4 +242,16 @@ def test_set_dw_throw_error_input_is_list_of_negative_or_zero_numbers(input):
 
 def test_asldata_object_call_returns_image():
     obj = asldata.ASLData(pcasl=T1_MRI)
+    assert isinstance(obj('pcasl'), np.ndarray)
+
+
+def test_set_image_sucess_m0():
+    obj = asldata.ASLData(pcasl=T1_MRI)
+    obj.set_image(M0, 'm0')
+    assert isinstance(obj('m0'), np.ndarray)
+
+
+def test_set_image_sucess_pcasl():
+    obj = asldata.ASLData()
+    obj.set_image(M0, 'pcasl')
     assert isinstance(obj('pcasl'), np.ndarray)
