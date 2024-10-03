@@ -57,3 +57,18 @@ def test_save_image_throw_error_invalid_formatt(input, tmp_path):
     full_path = tmp_path.as_posix() + os.sep + input
     with pytest.raises(Exception) as e:
         utils.save_image(img, full_path)
+
+
+def test_asl_model_buxton_return_sucess_list_of_values():
+    buxton_values = utils.asl_model_buxton(
+        tau=[1, 2, 3], w=[10, 20, 30], m0=1000, cbf=450, att=1500
+    )
+    assert len(buxton_values.tolist()) == 3
+    assert type(buxton_values) == np.ndarray
+
+
+# def test_asl_model_buxton_raise_overflow_error():
+#     with pytest.raises(OverflowError) as e:
+#         buxton_values = utils.asl_model_buxton(tau=[np.inf,2,3], w=[10,20,30], m0=1000,cbf=450,att=1500)
+
+#     assert e.value == OverflowError
