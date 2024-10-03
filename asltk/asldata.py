@@ -74,6 +74,9 @@ class ASLData:
             if kwargs.get('pld_values') is None
             else kwargs.get('pld_values')
         )
+        self._check_ld_pld_sizes(
+            self._parameters['ld'], self._parameters['pld']
+        )
         if kwargs.get('te_values'):
             self._parameters['te'] = kwargs.get('te_values')
         if kwargs.get('dw_values'):
@@ -205,3 +208,9 @@ class ASLData:
                 raise ValueError(
                     f'{param_type} values must be postive non zero numbers.'
                 )
+
+    def _check_ld_pld_sizes(self, ld, pld):
+        if len(ld) != len(pld):
+            raise ValueError(
+                f'LD and PLD must have the same array size. LD size is {len(ld)} and PLD size is {len(pld)}'
+            )
