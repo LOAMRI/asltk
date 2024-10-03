@@ -44,10 +44,8 @@ class ASLData:
             [13.0, 20.2, 50.5, 90.5, 125.2]
 
         Other parameters: Set the ASL data parameters
-            pcasl (str, optional): The ASL data full path with filename.
-            Defaults to ''.
-            m0 (str, optional): The M0 data full path with filename. Defaults
-            to ''.
+            pcasl (str, optional): The ASL data full path with filename. Defaults to ''.
+            m0 (str, optional): The M0 data full path with filename. Defaults to ''.
             ld_values (list, optional): The LD values. Defaults to [].
             pld_values (list, optional): The PLD values. Defaults to [].
             te_values (list, optional): The TE values. Defaults to None.
@@ -69,7 +67,7 @@ class ASLData:
             self._m0_image = load_image(kwargs.get('m0'))
 
         self._parameters['ld'] = (
-            [] if kwargs.get('ld_values') is None else kwargs.get('ld_value')
+            [] if kwargs.get('ld_values') is None else kwargs.get('ld_values')
         )
         self._parameters['pld'] = (
             []
@@ -82,6 +80,23 @@ class ASLData:
             self._parameters['dw'] = kwargs.get('dw_values')
 
     def set_image(self, full_path: str, spec: str):
+        """Insert a image necessary to define de ASL data processing.
+
+        The `spec` parameters specifies what is the type of image to be used in
+        ASL processing step. Choose one of the options: `m0` for the M0 volume,
+        `pcasl` for the pCASL data.
+
+        Examples:
+            >>> data = ASLData()
+            >>> path_m0 = './tests/files/m0.nii.gz' # M0 file with shape (5,35,35)
+            >>> data.set_image(path_m0, spec='m0')
+            >>> data('m0').shape
+            (5, 35, 35)
+
+        Args:
+            full_path (str): The full path with filename to be loaded
+            spec (str): The type of image being used in the ASL processing.
+        """
         match spec:
             case 'm0':
                 self._m0_image = load_image(full_path)
