@@ -31,12 +31,6 @@ def test_create_successfuly_asldata_object_with_inputs():
     assert len(obj_1.get_pld()) == 0
     assert obj_1.get_te() == None
     assert obj_1.get_dw() == None
-    obj_2 = asldata.ASLData(pcasl=PCASL, ld_values=[1, 2, 3])
-    assert isinstance(obj_2, asldata.ASLData)
-    assert len(obj_2.get_ld()) == 3
-    assert len(obj_2.get_pld()) == 0
-    assert obj_2.get_te() == None
-    assert obj_2.get_dw() == None
     obj_3 = asldata.ASLData(
         pcasl=PCASL, ld_values=[1, 2, 3], pld_values=[1, 2, 3]
     )
@@ -203,6 +197,26 @@ def test_set_pld_throw_error_input_is_list_of_negative_or_zero_numbers(input):
         obj.set_pld(input)
     assert e.value.args[0] == 'PLD values must be postive non zero numbers.'
     assert e.type == ValueError
+
+
+@pytest.mark.parametrize(
+    'input_ld,input_pld',
+    [
+        ([1, 2, 3], [1, 2]),
+        ([1, 2], [1, 2, 3]),
+        ([1.0, 2.0, 3.0], [1.0, 2.0]),
+        ([1.0, 2.0], [1.0, 2.0, 3.0]),
+    ],
+)
+def test_asl_data_raise_error_if_ld_and_pld_have_different_sizes(
+    input_ld, input_pld
+):
+    with pytest.raises(Exception) as e:
+        data = asldata.ASLData(ld_values=input_ld, pld_values=input_pld)
+    assert (
+        e.value.args[0]
+        == f'LD and PLD must have the same array size. LD size is {len(input_ld)} and PLD size is {len(input_pld)}'
+    )
 
 
 @pytest.mark.parametrize(

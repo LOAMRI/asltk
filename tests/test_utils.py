@@ -67,6 +67,48 @@ def test_asl_model_buxton_return_sucess_list_of_values():
     assert type(buxton_values) == np.ndarray
 
 
+@pytest.mark.parametrize(
+    'input', [(['a', 'b', 'c']), (['a', 'b', 2]), ([100.1, 200.0, 'text'])]
+)
+def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs(input):
+    with pytest.raises(Exception) as e:
+        buxton_values = utils.asl_model_buxton(
+            tau=input, w=[10, 20, 30], m0=1000, cbf=450, att=1500
+        )
+    assert e.value.args[0] == 'tau list must contain float or int values'
+
+
+@pytest.mark.parametrize('input', [('a'), (2), (100.1)])
+def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs(input):
+    with pytest.raises(Exception) as e:
+        buxton_values = utils.asl_model_buxton(
+            tau=input, w=[10, 20, 30], m0=1000, cbf=450, att=1500
+        )
+    assert (
+        e.value.args[0] == 'tau parameter must be a list or tuple of values.'
+    )
+
+
+@pytest.mark.parametrize(
+    'input', [(['a', 'b', 'c']), (['a', 'b', 2]), ([100.1, 200.0, np.ndarray])]
+)
+def test_asl_model_buxton_w_raise_errors_with_wrong_inputs(input):
+    with pytest.raises(Exception) as e:
+        buxton_values = utils.asl_model_buxton(
+            tau=[10, 20, 30], w=input, m0=1000, cbf=450, att=1500
+        )
+    assert e.value.args[0] == 'w list must contain float or int values'
+
+
+@pytest.mark.parametrize('input', [('a'), (1), (100.1), (np.ndarray)])
+def test_asl_model_buxton_w_raise_errors_with_wrong_inputs_not_list(input):
+    with pytest.raises(Exception) as e:
+        buxton_values = utils.asl_model_buxton(
+            tau=[10, 20, 30], w=input, m0=1000, cbf=450, att=1500
+        )
+    assert e.value.args[0] == 'w parameter must be a list or tuple of values.'
+
+
 # def test_asl_model_buxton_raise_overflow_error():
 #     with pytest.raises(OverflowError) as e:
 #         buxton_values = utils.asl_model_buxton(tau=[np.inf,2,3], w=[10,20,30], m0=1000,cbf=450,att=1500)
