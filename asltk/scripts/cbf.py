@@ -13,14 +13,13 @@ from asltk.reconstruction import CBFMapping
 from asltk.utils import load_image, save_image
 
 parser = argparse.ArgumentParser(
-    description='Python script to calculate the Multi-TE PLD ASL data. \n'
-    + 'More details are explained in the documentation: multi_te_asl.md'
+    description='Python script to calculate the basic CBF and ATT maps from ASL data.'
 )
 
 parser.add_argument(
     'pcasl',
     type=str,
-    help='ASL raw data obtained from the MRI scanner. This must be the multi-TE PLD ASL MRI acquisition protocol.',
+    help='ASL raw data obtained from the MRI scanner. This must be the basic PLD ASL MRI acquisition protocol.',
 )
 parser.add_argument('m0', type=str, help='M0 image in Nifti format.')
 parser.add_argument(
@@ -80,13 +79,6 @@ def checkUpParameters():
     if not (os.path.isfile(args.m0)):
         print(
             f'M0 input file does not exist (file path: {args.m0}). Please check the input file before executing the script.'
-        )
-        is_ok = False
-
-    # LD and PLD must be same size
-    if len(pld) != len(ld):
-        print(
-            f'LD and PLD values must have the same array length. LD length = {len(ld)} is different from PLD length = {len(pld)}'
         )
         is_ok = False
 
