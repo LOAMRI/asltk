@@ -15,6 +15,12 @@ rapid and brain-wide blood-to-CSF water transport in humans", Neuroimage
 
 class MRIParameters:
     def __init__(self) -> None:
+        """Creates the basic MRIParameters object to define the main MRI
+        constants and values for ASL processing
+
+        To see all the parameters listed in the class, one can call print the
+        values using the default `print()` function
+        """
         self.T1bl = 1650.0   # T1 relaxation for the blood [1]
         self.T1csf = 1400.0   # T1 relaxation for the CSF [1] Paper Ultralong TE: T1csf = 4300!!!
 
@@ -27,45 +33,67 @@ class MRIParameters:
         self.Lambda = 0.98   # Blood-brain partition coefficient [1]
 
     def set_constant(self, value: float, param: str):
-        try:
-            match param:
-                case 'T1bl':
-                    self.T1bl = value
-                case 'T1csf':
-                    self.T1csf = value
-                case 'T2bl':
-                    self.T2bl = value
-                case 'T2gm':
-                    self.T2gm = value
-                case 'T2csf':
-                    self.T2csf = value
-                case 'Alpha':
-                    self.Alpha = value
-                case 'Lambda':
-                    self.Lambda = value
-        except AttributeError:
-            print(
-                f'A parameters must be indicated. Choose one option indicated in the class constructor documentation.'
-            )
+        """Set a different value for a parameter defined in the MRIParameter
+        class.
+
+        Args:
+            value (float): The value to be assumed in the parameter
+            param (str): The parameter that will receive the new value
+
+        Raises:
+            AttributeError: The parameter type must be already defined in the
+            MRIParameters class.
+        """
+        match param:
+            case 'T1bl':
+                self.T1bl = value
+            case 'T1csf':
+                self.T1csf = value
+            case 'T2bl':
+                self.T2bl = value
+            case 'T2gm':
+                self.T2gm = value
+            case 'T2csf':
+                self.T2csf = value
+            case 'Alpha':
+                self.Alpha = value
+            case 'Lambda':
+                self.Lambda = value
+            case _:
+                raise AttributeError(
+                    f'Constant type {param} is not valid. Choose in the list available in the MRIParameter class.'
+                )
 
     def get_constant(self, param: str) -> float:
-        try:
-            match param:
-                case 'T1bl':
-                    return self.T1bl
-                case 'T1csf':
-                    return self.T1csf
-                case 'T2bl':
-                    return self.T2bl
-                case 'T2gm':
-                    return self.T2gm
-                case 'T2csf':
-                    return self.T2csf
-                case 'Alpha':
-                    return self.Alpha
-                case 'Lambda':
-                    return self.Lambda
-        except AttributeError:
-            print(
-                f'A parameters must be indicated. Choose one option indicated in the class constructor documentation.'
-            )
+        """Collect a parameter value from a defined type
+
+        Args:
+            param (str): The specific parameter that should return the storage
+            value.
+
+        Raises:
+            AttributeError: The parameter type must be already defined in the
+            MRIParameters class.
+
+        Returns:
+            float: The parameter value storage in the object instance
+        """
+        match param:
+            case 'T1bl':
+                return self.T1bl
+            case 'T1csf':
+                return self.T1csf
+            case 'T2bl':
+                return self.T2bl
+            case 'T2gm':
+                return self.T2gm
+            case 'T2csf':
+                return self.T2csf
+            case 'Alpha':
+                return self.Alpha
+            case 'Lambda':
+                return self.Lambda
+            case _:
+                raise AttributeError(
+                    f'Constant type {param} is not valid. Choose in the list available in the MRIParameter class.'
+                )
