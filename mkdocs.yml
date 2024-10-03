@@ -25,8 +25,12 @@ extra_css:
 nav:
   - 'index.md'
   - 'about.md'
+  - 'sharing.md'
+  - 'faq.md'
+  - 'development.md'
   - 'api/asldata.md'
   - 'api/reconstruction.md'
+  - 'api/utils.md'
 
 plugins:
   - search
