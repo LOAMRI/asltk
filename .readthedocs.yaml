@@ -5,12 +5,12 @@ build:
   tools:
     python: "3.10"
 
-jobs:
-    post_create_environment:
-      - pip install poetry
-      - poetry config virutalenvs.create false
-    post_install:
-      - poetry install --with docs
+  jobs:
+      post_create_environment:
+        - pip install poetry
+        - poetry config virutalenvs.create false
+      post_install:
+        - poetry install --with docs
 
 mkdocs:
   configuration: mkdocs.yml
