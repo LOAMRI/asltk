@@ -3,7 +3,7 @@
 ![project logo](assets/asltk-logo.png){ width="350" .center}
 Welcome to the ASL toolkit!
 
-This library was designed to assist users to process Arterial Spin Labeling (ASL) MRI images, since basic imaging protocols until the state-of-art models provided in the scientifica literature.
+This library was designed to assist users to process Arterial Spin Labeling (ASL) MRI images, since basic imaging protocols until the state-of-art models provided in the scientific literature.
 
 The major objective of this project is to give an open-source alternative to researchers in the MRI field. However, a profound knowledge of computing and data modeling is not a prior demand. It is expected that a simple set of python commands can be helpful to fast prototyping an ASL experiment or even collect simple quantitative ASL-based information.
 
@@ -24,7 +24,6 @@ Even though any person is able to install and use the `asltk` library, it is exp
 
 
 # How to install
-
 
 
 # Quick example
