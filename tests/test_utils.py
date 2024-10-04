@@ -109,8 +109,9 @@ def test_asl_model_buxton_w_raise_errors_with_wrong_inputs_not_list(input):
     assert e.value.args[0] == 'w parameter must be a list or tuple of values.'
 
 
-# def test_asl_model_buxton_raise_overflow_error():
-#     with pytest.raises(OverflowError) as e:
-#         buxton_values = utils.asl_model_buxton(tau=[np.inf,2,3], w=[10,20,30], m0=1000,cbf=450,att=1500)
-
-#     assert e.value == OverflowError
+def test_asl_model_multi_te_return_sucess_list_of_values():
+    multite_values = utils.asl_model_multi_te(
+        tau=[1, 2, 3], w=[10, 20, 30], te=[1, 2, 3], m0=1000, cbf=450, att=1500
+    )
+    assert len(multite_values) == 3
+    assert type(multite_values) == np.ndarray
