@@ -13,11 +13,16 @@ theme:
     accent: orange
   font:
     text: Poppins
+    code: Roboto Mono
   icon:
     repo: fontawesome/brands/github
+  features:
+    - content.code.copy
 
 markdown_extensions:
   - attr_list
+  - pymdownx.superfences
+  - markdown.extensions.footnotes
 
 extra_css:
   - stylesheets/extra.css
