@@ -7,12 +7,12 @@ job:
     runs-on: ubuntu-latest
     steps:
       - name: Clone repo
-      uses: actions/checkout@v4.2.0 git clone git@github.com:LOAMRI/asltk.git
+        uses: actions/checkout@v4.2.0 git clone git@github.com:LOAMRI/asltk.git
 
 
       - name: Setup Python
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5.2.0
+        uses: actions/checkout@v4
+        uses: actions/setup-python@v5.2.0
         with:
           python-version: '3.10'  
 
