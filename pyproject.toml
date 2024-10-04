@@ -19,6 +19,7 @@ SimpleITK = "^2.4.0"
 numpy = "^2.1.1"
 rich = "^13.8.1"
 scipy = "^1.14.1"
+pymdown-extensions = "^10.11.2"
 
 
 [tool.poetry.group.doc.dependencies]
