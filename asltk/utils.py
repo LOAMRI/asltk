@@ -189,8 +189,8 @@ def asl_model_multi_te(
     t = np.add(tau, w).tolist()
 
     # TODO Verificar porque nao usar np.array?? comparar com buxton
-    # mag_total = np.zeros(len(tau))
-    mag_total = []
+    mag_total = np.zeros(len(tau))
+    # mag_total = []
 
     for i in range(0, len(tau)):
         try:
@@ -367,6 +367,7 @@ def asl_model_multi_te(
             Sb = 0.0
             Scsf = 0.0
 
-        mag_total.append(Sb + Scsf)
+        mag_total[i] = Sb + Scsf
+        # mag_total.append(Sb + Scsf)
 
     return mag_total
