@@ -1,7 +1,7 @@
 name: Deploy
 on: [push, pull_request]
 
-job:
+jobs:
   test:
     name: Test project - Linux
     runs-on: ubuntu-latest
