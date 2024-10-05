@@ -19,13 +19,12 @@ SimpleITK = "^2.4.0"
 numpy = "^2.1.1"
 rich = "^13.8.1"
 scipy = "^1.14.1"
-pymdown-extensions = "^10.11.2"
-
 
 [tool.poetry.group.doc.dependencies]
 mkdocs-material = "^9.5.34"
 mkdocstrings = "^0.26.1"
 mkdocstrings-python = "^1.11.1"
+pymdown-extensions = "^10.11.2"
 
 [tool.pytest.ini_options]
 pythonpath = "."
