@@ -4,7 +4,7 @@ mkdocs:
   configuration: mkdocs.yml
 
 build:
-  os: "ubuntu-lts-latest"
+  os: "ubuntu-22.04"
   tools:
     python: "3.10"
 
