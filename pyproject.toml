@@ -1,12 +1,11 @@
 [tool.poetry]
 name = "asltk"
-version = "0.0.1"
+version = "0.1.0"
 description = "A quick to use library to process images for MRI Arterial Spin Labeling imaging protocols."
 authors = ["Antonio Senra Filho <acsenrafilho@alumni.usp.br>"]
 readme = "README.md"
-License = "MIT"
+license = "MIT"
 packages = [{include = "asltk"}]
-requires-python = ">=3.10"
 classifiers = [
     "Intended Audience :: Healthcare Industry",
     "Intended Audience :: Science/Research",
