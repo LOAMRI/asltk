@@ -4,7 +4,7 @@ repo_name: LOAMRI/asltk
 edit_uri: tree/main/docs
 
 theme:
-  name: readthedocs
+  name: material
   language: en
   logo: assets/asltk-favicon.png
   favicon: assets/asltk-favicon.png
