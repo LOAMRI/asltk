@@ -4,6 +4,25 @@ version = "0.0.1"
 description = "A quick to use library to process images for MRI Arterial Spin Labeling imaging protocols."
 authors = ["Antonio Senra Filho <acsenrafilho@alumni.usp.br>"]
 readme = "README.md"
+License = "MIT"
+packages = [{include = "asltk"}]
+requires-python = ">=3.10"
+classifiers = [
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+[tool.poetry.urls]
+"Documentation" = "https://asltk.readthedocs.io/en/latest"
+"Code" = "https://github.com/LOAMRI/asltk"
+"Code Issues" = "https://github.com/LOAMRI/asltk/issues"
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
