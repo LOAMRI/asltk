@@ -8,7 +8,7 @@
 
 Welcome to the ASLtk project!
 
-Access the full documentation at: [link](http://www.google.com)
+Access the [full documentation](https://asltk.readthedocs.io/en/latest/) to check the usage and development of this tool.
 
 ## How to install
 
