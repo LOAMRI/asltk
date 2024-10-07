@@ -4,15 +4,15 @@ repo_name: LOAMRI/asltk
 edit_uri: tree/main/docs
 
 theme:
-  name: material
+  name: readthedocs
   language: en
-  logo: assets/asltk-logo.png
-  favicon: assets/asltk-logo.png
+  logo: assets/asltk-favicon.png
+  favicon: assets/asltk-favicon.png
   palette:
     scheme: black
     accent: orange
   font:
-    text: Poppins
+    text: Arial
     code: Roboto Mono
   icon:
     repo: fontawesome/brands/github
