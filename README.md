@@ -1,4 +1,4 @@
-<img src="https://github.com/LOAMRI/asltk/blob/develop/docs/assets/asltk-logo.png" width=200>
+<img src="https://raw.githubusercontent.com/LOAMRI/asltk/refs/heads/develop/docs/assets/asltk-logo.png" width=200>
 
 [![Documentation Status](https://readthedocs.org/projects/asltk/badge/?version=latest)](https://asltk.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/LOAMRI/asltk/graph/badge.svg?token=1W8GQ7SLU9)](https://codecov.io/gh/LOAMRI/asltk)
