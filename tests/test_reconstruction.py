@@ -236,3 +236,15 @@ def test_multite_asl_object_raises_error_if_asldata_does_not_have_pcasl_or_m0_im
         error.value.args[0]
         == 'ASLData is incomplete. CBFMapping need pcasl and m0 images.'
     )
+
+
+def test_multite_asl_object_raises_error_if_asldata_does_not_have_te_values():
+    incomplete_asldata = asldata
+    incomplete_asldata._parameters['te'] = None
+    with pytest.raises(Exception) as error:
+        mte = MultiTE_ASLMapping(incomplete_asldata)
+
+    assert (
+        error.value.args[0]
+        == 'ASLData is incomplete. MultiTE_ASLMapping need a list of TE values.'
+    )
