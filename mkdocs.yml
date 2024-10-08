@@ -9,8 +9,9 @@ theme:
   logo: assets/asltk-favicon.png
   favicon: assets/asltk-favicon.png
   palette:
-    scheme: black
-    accent: orange
+    scheme: default
+    primary: custom
+    accent: cyan
   font:
     text: Arial
     code: Roboto Mono
@@ -18,24 +19,34 @@ theme:
     repo: fontawesome/brands/github
   features:
     - content.code.copy
+    - content.footnote.tooltips
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.sections
+    - navigation.expand
 
 markdown_extensions:
+  - admonition
   - attr_list
-  - pymdownx.superfences
-  - markdown.extensions.footnotes
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - footnotes
 
 extra_css:
   - stylesheets/extra.css
 
 nav:
   - 'index.md'
-  - 'about.md'
-  - 'sharing.md'
+  - 'installation_guide.md'
+  - 'getting_started.md'
   - 'faq.md'
-  - 'development.md'
   - 'api/asldata.md'
   - 'api/reconstruction.md'
   - 'api/utils.md'
+  - 'contribute.md'
 
 plugins:
   - search

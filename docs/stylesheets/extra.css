@@ -5,5 +5,11 @@
 }
 
 body {
-    background: rgb(231, 231, 231);    
+    background: rgb(255, 255, 255);    
 }
+
+:root {
+    --md-primary-fg-color:        #2f81cf;
+    --md-primary-fg-color--light: #rgb(236, 249, 253);
+    --md-primary-fg-color--dark:  #0d1a34;
+  }
