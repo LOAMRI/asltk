@@ -194,7 +194,7 @@ class MultiTE_ASLMapping(MRIParameters):
         Examples:
             The default MRIParameters are used as default in the object
             constructor
-            >>> asl_data = ASLData(pcasl='./tests/files/pcasl.nii.gz',m0='./tests/files/m0.nii.gz')
+            >>> asl_data = ASLData(pcasl='./tests/files/pcasl.nii.gz',m0='./tests/files/m0.nii.gz', te_values=[13.2, 25.7, 50.4])
             >>> mte = MultiTE_ASLMapping(asl_data)
             >>> mte.get_constant('T1csf')
             1400.0
