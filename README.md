@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/LOAMRI/asltk/refs/heads/develop/docs/assets/asltk-logo.png" width=200>
 
-[![Documentation Status](https://readthedocs.org/projects/asltk/badge/?version=latest)](https://asltk.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Stable](https://readthedocs.org/projects/asltk/badge/?version=main)](https://asltk.readthedocs.io/en/main/?badge=main)
 [![codecov](https://codecov.io/gh/LOAMRI/asltk/graph/badge.svg?token=1W8GQ7SLU9)](https://codecov.io/gh/LOAMRI/asltk)
 ![CI_main](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml/badge.svg)
 [![CI_develop](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml)
