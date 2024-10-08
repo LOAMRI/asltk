@@ -182,12 +182,44 @@ class CBFMapping(MRIParameters):
 
 class MultiTE_ASLMapping(MRIParameters):
     def __init__(self, asl_data: ASLData) -> None:
+        """Basic MultiTE_ASLMapping constructor
+
+        Notes:
+            The ASLData is the base data used in the object constructor.
+            In order to create the CBF map correctly, a proper ASLData must be
+            provided. Check whether the ASLData given as input is defined
+            correctly. In particular, it must provide the `te_values` list of
+            values in the ASLData object
+
+        Examples:
+            The default MRIParameters are used as default in the object
+            constructor
+            >>> asl_data = ASLData(pcasl='./tests/files/pcasl.nii.gz',m0='./tests/files/m0.nii.gz')
+            >>> mte = MultiTE_ASLMapping(asl_data)
+            >>> mte.get_constant('T1csf')
+            1400.0
+
+            If the user want to change the MRIParameter value, for a specific
+            object, one can change it directly:
+            >>> mte.set_constant(1600.0, 'T1csf')
+            >>> mte.get_constant('T1csf')
+            1600.0
+            >>> default_param = MRIParameters()
+            >>> default_param.get_constant('T1csf')
+            1400.0
+
+        Args:
+            asl_data (ASLData): The ASL data object (ASLData)
+
+        Raises:
+            ValueError: Raises when an incomplete ASLData object is provided
+        """
         super().__init__()
         self._asl_data = asl_data
         self._basic_maps = CBFMapping(asl_data)
-        if self._asl_data('m0') is None:
+        if self._asl_data._parameters['te'] is None:
             raise ValueError(
-                'ASLData is incomplete. CBFMapping need pcasl and m0 images.'
+                'ASLData is incomplete. MultiTE_ASLMapping need a list of TE values.'
             )
 
         self._brain_mask = np.ones(self._asl_data('m0').shape)
