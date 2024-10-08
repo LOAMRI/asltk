@@ -7,10 +7,11 @@ about some measures:
 [1] Leonie Petitclerc, et al. "Ultra-long-TE arterial spin labeling reveals
 rapid and brain-wide blood-to-CSF water transport in humans", Neuroimage
 (2021). DOI: 10.1016/j.neuroimage.2021.118755
-"""
 
-# Relaxation constants (ms)
-# from typing import Any
+[2] R B Buxton, et al. "A general kinetic model for quantitative perfusion
+imaging with arterial spin labeling". Magn Reson Med (1998). PMID: 9727941
+DOI: 10.1002/mrm.1910400308
+"""
 
 
 class MRIParameters:
