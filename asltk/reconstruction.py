@@ -1,6 +1,7 @@
 import warnings
 
 import numpy as np
+import SimpleITK as sitk
 from rich import print
 from rich.progress import track
 from scipy.optimize import curve_fit
@@ -76,6 +77,14 @@ class CBFMapping(MRIParameters):
         binary_mask = (brain_mask == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
 
+    def get_brain_mask(self):
+        """Get the brain mask image
+
+        Returns:
+            (np.ndarray): The brain mask image
+        """
+        return self._brain_mask
+
     def create_map(
         self,
         ub: list = [1.0, 5000.0],
@@ -104,6 +113,11 @@ class CBFMapping(MRIParameters):
         Returns:
             (dict): A dictionary with 'cbf', 'att' and 'cbf_norm'
         """
+        if (
+            len(self._asl_data.get_ld()) == 0
+            or len(self._asl_data.get_pld()) == 0
+        ):
+            raise ValueError('LD or PLD list of values must be provided.')
 
         BuxtonX = [
             self._asl_data.get_ld(),
@@ -154,6 +168,10 @@ class CBFMapping(MRIParameters):
         }
 
     def _check_mask_values(self, mask, label):
+        # Check wheter mask input is an numpy array
+        if not isinstance(mask, np.ndarray):
+            raise TypeError(f'mask is not an numpy array. Type {type(mask)}')
+
         # Check whether the mask provided is a binary image
         unique_values = np.unique(mask)
         if unique_values.size > 2:
@@ -217,7 +235,7 @@ class MultiTE_ASLMapping(MRIParameters):
         super().__init__()
         self._asl_data = asl_data
         self._basic_maps = CBFMapping(asl_data)
-        if self._asl_data._parameters['te'] is None:
+        if self._asl_data.get_te() is None:
             raise ValueError(
                 'ASLData is incomplete. MultiTE_ASLMapping need a list of TE values.'
             )
@@ -248,6 +266,14 @@ class MultiTE_ASLMapping(MRIParameters):
 
         binary_mask = (brain_mask == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
+
+    def get_brain_mask(self):
+        """Get the brain mask image
+
+        Returns:
+            (np.ndarray): The brain mask image
+        """
+        return self._brain_mask
 
     def set_cbf_map(self, cbf_map: np.ndarray):
         """Set the CBF map to the MultiTE_ASLMapping object.
@@ -288,6 +314,10 @@ class MultiTE_ASLMapping(MRIParameters):
         return self._att_map
 
     def _check_mask_values(self, mask, label):
+        # Check wheter mask input is an numpy array
+        if not isinstance(mask, np.ndarray):
+            raise TypeError(f'mask is not an numpy array. Type {type(mask)}')
+
         # Check whether the mask provided is a binary image
         unique_values = np.unique(mask)
         if unique_values.size > 2:
@@ -320,7 +350,8 @@ class MultiTE_ASLMapping(MRIParameters):
         par0: list = [400],
     ):
         """Create the T1 relaxation exchange between blood and Grey Matter (GM)
-        , i.e. the T1blGM map resulted from the multi-compartiment TE ASL model
+        , i.e. the T1blGM map resulted from the multi-compartiment TE ASL model.
+
         Reference:  Ultra-long-TE arterial spin labeling reveals rapid and
         brain-wide blood-to-CSF water transport in humans, NeuroImage,
         doi: 10.1016/j.neuroimage.2021.118755
@@ -335,6 +366,16 @@ class MultiTE_ASLMapping(MRIParameters):
             The CBF map must be at the original scale to perform the correct
             multiTE-ASL model. Therefore, provide the 'cbf' output.
 
+        The method assumes that the fine tunning map can be approached using
+        the adpted initial guess (parameter par0). Hence, the generated T1blGM
+        map applies a cut-off using only positive values (`>0`) and upper limit
+        of four times the initial guess (`4 * par0`).
+
+        Note:
+            It is a good practive to apply a spatial smoothing in the output
+            T1blGM map, in order to improve SNR. However, the `create_map`
+            method does not applies any image filter as default.
+
         Args:
             ub (list, optional): The upper limit values. Defaults to [1.0, 5000.0].
             lb (list, optional): The lower limit values. Defaults to [0.0, 0.0].
@@ -344,17 +385,14 @@ class MultiTE_ASLMapping(MRIParameters):
             (dict): A dictionary with 'cbf', 'att' and 'cbf_norm'
         """
         # TODO As entradas ub, lb e par0 não são aplicadas para CBF. Pensar se precisa ter essa flexibilidade para acertar o CBF interno à chamada
-        cbf = CBFMapping(self._asl_data)
-        cbf.set_brain_mask(self._brain_mask)
+        self._basic_maps.set_brain_mask(self._brain_mask)
 
         basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
-        # If the CBF/ATT maps are zero (empty), then a new one is created
-        print(
-            '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
-        )
-        if np.int8(np.mean(self._cbf_map)) == np.int8(0) or np.int8(
-            np.mean(self._att_map)
-        ) == np.int8(0):
+        if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
+            # If the CBF/ATT maps are zero (empty), then a new one is created
+            print(
+                '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
+            )
             basic_maps = self._basic_maps.create_map()
             self._cbf_map = basic_maps['cbf']
             self._att_map = basic_maps['att']
@@ -414,6 +452,9 @@ class MultiTE_ASLMapping(MRIParameters):
                         except RuntimeError:
                             self._t1blgm_map[k, j, i] = 0.0
 
+        # Adjusting output image boundaries
+        self._t1blgm_map = self._adjust_image_limits(self._t1blgm_map, par0[0])
+
         return {
             'cbf': self._cbf_map,
             'cbf_norm': self._cbf_map * (60 * 60 * 1000),
@@ -433,3 +474,14 @@ class MultiTE_ASLMapping(MRIParameters):
                 count += 1
 
         return Xdata
+
+    def _adjust_image_limits(self, map, init_guess):
+        img = sitk.GetImageFromArray(map)
+        thr_filter = sitk.ThresholdImageFilter()
+        thr_filter.SetUpper(
+            4 * init_guess
+        )   # assuming upper to 4x the initial guess
+        thr_filter.SetLower(0.0)
+        img = thr_filter.Execute(img)
+
+        return sitk.GetArrayFromImage(img)
