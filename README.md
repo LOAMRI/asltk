@@ -9,9 +9,11 @@
 
 Welcome to the ASLtk project!
 
-Access the [full documentation](https://asltk.readthedocs.io/en/latest/) to check the usage and development of this tool.
+Access the [full documentation](https://asltk.readthedocs.io/en/main/) to check the usage and development of this tool.
 
 ## How to install
+
+Requires Python 3.10 or higher:
 
 ```bash
 pip install asltk
