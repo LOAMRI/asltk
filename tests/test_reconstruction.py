@@ -1,4 +1,5 @@
 import os
+import re
 import warnings
 
 import numpy as np
@@ -61,6 +62,14 @@ def test_cbf_add_brain_mask_success():
     assert isinstance(cbf._brain_mask, np.ndarray)
 
 
+def test_cbf_object_create_map_raise_error_if_ld_or_pld_are_not_provided():
+    data = ASLData(pcasl=PCASL, m0=M0)
+    cbf = CBFMapping(data)
+    with pytest.raises(Exception) as e:
+        cbf.create_map()
+    assert e.value.args[0] == 'LD or PLD list of values must be provided.'
+
+
 def test_set_brain_mask_verify_if_input_is_a_label_mask():
     cbf = CBFMapping(asldata)
     not_mask = load_image(T1_MRI)
@@ -119,6 +128,16 @@ def test_set_brain_mask_creates_3d_volume_of_ones_if_not_set_in_cbf_object():
     vol_shape = asldata('m0').shape
     mask_shape = cbf._brain_mask.shape
     assert vol_shape == mask_shape
+
+
+def test_set_brain_mask_raise_error_mask_is_not_an_numpy_array():
+    cbf = CBFMapping(asldata)
+    with pytest.raises(Exception) as e:
+        cbf.set_brain_mask(M0_BRAIN_MASK)
+    assert (
+        e.value.args[0]
+        == f'mask is not an numpy array. Type {type(M0_BRAIN_MASK)}'
+    )
 
 
 def test_cbf_object_create_map_success():
@@ -239,12 +258,56 @@ def test_multite_asl_object_raises_error_if_asldata_does_not_have_pcasl_or_m0_im
 
 
 def test_multite_asl_object_raises_error_if_asldata_does_not_have_te_values():
-    incomplete_asldata = asldata
-    incomplete_asldata._parameters['te'] = None
+    incompleted_asldata = ASLData(
+        pcasl=PCASL,
+        m0=M0,
+        ld_values=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+        pld_values=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+    )
     with pytest.raises(Exception) as error:
-        mte = MultiTE_ASLMapping(incomplete_asldata)
+        mte = MultiTE_ASLMapping(incompleted_asldata)
 
     assert (
         error.value.args[0]
         == 'ASLData is incomplete. MultiTE_ASLMapping need a list of TE values.'
     )
+
+
+def test_multite_asl_object_set_cbf_and_att_maps_before_create_map():
+    mte = MultiTE_ASLMapping(asldata)
+    assert np.mean(mte.get_brain_mask()) == 1
+
+    mask = load_image(M0_BRAIN_MASK)
+    mte.set_brain_mask(mask)
+    assert np.mean(mte.get_brain_mask()) < 1
+
+    # Test if CBF/ATT are empty (fresh obj creation)
+    assert np.mean(mte.get_att_map()) == 0 and np.mean(mte.get_cbf_map()) == 0
+
+    # Update CBF/ATT maps and test if it changed in the obj
+    cbf = np.ones(mask.shape) * 100
+    att = np.ones(mask.shape) * 1500
+    mte.set_cbf_map(cbf)
+    mte.set_att_map(att)
+    assert (
+        np.mean(mte.get_att_map()) == 1500
+        and np.mean(mte.get_cbf_map()) == 100
+    )
+
+
+def test_multite_asl_object_create_map_using_provided_cbf_att_maps(capfd):
+    mte = MultiTE_ASLMapping(asldata)
+    mask = load_image(M0_BRAIN_MASK)
+    cbf = np.ones(mask.shape) * 100
+    att = np.ones(mask.shape) * 1500
+
+    mte.set_brain_mask(mask)
+    mte.set_cbf_map(cbf)
+    mte.set_att_map(att)
+
+    _ = mte.create_map()
+    out, err = capfd.readouterr()
+    test_pass = False
+    if re.search('multiTE-ASL', out):
+        test_pass = True
+    assert test_pass
