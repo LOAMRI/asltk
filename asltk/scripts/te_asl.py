@@ -5,8 +5,6 @@ from functools import *
 import numpy as np
 import SimpleITK as sitk
 from rich import print
-from rich.progress import track
-from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import MultiTE_ASLMapping
@@ -35,6 +33,20 @@ parser.add_argument(
     nargs='?',
     default=os.path.expanduser('~'),
     help='The output folder that is the reference to save all the output images in the script. The images selected to be saved are given as tags in the script caller, e.g. the options --cbf_map and --att_map. By default, the TblGM map is placed in the output folder with the name tblgm_map.nii.gz',
+)
+parser.add_argument(
+    '--cbf',
+    type=str,
+    nargs='?',
+    required=False,
+    help='The CBF map that is provided to skip this step in the MultiTE-ASL calculation. If CBF is not provided, than a CBF map is calculated at the runtime. Important: The CBF passed here is with the original voxel scale, i.e. without voxel normalization.',
+)
+parser.add_argument(
+    '--att',
+    type=str,
+    nargs='?',
+    required=False,
+    help='The ATT map that is provided to skip this step in the MultiTE-ASL calculation. If ATT is not provided, than a ATT map is calculated at the runtime.',
 )
 parser.add_argument(
     '--pld',
@@ -102,6 +114,15 @@ if args.mask != '':
     mask_img = load_image(args.mask)
 
 
+cbf_map = None
+if args.cbf != '':
+    cbf_map = load_image(args.cbf)
+
+att_map = None
+if args.cbf != '':
+    att_map = load_image(args.att)
+
+
 try:
     te = [float(s) for s in args.te]
     pld = [float(s) for s in args.pld]
@@ -129,27 +150,36 @@ if args.verbose:
     print('PLD: ' + str(pld))
     print('LD: ' + str(ld))
     print('TE: ' + str(te))
+    if args.cbf != '':
+        print('(optional) CBF map: ' + str(args.cbf))
+    if args.att != '':
+        print('(optional) ATT map: ' + str(args.att))
+
 
 data = ASLData(
     pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, te_values=te
 )
 recon = MultiTE_ASLMapping(data)
 recon.set_brain_mask(mask_img)
+if isinstance(cbf_map, np.ndarray) and isinstance(att_map, np.ndarray):
+    recon.set_cbf_map(cbf_map)
+    recon.set_att_map(att_map)
+
 maps = recon.create_map()
 
 
 save_path = args.out_folder + os.path.sep + 'cbf_map.nii.gz'
-if args.verbose:
+if args.verbose and cbf_map is not None:
     print('Saving CBF map - Path: ' + save_path)
 save_image(maps['cbf'], save_path)
 
 save_path = args.out_folder + os.path.sep + 'cbf_map_normalized.nii.gz'
-if args.verbose:
+if args.verbose and cbf_map is not None:
     print('Saving normalized CBF map - Path: ' + save_path)
 save_image(maps['cbf_norm'], save_path)
 
 save_path = args.out_folder + os.path.sep + 'att_map.nii.gz'
-if args.verbose:
+if args.verbose and att_map is not None:
     print('Saving ATT map - Path: ' + save_path)
 save_image(maps['att'], save_path)
 
