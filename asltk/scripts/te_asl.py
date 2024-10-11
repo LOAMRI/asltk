@@ -115,11 +115,11 @@ if args.mask != '':
 
 
 cbf_map = None
-if args.cbf != '':
+if args.cbf is not None:
     cbf_map = load_image(args.cbf)
 
 att_map = None
-if args.cbf != '':
+if args.att is not None:
     att_map = load_image(args.att)
 
 
