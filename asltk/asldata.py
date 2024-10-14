@@ -162,11 +162,11 @@ class ASLData:
         self._parameters['te'] = te_values
 
     def get_dw(self):
-        """Obtain the PLD array values"""
+        """Obtain the Diffusion b values array"""
         return self._parameters['dw']
 
     def set_dw(self, dw_values: list):
-        """Set the DW values.
+        """Set the Diffusion b values.
 
         The proper way to inform the values here is using a list of int or
         float data. The total quantity of values depends on the image
