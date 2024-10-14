@@ -368,3 +368,19 @@ def asl_model_multi_te(
         mag_total[i] = Sb + Scsf
 
     return mag_total
+
+
+def asl_model_multi_dw(
+    b_values: list, A1: list, D1: float, A2: list, D2: float
+):
+    mag_total = np.zeros(len(b_values))
+
+    for i in range(0, len(b_values)):
+        try:
+            mag_total[i] = A1 * math.exp(-b_values[i] * D1) + A2 * math.exp(
+                -b_values[i] * D2
+            )
+        except (OverflowError, RuntimeError):
+            mag_total[i] = 0.0
+
+    return mag_total
