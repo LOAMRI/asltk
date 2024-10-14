@@ -7,17 +7,17 @@ import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
-from asltk.reconstruction import MultiTE_ASLMapping
+from asltk.reconstruction import MultiDW_ASLMapping
 from asltk.utils import load_image, save_image
 
 parser = argparse.ArgumentParser(
-    description='Python script to calculate the Multi-TE ASL data.'
+    description='Python script to calculate the Multi-DW ASL data.'
 )
 
 parser.add_argument(
     'pcasl',
     type=str,
-    help='ASL raw data obtained from the MRI scanner. This must be the multi-TE ASL MRI acquisition protocol.',
+    help='ASL raw data obtained from the MRI scanner. This must be the multi-DW ASL MRI acquisition protocol.',
 )
 parser.add_argument('m0', type=str, help='M0 image in Nifti format.')
 parser.add_argument(
@@ -63,12 +63,13 @@ parser.add_argument(
     help='Labeling Duration trend (LD), arranged in a sequence of float numbers.',
 )
 parser.add_argument(
-    '--te',
+    '--dw',
     type=str,
     nargs='+',
     required=True,
-    help='Time of Echos (TE), arranged in a sequence of float numbers.',
+    help='Diffusion b-values arranged in a sequence of float numbers.',
 )
+
 
 parser.add_argument(
     '--verbose',
@@ -123,11 +124,11 @@ if args.att is not None:
 
 
 try:
-    te = [float(s) for s in args.te]
+    dw = [float(s) for s in args.dw]
     pld = [float(s) for s in args.pld]
     ld = [float(s) for s in args.ld]
 except:
-    te = [float(s) for s in str(args.te[0]).split()]
+    dw = [float(s) for s in str(args.dw[0]).split()]
     pld = [float(s) for s in str(args.pld[0]).split()]
     ld = [float(s) for s in str(args.ld[0]).split()]
 
@@ -148,7 +149,7 @@ if args.verbose:
     print('M0 image dimension: ' + str(m0_img.shape))
     print('PLD: ' + str(pld))
     print('LD: ' + str(ld))
-    print('TE: ' + str(te))
+    print('DW: ' + str(dw))
     if args.cbf != '':
         print('(optional) CBF map: ' + str(args.cbf))
     if args.att != '':
@@ -156,9 +157,9 @@ if args.verbose:
 
 
 data = ASLData(
-    pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, te_values=te
+    pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, dw_values=dw
 )
-recon = MultiTE_ASLMapping(data)
+recon = MultiDW_ASLMapping(data)
 recon.set_brain_mask(mask_img)
 if isinstance(cbf_map, np.ndarray) and isinstance(att_map, np.ndarray):
     recon.set_cbf_map(cbf_map)
@@ -182,10 +183,10 @@ if args.verbose and att_map is not None:
     print('Saving ATT map - Path: ' + save_path)
 save_image(maps['att'], save_path)
 
-save_path = args.out_folder + os.path.sep + 'mte_t1blgm_map.nii.gz'
+save_path = args.out_folder + os.path.sep + 'mte_kw_map.nii.gz'
 if args.verbose:
-    print('Saving multiTE-ASL T1blGM map - Path: ' + save_path)
-save_image(maps['t1blgm'], save_path)
+    print('Saving multiDW-ASL kw map - Path: ' + save_path)
+save_image(maps['kw'], save_path)
 
 if args.verbose:
     print('Execution: ' + parser.prog + ' finished successfully!')
