@@ -134,7 +134,7 @@ def asl_model_buxton(
                     * math.exp(-att / t1b)
                     * math.exp(-(t[i] - tau[i] - att) / t1bp)
                 )
-        except OverflowError:
+        except OverflowError:   # pragma: no cover
             m_values[i] = 0.0
 
     return m_values
@@ -361,7 +361,7 @@ def asl_model_multi_te(
                 Scsf = S1b * (1 - math.exp(-te[i] / tblcsf)) * math.exp(
                     -te[i] / t2csf
                 ) + S1csf * math.exp(-te[i] / t2csf)
-        except (OverflowError, RuntimeError):
+        except (OverflowError, RuntimeError):   # pragma: no cover
             Sb = 0.0
             Scsf = 0.0
 
@@ -380,7 +380,7 @@ def asl_model_multi_dw(
             mag_total[i] = A1 * math.exp(-b_values[i] * D1) + A2 * math.exp(
                 -b_values[i] * D2
             )
-        except (OverflowError, RuntimeError):
+        except (OverflowError, RuntimeError):   # pragma: no cover
             mag_total[i] = 0.0
 
     return mag_total

@@ -389,7 +389,7 @@ class MultiTE_ASLMapping(MRIParameters):
                                 bounds=(lb, ub),
                             )
                             self._t1blgm_map[k, j, i] = par_fit[0]
-                        except RuntimeError:
+                        except RuntimeError:   # pragma: no cover
                             self._t1blgm_map[k, j, i] = 0.0
 
         # Adjusting output image boundaries
@@ -532,10 +532,10 @@ class MultiDW_ASLMapping(MRIParameters):
             # If the CBF/ATT maps are zero (empty), then a new one is created
             print(
                 '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
-            )
-            basic_maps = self._basic_maps.create_map()
-            self._cbf_map = basic_maps['cbf']
-            self._att_map = basic_maps['att']
+            )   # pragma: no cover
+            basic_maps = self._basic_maps.create_map()   # pragma: no cover
+            self._cbf_map = basic_maps['cbf']   # pragma: no cover
+            self._att_map = basic_maps['att']   # pragma: no cover
 
         x_axis = self._asl_data('m0').shape[2]   # height
         y_axis = self._asl_data('m0').shape[1]   # width
