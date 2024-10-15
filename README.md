@@ -8,13 +8,23 @@
 
 # Arterial Spin Labeling Toolkit (asltk)
 
-Welcome to the ASLtk project!
+Welcome to the ASL toolkit!
 
-Access the [full documentation](https://asltk.readthedocs.io/en/main/) to check the usage and development of this tool.
+This library was designed to assist users in processing Arterial Spin Labeling (ASL) MRI images, from basic imaging protocols to the state-of-the-art models provided in the scientific literature.
+
+The major objective of this project is to give an open-source alternative to researchers in the MRI field. A profound knowledge of computing and data modelling is not a prior demand. It is expected that a simple set of Python commands can be helpful in fast prototyping an ASL experiment or even collecting simple quantitative ASL-based information.
+
+Please read the [full documentation](https://asltk.readthedocs.io/en/main/) to get more details about the usage, implementation and updates in the `asltk` library. 
+
+Also, feel free to contribute directly to the project! Check it out the [issues](https://github.com/LOAMRI/asltk/issues) at the repository and get in touch to the developers of the project. 
+
 
 ## How to install
 
-Requires Python 3.10 or higher:
+A quick to use install is via `pip`, as follows:
+
+> [!NOTE]
+> The installation requires Python 3.10 or higher
 
 ```bash
 pip install asltk
