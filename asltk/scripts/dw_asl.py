@@ -11,67 +11,69 @@ from asltk.reconstruction import MultiDW_ASLMapping
 from asltk.utils import load_image, save_image
 
 parser = argparse.ArgumentParser(
+    prog="Multi-DW ASL Mapping",
     description='Python script to calculate the Multi-DW ASL data.'
 )
+parser._action_groups.pop()
+required = parser.add_argument_group(title="Required parameters")
+optional = parser.add_argument_group(title="Optional parameters")
 
-parser.add_argument(
+required.add_argument(
     'pcasl',
     type=str,
     help='ASL raw data obtained from the MRI scanner. This must be the multi-DW ASL MRI acquisition protocol.',
 )
-parser.add_argument('m0', type=str, help='M0 image in Nifti format.')
-parser.add_argument(
+required.add_argument('m0', type=str, help='M0 image reference used to calculate the ASL signal.')
+optional.add_argument(
     'mask',
     type=str,
     nargs='?',
     default='',
-    help='Image mask defining the ROI where the calculations must be done. Any pixel value different from zero will be assumed as the ROI area. Outside the mask (value=0) will be ignored.',
+    help='Image mask defining the ROI where the calculations must be done. Any pixel value different from zero will be assumed as the ROI area. Outside the mask (value=0) will be ignored. If not provided, the entire image space will be calculated.',
 )
-parser.add_argument(
+required.add_argument(
     'out_folder',
     type=str,
     nargs='?',
     default=os.path.expanduser('~'),
     help='The output folder that is the reference to save all the output images in the script. The images selected to be saved are given as tags in the script caller, e.g. the options --cbf_map and --att_map. By default, the TblGM map is placed in the output folder with the name tblgm_map.nii.gz',
 )
-parser.add_argument(
+optional.add_argument(
     '--cbf',
     type=str,
     nargs='?',
     required=False,
     help='The CBF map that is provided to skip this step in the MultiTE-ASL calculation. If CBF is not provided, than a CBF map is calculated at the runtime. Important: The CBF passed here is with the original voxel scale, i.e. without voxel normalization.',
 )
-parser.add_argument(
+optional.add_argument(
     '--att',
     type=str,
     nargs='?',
     required=False,
     help='The ATT map that is provided to skip this step in the MultiTE-ASL calculation. If ATT is not provided, than a ATT map is calculated at the runtime.',
 )
-parser.add_argument(
+required.add_argument(
     '--pld',
     type=str,
     nargs='+',
     required=True,
     help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers',
 )
-parser.add_argument(
+required.add_argument(
     '--ld',
     type=str,
     nargs='+',
     required=True,
     help='Labeling Duration trend (LD), arranged in a sequence of float numbers.',
 )
-parser.add_argument(
+required.add_argument(
     '--dw',
     type=str,
     nargs='+',
     required=True,
     help='Diffusion b-values arranged in a sequence of float numbers.',
 )
-
-
-parser.add_argument(
+optional.add_argument(
     '--verbose',
     action='store_true',
     help='Show more details thoughout the processing.',
