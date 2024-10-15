@@ -13,12 +13,12 @@ from asltk.reconstruction import CBFMapping
 from asltk.utils import load_image, save_image
 
 parser = argparse.ArgumentParser(
-    prog="CBF/ATT Mapping",
-    description='Python script to calculate the basic CBF and ATT maps from ASL data.'
+    prog='CBF/ATT Mapping',
+    description='Python script to calculate the basic CBF and ATT maps from ASL data.',
 )
 parser._action_groups.pop()
-required = parser.add_argument_group(title="Required parameters")
-optional = parser.add_argument_group(title="Optional parameters")
+required = parser.add_argument_group(title='Required parameters')
+optional = parser.add_argument_group(title='Optional parameters')
 
 
 required.add_argument(
@@ -26,7 +26,9 @@ required.add_argument(
     type=str,
     help='ASL raw data obtained from the MRI scanner. This must be the basic PLD ASL MRI acquisition protocol.',
 )
-required.add_argument('m0', type=str, help='M0 image reference used to calculate the ASL signal.')
+required.add_argument(
+    'm0', type=str, help='M0 image reference used to calculate the ASL signal.'
+)
 optional.add_argument(
     'mask',
     type=str,

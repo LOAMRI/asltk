@@ -11,19 +11,21 @@ from asltk.reconstruction import MultiTE_ASLMapping
 from asltk.utils import load_image, save_image
 
 parser = argparse.ArgumentParser(
-    prog="Multi-TE ASL Mapping",
-    description='Python script to calculate the Multi-TE ASL map for the T1 relaxation exchange between blood and Gray Matter (GM).'
+    prog='Multi-TE ASL Mapping',
+    description='Python script to calculate the Multi-TE ASL map for the T1 relaxation exchange between blood and Gray Matter (GM).',
 )
 parser._action_groups.pop()
-required = parser.add_argument_group(title="Required parameters")
-optional = parser.add_argument_group(title="Optional parameters")
+required = parser.add_argument_group(title='Required parameters')
+optional = parser.add_argument_group(title='Optional parameters')
 
 required.add_argument(
     'pcasl',
     type=str,
     help='ASL raw data obtained from the MRI scanner. This must be the multi-TE ASL MRI acquisition protocol.',
 )
-required.add_argument('m0', type=str, help='M0 image reference used to calculate the ASL signal.')
+required.add_argument(
+    'm0', type=str, help='M0 image reference used to calculate the ASL signal.'
+)
 optional.add_argument(
     'mask',
     type=str,
