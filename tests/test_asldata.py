@@ -8,7 +8,7 @@ from asltk import asldata
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
-PCASL = f'tests' + SEP + 'files' + SEP + 'pcasl.nii.gz'
+PCASL_MTE = f'tests' + SEP + 'files' + SEP + 'pcasl_mte.nii.gz'
 M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
 M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 
@@ -25,14 +25,14 @@ def test_create_successfuly_asldata_object_with_inputs():
     assert len(obj_0.get_pld()) == 0
     assert obj_0.get_te() == None
     assert obj_0.get_dw() == None
-    obj_1 = asldata.ASLData(pcasl=PCASL)
+    obj_1 = asldata.ASLData(pcasl=PCASL_MTE)
     assert isinstance(obj_1, asldata.ASLData)
     assert len(obj_1.get_ld()) == 0
     assert len(obj_1.get_pld()) == 0
     assert obj_1.get_te() == None
     assert obj_1.get_dw() == None
     obj_3 = asldata.ASLData(
-        pcasl=PCASL, ld_values=[1, 2, 3], pld_values=[1, 2, 3]
+        pcasl=PCASL_MTE, ld_values=[1, 2, 3], pld_values=[1, 2, 3]
     )
     assert isinstance(obj_3, asldata.ASLData)
     assert len(obj_3.get_ld()) == 3
@@ -40,7 +40,7 @@ def test_create_successfuly_asldata_object_with_inputs():
     assert obj_3.get_te() == None
     assert obj_3.get_dw() == None
     obj_4 = asldata.ASLData(
-        pcasl=PCASL,
+        pcasl=PCASL_MTE,
         ld_values=[1, 2, 3],
         pld_values=[1, 2, 3],
         te_values=[1, 2, 3],
@@ -51,7 +51,7 @@ def test_create_successfuly_asldata_object_with_inputs():
     assert len(obj_4.get_te()) == 3
     assert obj_4.get_dw() == None
     obj_5 = asldata.ASLData(
-        pcasl=PCASL,
+        pcasl=PCASL_MTE,
         ld_values=[1, 2, 3],
         pld_values=[1, 2, 3],
         te_values=[1, 2, 3],
@@ -65,7 +65,7 @@ def test_create_successfuly_asldata_object_with_inputs():
 
 
 def test_create_object_with_different_image_formats():
-    obj = asldata.ASLData(pcasl=PCASL)
+    obj = asldata.ASLData(pcasl=PCASL_MTE)
     assert isinstance(obj, asldata.ASLData)
     obj = asldata.ASLData(m0=M0)
     assert isinstance(obj, asldata.ASLData)

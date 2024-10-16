@@ -5,26 +5,23 @@ from functools import *
 import numpy as np
 import SimpleITK as sitk
 from rich import print
-from rich.progress import track
-from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
-from asltk.reconstruction import CBFMapping
+from asltk.reconstruction import MultiDW_ASLMapping
 from asltk.utils import load_image, save_image
 
 parser = argparse.ArgumentParser(
-    prog='CBF/ATT Mapping',
-    description='Python script to calculate the basic CBF and ATT maps from ASL data.',
+    prog='Multi-DW ASL Mapping',
+    description='Python script to calculate the Multi-DW ASL data.',
 )
 parser._action_groups.pop()
 required = parser.add_argument_group(title='Required parameters')
 optional = parser.add_argument_group(title='Optional parameters')
 
-
 required.add_argument(
     'pcasl',
     type=str,
-    help='ASL raw data obtained from the MRI scanner. This must be the basic PLD ASL MRI acquisition protocol.',
+    help='ASL raw data obtained from the MRI scanner. This must be the multi-DW ASL MRI acquisition protocol.',
 )
 required.add_argument(
     'm0', type=str, help='M0 image reference used to calculate the ASL signal.'
@@ -43,6 +40,20 @@ required.add_argument(
     default=os.path.expanduser('~'),
     help='The output folder that is the reference to save all the output images in the script. The images selected to be saved are given as tags in the script caller, e.g. the options --cbf_map and --att_map. By default, the TblGM map is placed in the output folder with the name tblgm_map.nii.gz',
 )
+optional.add_argument(
+    '--cbf',
+    type=str,
+    nargs='?',
+    required=False,
+    help='The CBF map that is provided to skip this step in the MultiTE-ASL calculation. If CBF is not provided, than a CBF map is calculated at the runtime. Important: The CBF passed here is with the original voxel scale, i.e. without voxel normalization.',
+)
+optional.add_argument(
+    '--att',
+    type=str,
+    nargs='?',
+    required=False,
+    help='The ATT map that is provided to skip this step in the MultiTE-ASL calculation. If ATT is not provided, than a ATT map is calculated at the runtime.',
+)
 required.add_argument(
     '--pld',
     type=str,
@@ -56,6 +67,13 @@ required.add_argument(
     nargs='+',
     required=True,
     help='Labeling Duration trend (LD), arranged in a sequence of float numbers.',
+)
+required.add_argument(
+    '--dw',
+    type=str,
+    nargs='+',
+    required=True,
+    help='Diffusion b-values arranged in a sequence of float numbers.',
 )
 optional.add_argument(
     '--verbose',
@@ -100,10 +118,21 @@ if args.mask != '':
     mask_img = load_image(args.mask)
 
 
+cbf_map = None
+if args.cbf is not None:
+    cbf_map = load_image(args.cbf)
+
+att_map = None
+if args.att is not None:
+    att_map = load_image(args.att)
+
+
 try:
+    dw = [float(s) for s in args.dw]
     pld = [float(s) for s in args.pld]
     ld = [float(s) for s in args.ld]
 except:
+    dw = [float(s) for s in str(args.dw[0]).split()]
     pld = [float(s) for s in str(args.pld[0]).split()]
     ld = [float(s) for s in str(args.ld[0]).split()]
 
@@ -124,27 +153,44 @@ if args.verbose:
     print('M0 image dimension: ' + str(m0_img.shape))
     print('PLD: ' + str(pld))
     print('LD: ' + str(ld))
+    print('DW: ' + str(dw))
+    if args.cbf != '':
+        print('(optional) CBF map: ' + str(args.cbf))
+    if args.att != '':
+        print('(optional) ATT map: ' + str(args.att))
 
-data = ASLData(pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld)
-recon = CBFMapping(data)
+
+data = ASLData(
+    pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, dw_values=dw
+)
+recon = MultiDW_ASLMapping(data)
 recon.set_brain_mask(mask_img)
+if isinstance(cbf_map, np.ndarray) and isinstance(att_map, np.ndarray):
+    recon.set_cbf_map(cbf_map)
+    recon.set_att_map(att_map)
+
 maps = recon.create_map()
 
 
 save_path = args.out_folder + os.path.sep + 'cbf_map.nii.gz'
-if args.verbose:
+if args.verbose and cbf_map is not None:
     print('Saving CBF map - Path: ' + save_path)
 save_image(maps['cbf'], save_path)
 
 save_path = args.out_folder + os.path.sep + 'cbf_map_normalized.nii.gz'
-if args.verbose:
+if args.verbose and cbf_map is not None:
     print('Saving normalized CBF map - Path: ' + save_path)
 save_image(maps['cbf_norm'], save_path)
 
 save_path = args.out_folder + os.path.sep + 'att_map.nii.gz'
-if args.verbose:
+if args.verbose and att_map is not None:
     print('Saving ATT map - Path: ' + save_path)
 save_image(maps['att'], save_path)
+
+save_path = args.out_folder + os.path.sep + 'mte_kw_map.nii.gz'
+if args.verbose:
+    print('Saving multiDW-ASL kw map - Path: ' + save_path)
+save_image(maps['kw'], save_path)
 
 if args.verbose:
     print('Execution: ' + parser.prog + ' finished successfully!')

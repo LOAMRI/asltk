@@ -8,13 +8,13 @@ from asltk import asldata, utils
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
-PCASL = f'tests' + SEP + 'files' + SEP + 'pcasl.nii.gz'
+PCASL_MTE = f'tests' + SEP + 'files' + SEP + 'pcasl_mte.nii.gz'
 M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
 M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 
 
 def test_load_image_pcasl_type_update_object_image_reference():
-    img = utils.load_image(PCASL)
+    img = utils.load_image(PCASL_MTE)
     assert isinstance(img, np.ndarray)
 
 
@@ -79,7 +79,7 @@ def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs(input):
 
 
 @pytest.mark.parametrize('input', [('a'), (2), (100.1)])
-def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs(input):
+def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs_type(input):
     with pytest.raises(Exception) as e:
         buxton_values = utils.asl_model_buxton(
             tau=input, w=[10, 20, 30], m0=1000, cbf=450, att=1500
@@ -87,6 +87,15 @@ def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs(input):
     assert (
         e.value.args[0] == 'tau parameter must be a list or tuple of values.'
     )
+
+
+@pytest.mark.parametrize('input', [(['a']), (['2']), (['100.1'])])
+def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs_values(input):
+    with pytest.raises(Exception) as e:
+        buxton_values = utils.asl_model_buxton(
+            tau=input, w=[10, 20, 30], m0=1000, cbf=450, att=1500
+        )
+    assert e.value.args[0] == 'tau list must contain float or int values'
 
 
 @pytest.mark.parametrize(
