@@ -187,7 +187,7 @@ class ASLData:
             <class 'numpy.ndarray'>
 
             >>> np.min(data('pcasl'))
-            np.uint8(0)
+            0
 
         Returns:
             (numpy.ndarray): The data placed in the ASLData object
