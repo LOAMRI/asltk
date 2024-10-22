@@ -100,11 +100,10 @@ class ASLData:
             full_path (str): The full path with filename to be loaded
             spec (str): The type of image being used in the ASL processing.
         """
-        match spec:
-            case 'm0':
-                self._m0_image = load_image(full_path)
-            case 'pcasl':
-                self._asl_image = load_image(full_path)
+        if spec == 'm0':
+            self._m0_image = load_image(full_path)
+        elif spec == 'pcasl':
+            self._asl_image = load_image(full_path)
 
     def get_ld(self):
         """Obtain the LD array values"""
@@ -187,16 +186,15 @@ class ASLData:
             <class 'numpy.ndarray'>
 
             >>> np.min(data('pcasl'))
-            np.uint8(0)
+            0
 
         Returns:
             (numpy.ndarray): The data placed in the ASLData object
         """
-        match spec:
-            case 'pcasl':
-                return self._asl_image
-            case 'm0':
-                return self._m0_image
+        if spec == 'pcasl':
+            return self._asl_image
+        elif spec == 'm0':
+            return self._m0_image
 
     def _check_input_parameter(self, values, param_type):
         for v in values:
