@@ -45,25 +45,24 @@ class MRIParameters:
             AttributeError: The parameter type must be already defined in the
             MRIParameters class.
         """
-        match param:
-            case 'T1bl':
-                self.T1bl = value
-            case 'T1csf':
-                self.T1csf = value
-            case 'T2bl':
-                self.T2bl = value
-            case 'T2gm':
-                self.T2gm = value
-            case 'T2csf':
-                self.T2csf = value
-            case 'Alpha':
-                self.Alpha = value
-            case 'Lambda':
-                self.Lambda = value
-            case _:
-                raise AttributeError(
-                    f'Constant type {param} is not valid. Choose in the list available in the MRIParameter class.'
-                )
+        if param == 'T1bl':
+            self.T1bl = value
+        elif param == 'T1csf':
+            self.T1csf = value
+        elif param == 'T2bl':
+            self.T2bl = value
+        elif param == 'T2gm':
+            self.T2gm = value
+        elif param == 'T2csf':
+            self.T2csf = value
+        elif param == 'Alpha':
+            self.Alpha = value
+        elif param == 'Lambda':
+            self.Lambda = value
+        else:
+            raise AttributeError(
+                f'Constant type {param} is not valid. Choose in the list available in the MRIParameter class.'
+            )
 
     def get_constant(self, param: str) -> float:
         """Collect a parameter value from a defined type
@@ -79,22 +78,21 @@ class MRIParameters:
         Returns:
             float: The parameter value storage in the object instance
         """
-        match param:
-            case 'T1bl':
-                return self.T1bl
-            case 'T1csf':
-                return self.T1csf
-            case 'T2bl':
-                return self.T2bl
-            case 'T2gm':
-                return self.T2gm
-            case 'T2csf':
-                return self.T2csf
-            case 'Alpha':
-                return self.Alpha
-            case 'Lambda':
-                return self.Lambda
-            case _:
-                raise AttributeError(
-                    f'Constant type {param} is not valid. Choose in the list available in the MRIParameter class.'
-                )
+        if param == 'T1bl':
+            return self.T1bl
+        elif param == 'T1csf':
+            return self.T1csf
+        elif param == 'T2bl':
+            return self.T2bl
+        elif param == 'T2gm':
+            return self.T2gm
+        elif param == 'T2csf':
+            return self.T2csf
+        elif param == 'Alpha':
+            return self.Alpha
+        elif param == 'Lambda':
+            return self.Lambda
+        else:
+            raise AttributeError(
+                f'Constant type {param} is not valid. Choose in the list available in the MRIParameter class.'
+            )
