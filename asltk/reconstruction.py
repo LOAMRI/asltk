@@ -117,10 +117,15 @@ class CBFMapping(MRIParameters):
             ub (list, optional): The upper limit values. Defaults to [1.0, 5000.0].
             lb (list, optional): The lower limit values. Defaults to [0.0, 0.0].
             par0 (list, optional): The initial guess parameter for non-linear fitting. Defaults to [1e-5, 1000].
+            cores (int, optional): Defines how many CPU threads can be used for the class. Defaults is using all the availble threads.
 
         Returns:
             (dict): A dictionary with 'cbf', 'att' and 'cbf_norm'
         """
+        if (cores < 0) or (cores > cpu_count()) or not isinstance(cores, int):
+            raise ValueError(
+                'Number of proecess must be at least 1 and less than maximum cores availble.'
+            )
         if (
             len(self._asl_data.get_ld()) == 0
             or len(self._asl_data.get_pld()) == 0
