@@ -1,5 +1,5 @@
 import warnings
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from multiprocessing import Array, Pool, cpu_count
 
 import numpy as np
 import SimpleITK as sitk
@@ -15,7 +15,11 @@ from asltk.utils import (
     asl_model_multi_te,
 )
 
-# TODO Opcao para aplicar filtro no mapa de saida (Gauss, etc)
+# Global variables to assist multi cpu threading
+cbf_map = None
+att_map = None
+brain_mask = None
+asl_data = None
 
 
 class CBFMapping(MRIParameters):
@@ -90,9 +94,10 @@ class CBFMapping(MRIParameters):
 
     def create_map(
         self,
-        ub: list = [1.0, 5000.0],
-        lb: list = [0.0, 0.0],
-        par0: list = [1e-5, 1000],
+        ub=[1.0, 5000.0],
+        lb=[0.0, 0.0],
+        par0=[1e-5, 1000],
+        cores: int = cpu_count(),
     ):
         """Create the CBF and also ATT maps
 
@@ -122,54 +127,42 @@ class CBFMapping(MRIParameters):
         ):
             raise ValueError('LD or PLD list of values must be provided.')
 
-        BuxtonX = [
-            self._asl_data.get_ld(),
-            self._asl_data.get_pld(),
-        ]   # x data for the Buxton model
+        global asl_data, brain_mask
+        asl_data = self._asl_data
+        brain_mask = self._brain_mask
 
-        x_axis = self._asl_data('m0').shape[2]   # height
-        y_axis = self._asl_data('m0').shape[1]   # width
-        z_axis = self._asl_data('m0').shape[0]   # depth
+        BuxtonX = [self._asl_data.get_ld(), self._asl_data.get_pld()]
 
-        for i in track(
-            range(x_axis), description='[green]CBF/ATT processing...'
-        ):
-            for j in range(y_axis):
-                for k in range(z_axis):
-                    if self._brain_mask[k, j, i] != 0:
-                        m0_px = self._asl_data('m0')[k, j, i]
+        x_axis, y_axis, z_axis = (
+            self._asl_data('m0').shape[2],
+            self._asl_data('m0').shape[1],
+            self._asl_data('m0').shape[0],
+        )
 
-        tasks = [
-            (
-                k,
-                j,
-                i,
-                self._brain_mask,
-                self._asl_data('m0'),
-                self._asl_data('pcasl'),
-                BuxtonX,
-                par0,
-                lb,
-                ub,
+        cbf_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+        att_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+
+        with Pool(
+            processes=cores,
+            initializer=_cbf_init_globals,
+            initargs=(cbf_map_shared, att_map_shared, brain_mask, asl_data),
+        ) as pool:
+            pool.starmap(
+                _cbf_process_slice,
+                [
+                    (i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub)
+                    for i in track(
+                        range(x_axis), description='CBF/ATT processing...'
+                    )
+                ],
             )
-            for i in range(x_axis)
-            for j in range(y_axis)
-            for k in range(z_axis)
-        ]
 
-        # Use ProcessPoolExecutor for multiprocessing
-        with ProcessPoolExecutor() as executor:
-            futures = [
-                executor.submit(_cbf_process_voxel, *task)
-                for task in track(
-                    tasks, description='[green]CBF/ATT processing...'
-                )
-            ]
-
-            for future in as_completed(futures):
-                k, j, i, cbf_value, att_value = future.result()
-                self._cbf_map[k, j, i] = cbf_value
-                self._att_map[k, j, i] = att_value
+        self._cbf_map = np.frombuffer(cbf_map_shared).reshape(
+            z_axis, y_axis, x_axis
+        )
+        self._att_map = np.frombuffer(att_map_shared).reshape(
+            z_axis, y_axis, x_axis
+        )
 
         return {
             'cbf': self._cbf_map,
@@ -708,32 +701,42 @@ def _check_mask_values(mask, label, ref_shape):
         )
 
 
-def _cbf_process_voxel(
-    k, j, i, brain_mask, m0_data, pcasl_data, BuxtonX, par0, lb, ub
-):
-    """Process a single voxel at coordinates (k, j, i)."""
-    if brain_mask[k, j, i] == 0:
-        return k, j, i, 0.0, 0.0  # No brain tissue
+def _cbf_init_globals(
+    cbf_map_, att_map_, brain_mask_, asl_data_
+):   # pragma: no cover
+    # indirect call method by CBFMapping().create_map()
+    global cbf_map, att_map, brain_mask, asl_data
+    cbf_map = cbf_map_
+    att_map = att_map_
+    brain_mask = brain_mask_
+    asl_data = asl_data_
 
-    m0_px = m0_data[k, j, i]
 
-    def mod_buxton(Xdata, par1, par2):
-        return asl_model_buxton(Xdata[0], Xdata[1], m0_px, par1, par2)
+def _cbf_process_slice(
+    i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub
+):   # pragma: no cover
+    # indirect call method by CBFMapping().create_map()
+    for j in range(y_axis):
+        for k in range(z_axis):
+            if brain_mask[k, j, i] != 0:
+                m0_px = asl_data('m0')[k, j, i]
 
-    Ydata = pcasl_data[0, :, k, j, i]
+                def mod_buxton(Xdata, par1, par2):
+                    return asl_model_buxton(
+                        Xdata[0], Xdata[1], m0_px, par1, par2
+                    )
 
-    try:
-        par_fit, _ = curve_fit(
-            mod_buxton,
-            BuxtonX,
-            Ydata,
-            p0=par0,
-            bounds=(lb, ub),
-        )
-        cbf_value = par_fit[0]
-        att_value = par_fit[1]
-    except RuntimeError:
-        cbf_value = 0.0
-        att_value = 0.0
+                Ydata = asl_data('pcasl')[0, :, k, j, i]
 
-    return k, j, i, cbf_value, att_value
+                # Calculate the processing index for the 3D space
+                index = k * (y_axis * x_axis) + j * x_axis + i
+
+                try:
+                    par_fit, _ = curve_fit(
+                        mod_buxton, BuxtonX, Ydata, p0=par0, bounds=(lb, ub)
+                    )
+                    cbf_map[index] = par_fit[0]
+                    att_map[index] = par_fit[1]
+                except RuntimeError:
+                    cbf_map[index] = 0.0
+                    att_map[index] = 0.0
