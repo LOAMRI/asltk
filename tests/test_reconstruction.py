@@ -170,6 +170,15 @@ def test_cbf_object_create_map_success():
     assert np.mean(out['att']) > 10
 
 
+def test_cbf_object_create_map_sucess_setting_single_core():
+    cbf = CBFMapping(asldata_te)
+    out = cbf.create_map(cores=1)
+    assert isinstance(out['cbf'], np.ndarray)
+    assert np.mean(out['cbf']) < 0.0001
+    assert isinstance(out['att'], np.ndarray)
+    assert np.mean(out['att']) > 10
+
+
 def test_cbf_map_normalized_flag_true_result_cbf_map_rescaled():
     cbf = CBFMapping(asldata_te)
     out = cbf.create_map()
