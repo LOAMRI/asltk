@@ -1,4 +1,5 @@
 import warnings
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
 import SimpleITK as sitk
@@ -138,30 +139,37 @@ class CBFMapping(MRIParameters):
                     if self._brain_mask[k, j, i] != 0:
                         m0_px = self._asl_data('m0')[k, j, i]
 
-                        def mod_buxton(Xdata, par1, par2):
-                            return asl_model_buxton(
-                                Xdata[0], Xdata[1], m0_px, par1, par2
-                            )
+        tasks = [
+            (
+                k,
+                j,
+                i,
+                self._brain_mask,
+                self._asl_data('m0'),
+                self._asl_data('pcasl'),
+                BuxtonX,
+                par0,
+                lb,
+                ub,
+            )
+            for i in range(x_axis)
+            for j in range(y_axis)
+            for k in range(z_axis)
+        ]
 
-                        # TODO precisa achar uma forma generica para saber estrutura asl_data (TE,PLD,3DVOL)... como o codigo irá puxar de forma direta?
-                        Ydata = self._asl_data('pcasl')[
-                            0, :, k, j, i
-                        ]   # taking the first TE to get less influence in the PLD/Buxton model
+        # Use ProcessPoolExecutor for multiprocessing
+        with ProcessPoolExecutor() as executor:
+            futures = [
+                executor.submit(_cbf_process_voxel, *task)
+                for task in track(
+                    tasks, description='[green]CBF/ATT processing...'
+                )
+            ]
 
-                        # TODO Investigar mais...quando chama multiTE e ele chama o CBF acusa erro RuntimeError. Dado utilizado LOAMSample/pac2
-                        try:
-                            par_fit, _ = curve_fit(
-                                mod_buxton,
-                                BuxtonX,
-                                Ydata,
-                                p0=par0,
-                                bounds=(lb, ub),
-                            )
-                            self._cbf_map[k, j, i] = par_fit[0]
-                            self._att_map[k, j, i] = par_fit[1]
-                        except RuntimeError:
-                            self._cbf_map[k, j, i] = 0.0
-                            self._att_map[k, j, i] = 0.0
+            for future in as_completed(futures):
+                k, j, i, cbf_value, att_value = future.result()
+                self._cbf_map[k, j, i] = cbf_value
+                self._att_map[k, j, i] = att_value
 
         return {
             'cbf': self._cbf_map,
@@ -698,3 +706,34 @@ def _check_mask_values(mask, label, ref_shape):
         raise TypeError(
             f'Image mask dimension does not match with input 3D volume. Mask shape {mask_shape} not equal to {ref_shape}'
         )
+
+
+def _cbf_process_voxel(
+    k, j, i, brain_mask, m0_data, pcasl_data, BuxtonX, par0, lb, ub
+):
+    """Process a single voxel at coordinates (k, j, i)."""
+    if brain_mask[k, j, i] == 0:
+        return k, j, i, 0.0, 0.0  # No brain tissue
+
+    m0_px = m0_data[k, j, i]
+
+    def mod_buxton(Xdata, par1, par2):
+        return asl_model_buxton(Xdata[0], Xdata[1], m0_px, par1, par2)
+
+    Ydata = pcasl_data[0, :, k, j, i]
+
+    try:
+        par_fit, _ = curve_fit(
+            mod_buxton,
+            BuxtonX,
+            Ydata,
+            p0=par0,
+            bounds=(lb, ub),
+        )
+        cbf_value = par_fit[0]
+        att_value = par_fit[1]
+    except RuntimeError:
+        cbf_value = 0.0
+        att_value = 0.0
+
+    return k, j, i, cbf_value, att_value
