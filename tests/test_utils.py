@@ -118,9 +118,26 @@ def test_asl_model_buxton_w_raise_errors_with_wrong_inputs_not_list(input):
     assert e.value.args[0] == 'w parameter must be a list or tuple of values.'
 
 
+def test_asl_model_buxton_runs_with_inner_if_clauses():
+    buxton_values = utils.asl_model_buxton(
+        tau=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+        w=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+        m0=3761480.0,
+        cbf=0.00001,
+        att=1500,
+    )
+    assert len(buxton_values.tolist()) == 7
+    assert type(buxton_values) == np.ndarray
+
+
 def test_asl_model_multi_te_return_sucess_list_of_values():
     multite_values = utils.asl_model_multi_te(
-        tau=[1, 2, 3], w=[10, 20, 30], te=[1, 2, 3], m0=1000, cbf=450, att=1500
+        tau=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+        w=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+        te=[13.56, 67.82, 122.08, 176.33, 230.59, 284.84, 339.100, 393.36],
+        m0=3761480.0,
+        cbf=0.00001,
+        att=1500,
     )
-    assert len(multite_values) == 3
+    assert len(multite_values) == 7
     assert type(multite_values) == np.ndarray

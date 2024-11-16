@@ -3,7 +3,6 @@ name: Help me!
 about: Ask your doubt about ASLtk
 title: "[FAQ] "
 labels: question
-assignees: acsenrafilho
 
 ---
 

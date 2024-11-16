@@ -131,17 +131,17 @@ recon.set_brain_mask(mask_img)
 maps = recon.create_map()
 
 
-save_path = args.out_folder + os.path.sep + 'cbf_map.nii.gz'
+save_path = args.out_folder + os.path.sep + 'cbf_map.nrrd'
 if args.verbose:
     print('Saving CBF map - Path: ' + save_path)
 save_image(maps['cbf'], save_path)
 
-save_path = args.out_folder + os.path.sep + 'cbf_map_normalized.nii.gz'
+save_path = args.out_folder + os.path.sep + 'cbf_map_normalized.nrrd'
 if args.verbose:
     print('Saving normalized CBF map - Path: ' + save_path)
 save_image(maps['cbf_norm'], save_path)
 
-save_path = args.out_folder + os.path.sep + 'att_map.nii.gz'
+save_path = args.out_folder + os.path.sep + 'att_map.nrrd'
 if args.verbose:
     print('Saving ATT map - Path: ' + save_path)
 save_image(maps['att'], save_path)

@@ -170,6 +170,27 @@ def test_cbf_object_create_map_success():
     assert np.mean(out['att']) > 10
 
 
+def test_cbf_object_create_map_sucess_setting_single_core():
+    cbf = CBFMapping(asldata_te)
+    out = cbf.create_map(cores=1)
+    assert isinstance(out['cbf'], np.ndarray)
+    assert np.mean(out['cbf']) < 0.0001
+    assert isinstance(out['att'], np.ndarray)
+    assert np.mean(out['att']) > 10
+
+
+@pytest.mark.parametrize('core_value', [(100), (-1), (-10), (1.5), (-1.5)])
+def test_cbf_raise_error_cores_not_valid(core_value):
+    cbf = CBFMapping(asldata_te)
+    with pytest.raises(Exception) as e:
+        cbf.create_map(cores=core_value)
+
+    assert (
+        e.value.args[0]
+        == 'Number of proecess must be at least 1 and less than maximum cores availble.'
+    )
+
+
 def test_cbf_map_normalized_flag_true_result_cbf_map_rescaled():
     cbf = CBFMapping(asldata_te)
     out = cbf.create_map()
