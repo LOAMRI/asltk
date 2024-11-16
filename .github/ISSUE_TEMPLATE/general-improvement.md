@@ -4,7 +4,6 @@ about: Propose an improvement for the repo code (e.g. documentation, a module, a
   testing, etc)
 title: "[Improvement]"
 labels: enhancement
-assignees: acsenrafilho
 
 ---
 
