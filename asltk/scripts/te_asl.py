@@ -80,6 +80,13 @@ optional.add_argument(
     action='store_true',
     help='Show more details thoughout the processing.',
 )
+optional.add_argument(
+    '--file_fmt',
+    type=str,
+    nargs='?',
+    default='nii',
+    help='The file format that will be used to save the output images. It is not allowed image compression (ex: .gz, .zip, etc). Default is nii, but it can be choosen: mha, nrrd.',
+)
 
 args = parser.parse_args()
 
@@ -104,6 +111,12 @@ def checkUpParameters():
     if not (os.path.isfile(args.m0)):
         print(
             f'M0 input file does not exist (file path: {args.m0}). Please check the input file before executing the script.'
+        )
+        is_ok = False
+
+    if args.file_fmt not in ('nii', 'mha', 'nrrd'):
+        print(
+            f'File format is not allowed or not available. The select type is {args.file_fmt}, but options are: nii, mha or nrrd'
         )
         is_ok = False
 
@@ -158,6 +171,7 @@ if args.verbose:
         print('(optional) CBF map: ' + str(args.cbf))
     if args.att != '':
         print('(optional) ATT map: ' + str(args.att))
+    print('Output file format: ' + str(args.file_fmt))
 
 
 data = ASLData(
@@ -172,22 +186,24 @@ if isinstance(cbf_map, np.ndarray) and isinstance(att_map, np.ndarray):
 maps = recon.create_map()
 
 
-save_path = args.out_folder + os.path.sep + 'cbf_map.nii.gz'
+save_path = args.out_folder + os.path.sep + 'cbf_map.' + args.file_fmt
 if args.verbose and cbf_map is not None:
     print('Saving CBF map - Path: ' + save_path)
 save_image(maps['cbf'], save_path)
 
-save_path = args.out_folder + os.path.sep + 'cbf_map_normalized.nii.gz'
+save_path = (
+    args.out_folder + os.path.sep + 'cbf_map_normalized.' + args.file_fmt
+)
 if args.verbose and cbf_map is not None:
     print('Saving normalized CBF map - Path: ' + save_path)
 save_image(maps['cbf_norm'], save_path)
 
-save_path = args.out_folder + os.path.sep + 'att_map.nii.gz'
+save_path = args.out_folder + os.path.sep + 'att_map.' + args.file_fmt
 if args.verbose and att_map is not None:
     print('Saving ATT map - Path: ' + save_path)
 save_image(maps['att'], save_path)
 
-save_path = args.out_folder + os.path.sep + 'mte_t1blgm_map.nii.gz'
+save_path = args.out_folder + os.path.sep + 'mte_t1blgm_map.' + args.file_fmt
 if args.verbose:
     print('Saving multiTE-ASL T1blGM map - Path: ' + save_path)
 save_image(maps['t1blgm'], save_path)
