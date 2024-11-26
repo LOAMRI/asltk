@@ -4,7 +4,7 @@ from multiprocessing import Array, Pool, cpu_count
 import numpy as np
 import SimpleITK as sitk
 from rich import print
-from rich.progress import track
+from rich.progress import Progress
 from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
@@ -159,15 +159,27 @@ class CBFMapping(MRIParameters):
             initializer=_cbf_init_globals,
             initargs=(cbf_map_shared, att_map_shared, brain_mask, asl_data),
         ) as pool:
-            pool.starmap(
-                _cbf_process_slice,
-                [
-                    (i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub)
-                    for i in track(
-                        range(x_axis), description='CBF/ATT processing...'
+            with Progress() as progress:
+                task = progress.add_task('CBF/ATT processing...', total=x_axis)
+                results = [
+                    pool.apply_async(
+                        _cbf_process_slice,
+                        args=(
+                            i,
+                            x_axis,
+                            y_axis,
+                            z_axis,
+                            BuxtonX,
+                            par0,
+                            lb,
+                            ub,
+                        ),
+                        callback=lambda _: progress.update(task, advance=1),
                     )
-                ],
-            )
+                    for i in range(x_axis)
+                ]
+                for result in results:
+                    result.wait()
 
         self._cbf_map = np.frombuffer(cbf_map_shared).reshape(
             z_axis, y_axis, x_axis
@@ -427,15 +439,20 @@ class MultiTE_ASLMapping(MRIParameters):
                 t2gm,
             ),
         ) as pool:
-            pool.starmap(
-                _tblgm_multite_process_slice,
-                [
-                    (i, x_axis, y_axis, z_axis, par0, lb, ub)
-                    for i in track(
-                        range(x_axis), description='multiTE-ASL processing...'
+            with Progress() as progress:
+                task = progress.add_task(
+                    'multiTE-ASL processing...', total=x_axis
+                )
+                results = [
+                    pool.apply_async(
+                        _tblgm_multite_process_slice,
+                        args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
+                        callback=lambda _: progress.update(task, advance=1),
                     )
-                ],
-            )
+                    for i in range(x_axis)
+                ]
+                for result in results:
+                    result.wait()
 
         self._t1blgm_map = np.frombuffer(tblgm_map_shared).reshape(
             z_axis, y_axis, x_axis
@@ -671,9 +688,9 @@ class MultiDW_ASLMapping(MRIParameters):
         y_axis = self._asl_data('m0').shape[1]   # width
         z_axis = self._asl_data('m0').shape[0]   # depth
 
-        for i in track(
-            range(x_axis), description='[green]multiDW-ASL processing...'
-        ):
+        # TODO Fix
+        print('multiDW-ASL processing...')
+        for i in range(x_axis):
             for j in range(y_axis):
                 for k in range(z_axis):
                     if self._brain_mask[k, j, i] != 0:
