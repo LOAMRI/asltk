@@ -3,7 +3,7 @@ import os
 import numpy as np
 import SimpleITK as sitk
 
-from asltk.utils import load_image, save_image
+from asltk.utils import load_image
 
 
 class ASLData:
