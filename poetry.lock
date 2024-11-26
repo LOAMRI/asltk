@@ -370,6 +370,21 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli"]
 
 [[package]]
+name = "dill"
+version = "0.3.9"
+description = "serialize all of Python"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "dill-0.3.9-py3-none-any.whl", hash = "sha256:468dff3b89520b474c0397703366b7b95eebe6303f108adf9b19da1f702be87a"},
+    {file = "dill-0.3.9.tar.gz", hash = "sha256:81aa267dddf68cbfe8029c42ca9ec6a4ab3b22371d1c450abc54422577b4512c"},
+]
+
+[package.extras]
+graph = ["objgraph (>=1.7.2)"]
+profile = ["gprof2dot (>=2022.7.29)"]
+
+[[package]]
 name = "docopt"
 version = "0.6.2"
 description = "Pythonic argument parser, that will make you smile"
@@ -2209,4 +2224,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "c1498d62a0f610d850361750eadf9b11d296d3b96d7a36f263fa65e7cac72092"
+content-hash = "cbddfa2ddb674c9f5a388395d25b568f2b6222d48d19d30dcadafd41bcdc7153"

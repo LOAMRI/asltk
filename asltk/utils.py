@@ -1,6 +1,7 @@
 import math
 import os
 
+import dill
 import numpy as np
 import SimpleITK as sitk
 
@@ -48,9 +49,81 @@ def save_image(img: np.ndarray, full_path: str):
     sitk.WriteImage(sitk_img, full_path)
 
 
+def save_asl_data(asldata, fullpath: str):
+    """
+    Save ASL data to a pickle file.
+
+    This method saves the ASL data to a pickle file using the dill library. All
+    the ASL data will be saved in a single file. After the file being saved, it
+    can be loaded using the `load_asl_data` method.
+
+    This method can be helpful when one wants to save the ASL data to a file
+    and share it with others or use it in another script. The entire ASLData
+    object will be loaded from the file, maintaining all the data and
+    parameters described in the `ASLData` class.
+
+    Examples:
+        >>> from asltk.asldata import ASLData
+        >>> asldata = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz',ld_values=[1.8, 1.8, 1.8], pld_values=[1.8, 1.8, 1.8], te_values=[1.8, 1.8, 1.8])
+        >>> save_asl_data(asldata, '/tmp/saved_asl_data.pkl')
+
+
+    Note:
+        This method only accepts the ASLData object as input. If you want to
+        save an image, then use the `save_image` method.
+
+    Parameters:
+        asldata : ASLData
+            The ASL data to be saved. This can be any Python object that is serializable by dill.
+        fullpath : str
+            The full path where the pickle file will be saved. The filename must end with '.pkl'.
+    
+    Raises:
+    ValueError:
+        If the provided filename does not end with '.pkl'.
+    """
+    if not fullpath.endswith('.pkl'):
+        raise ValueError('Filename must be a pickle file (.pkl)')
+
+    dill.dump(asldata, open(fullpath, 'wb'))
+
+
+def load_asl_data(fullpath: str):
+    """
+    Load ASL data from a specified file path to ASLData object previously save
+    on hard drive.
+
+    This function uses the `dill` library to load and deserialize data from a
+    file. Therefore, the file must have been saved using the `save_asl_data`.
+
+    This method can be helpful when one wants to save the ASL data to a file
+    and share it with others or use it in another script. The entire ASLData
+    object will be loaded from the file, maintaining all the data and
+    parameters described in the `ASLData` class.
+
+    Examples:
+        >>> from asltk.asldata import ASLData
+        >>> asldata = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz',ld_values=[1.8, 1.8, 1.8], pld_values=[1.8, 1.8, 1.8], te_values=[1.8, 1.8, 1.8])
+        >>> save_asl_data(asldata, '/tmp/saved_asl_data.pkl')
+        >>> loaded_asldata = load_asl_data('/tmp/saved_asl_data.pkl')
+        >>> loaded_asldata.get_ld()
+        [1.8, 1.8, 1.8]
+        >>> loaded_asldata('pcasl').shape
+        (8, 7, 5, 35, 35)
+
+    Parameters:
+        fullpath (str): The full path to the file containing the serialized ASL data.
+    
+    Returns:
+        ASLData: The deserialized ASL data object from the file.
+    """
+    _check_input_path(fullpath)
+    return dill.load(open(fullpath, 'rb'))
+
+
 def _check_input_path(path):
     if not os.path.exists(path):
-        raise ValueError('Image path is not valid or image not found.')
+        raise ValueError('Data path is not valid or image not found.')
 
 
 def asl_model_buxton(
