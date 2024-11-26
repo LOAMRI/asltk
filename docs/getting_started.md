@@ -115,4 +115,46 @@ At the moment, there are the following scripts avaliable:
 1. `cbf.py`: Python script focused on calculating CBF/ATT maps using pCASL images. This script is based on the `CBFMapping` class.
 2. `te_asl.py`: Python script focused on calculating T1 relaxation exchange time between Blood and Grey-Matter (T1blGM) map using pCASL multi-TE ASL images. This script is based on the `MultiTE_ASLMapping` class.
 
+Here's an example of how to call the cbf.py script to calculate CBF/ATT maps using pCASL images:
+
+```bash
+python -m asltk.scripts.cbf --pcasl ./path/to/pcasl_image.nii.gz --m0 ./path/to/m0_image.nii.gz --output ./path/to/output_directory
+```
+
+In this example:
+
+- `--pcasl` specifies the path to the pCASL image.
+- `--m0` specifies the path to the M0 image.
+- `--output` specifies the directory where the output CBF/ATT maps will be saved.
+
+!!! tip
+    Make sure to replace `./path/to/pcasl_image.nii.gz`, `./path/to/m0_image.nii.gz`, and `./path/to/output_directory` with the actual paths to your pCASL image, M0 image, and desired output directory, respectively.
+
+Anyway, the complete description on how to call a `asltk` script can be checked using the `--help` command:
+
+```bash
+python -m asltk.scripts.cbf --help
+
+usage: CBF/ATT Mapping [-h] --pld PLD [PLD ...] --ld LD [LD ...] [--verbose] pcasl m0 [mask] [out_folder]
+
+Python script to calculate the basic CBF and ATT maps from ASL data.
+
+Required parameters:
+  pcasl                ASL raw data obtained from the MRI scanner. This must be the basic PLD ASL MRI acquisition
+                       protocol.
+  m0                   M0 image reference used to calculate the ASL signal.
+  out_folder           The output folder that is the reference to save all the output images in the script. The
+                       images selected to be saved are given as tags in the script caller, e.g. the options --cbf_map
+                       and --att_map. By default, the TblGM map is placed in the output folder with the name
+                       tblgm_map.nii.gz
+  --pld PLD [PLD ...]  Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers
+  --ld LD [LD ...]     Labeling Duration trend (LD), arranged in a sequence of float numbers.
+
+Optional parameters:
+  mask                 Image mask defining the ROI where the calculations must be done. Any pixel value different
+                       from zero will be assumed as the ROI area. Outside the mask (value=0) will be ignored. If not
+                       provided, the entire image space will be calculated.
+  --verbose            Show more details thoughout the processing.
+```
+
 Additional scripts can be added in the `asltk` library, by the community contribution. If it is your interest, then go to the [developing scripts](contribute.md) section at the developer guidelines.
