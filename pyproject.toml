@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "asltk"
-version = "0.1.5"
+version = "0.2.0"
 description = "A quick to use library to process images for MRI Arterial Spin Labeling imaging protocols."
 authors = ["Antonio Senra Filho <acsenrafilho@alumni.usp.br>"]
 readme = "README.md"
