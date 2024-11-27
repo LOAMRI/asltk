@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pytest
 import SimpleITK as sitk
+import tempfile
 
 from asltk import asldata, utils
 
@@ -212,7 +213,7 @@ def test_load_image_using_BIDS_input_sucess(input_bids, sub, sess, mod, suff):
 
 @pytest.mark.parametrize(
     'input_data',
-    [('/tmp')],
+    [(tempfile.gettempdir())],
 )
 def test_load_image_using_not_valid_BIDS_input_raise_error(input_data):
     with pytest.raises(Exception) as e:
