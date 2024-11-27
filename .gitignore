@@ -13,6 +13,7 @@ __pycache__/
 #VSCode
 launch.json
 settings.json
+.vscode
 
 # Distribution / packaging
 .Python

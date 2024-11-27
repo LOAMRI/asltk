@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pytest
 import SimpleITK as sitk
+import tempfile
 
 from asltk import asldata, utils
 
@@ -34,7 +35,7 @@ def test_load_image_m0_type_update_object_image_reference():
 def test_load_image_attest_fullpath_is_valid(input):
     with pytest.raises(Exception) as e:
         utils.load_image(input)
-    assert e.value.args[0] == 'Image path is not valid or image not found.'
+    assert 'does not exist.' in e.value.args[0]
 
 
 @pytest.mark.parametrize(
@@ -141,3 +142,102 @@ def test_asl_model_multi_te_return_sucess_list_of_values():
     )
     assert len(multite_values) == 7
     assert type(multite_values) == np.ndarray
+
+
+@pytest.mark.parametrize(
+    'input_data,filename',
+    [
+        (PCASL_MTE, 'multi_te_asldata.pkl'),
+    ],
+)
+def test_save_asl_data_data_sucess(input_data, filename, tmp_path):
+    obj = asldata.ASLData(pcasl=input_data)
+    out_file = tmp_path.as_posix() + os.sep + filename
+    utils.save_asl_data(obj, out_file)
+    assert os.path.exists(out_file)
+
+
+@pytest.mark.parametrize(
+    'input_data,filename',
+    [
+        (PCASL_MTE, 'multi_te_asldata.txt'),
+        (PCASL_MTE, 'multi_te_asldata.nii'),
+        (PCASL_MTE, 'multi_te_asldata.mha'),
+        (PCASL_MTE, 'multi_te_asldata.nrrd'),
+    ],
+)
+def test_save_asl_data_raise_error_filename_not_pkl(
+    input_data, filename, tmp_path
+):
+    obj = asldata.ASLData(pcasl=PCASL_MTE)
+    out_file = tmp_path.as_posix() + os.sep + filename
+    with pytest.raises(Exception) as e:
+        utils.save_asl_data(obj, out_file)
+    assert e.value.args[0] == 'Filename must be a pickle file (.pkl)'
+
+
+@pytest.mark.parametrize(
+    'input_data,filename',
+    [
+        (PCASL_MTE, 'multi_te_asldata.pkl'),
+    ],
+)
+def test_load_asl_data_sucess(input_data, filename, tmp_path):
+    obj = asldata.ASLData(pcasl=input_data)
+    out_file = tmp_path.as_posix() + os.sep + filename
+    utils.save_asl_data(obj, out_file)
+    loaded_obj = utils.load_asl_data(out_file)
+    assert isinstance(loaded_obj, asldata.ASLData)
+    assert loaded_obj('pcasl').shape == obj('pcasl').shape
+
+
+@pytest.mark.parametrize(
+    'input_bids,sub,sess,mod,suff',
+    [
+        ('./tests/files/bids-example/asl001', None, None, None, None),
+        ('./tests/files/bids-example/asl001', 103, None, None, None),
+        ('./tests/files/bids-example/asl001', None, None, 'asl', None),
+        ('./tests/files/bids-example/asl001', 103, None, 'asl', None),
+    ],
+)
+def test_load_image_using_BIDS_input_sucess(input_bids, sub, sess, mod, suff):
+    loaded_obj = utils.load_image(
+        full_path=input_bids,
+        subject=sub,
+        session=sess,
+        modality=mod,
+        suffix=suff,
+    )
+    assert isinstance(loaded_obj, np.ndarray)
+
+
+@pytest.mark.parametrize(
+    'input_data',
+    [(tempfile.gettempdir())],
+)
+def test_load_image_using_not_valid_BIDS_input_raise_error(input_data):
+    with pytest.raises(Exception) as e:
+        loaded_obj = utils.load_image(input_data)
+    assert 'is missing' in e.value.args[0]
+
+
+@pytest.mark.parametrize(
+    'input_bids,sub,sess,mod,suff',
+    [
+        ('./tests/files/bids-example/asl001', 2, None, None, None),
+        ('./tests/files/bids-example/asl001', 502, None, 'flair', None),
+        ('./tests/files/bids-example/asl001', 2, None, 'bold', None),
+    ],
+)
+def test_load_image_raise_FileNotFoundError_not_matching_image_file(
+    input_bids, sub, sess, mod, suff
+):
+    with pytest.raises(Exception) as e:
+        loaded_obj = utils.load_image(
+            full_path=input_bids,
+            subject=sub,
+            session=sess,
+            modality=mod,
+            suffix=suff,
+        )
+    assert 'ASL image file is missing' in e.value.args[0]
