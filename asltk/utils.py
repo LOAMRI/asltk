@@ -146,7 +146,10 @@ def save_asl_data(asldata, fullpath: str):
     Examples:
         >>> from asltk.asldata import ASLData
         >>> asldata = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz',ld_values=[1.8, 1.8, 1.8], pld_values=[1.8, 1.8, 1.8], te_values=[1.8, 1.8, 1.8])
-        >>> save_asl_data(asldata, '/tmp/saved_asl_data.pkl')
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as temp_file:
+        ...     temp_file_path = temp_file.name
+        >>> save_asl_data(asldata, temp_file_path)
 
 
     Note:
