@@ -185,8 +185,11 @@ def load_asl_data(fullpath: str):
     Examples:
         >>> from asltk.asldata import ASLData
         >>> asldata = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz',ld_values=[1.8, 1.8, 1.8], pld_values=[1.8, 1.8, 1.8], te_values=[1.8, 1.8, 1.8])
-        >>> save_asl_data(asldata, '/tmp/saved_asl_data.pkl')
-        >>> loaded_asldata = load_asl_data('/tmp/saved_asl_data.pkl')
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as temp_file:
+        ...     temp_file_path = temp_file.name
+        >>> save_asl_data(asldata, temp_file_path)
+        >>> loaded_asldata = load_asl_data(temp_file_path)
         >>> loaded_asldata.get_ld()
         [1.8, 1.8, 1.8]
         >>> loaded_asldata('pcasl').shape
