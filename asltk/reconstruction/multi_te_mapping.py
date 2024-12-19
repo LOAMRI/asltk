@@ -9,9 +9,9 @@ from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.aux_methods import _check_mask_values
+from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
-from asltk.utils import asl_model_multi_te
 
 # Global variables to assist multi cpu threading
 cbf_map = None
