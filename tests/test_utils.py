@@ -1,11 +1,12 @@
 import os
+import tempfile
 
 import numpy as np
 import pytest
 import SimpleITK as sitk
-import tempfile
 
 from asltk import asldata, utils
+from asltk.models import signal_dynamic
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -61,7 +62,7 @@ def test_save_image_throw_error_invalid_formatt(input, tmp_path):
 
 
 def test_asl_model_buxton_return_sucess_list_of_values():
-    buxton_values = utils.asl_model_buxton(
+    buxton_values = signal_dynamic.asl_model_buxton(
         tau=[1, 2, 3], w=[10, 20, 30], m0=1000, cbf=450, att=1500
     )
     assert len(buxton_values.tolist()) == 3
@@ -73,7 +74,7 @@ def test_asl_model_buxton_return_sucess_list_of_values():
 )
 def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs(input):
     with pytest.raises(Exception) as e:
-        buxton_values = utils.asl_model_buxton(
+        buxton_values = signal_dynamic.asl_model_buxton(
             tau=input, w=[10, 20, 30], m0=1000, cbf=450, att=1500
         )
     assert e.value.args[0] == 'tau list must contain float or int values'
@@ -82,7 +83,7 @@ def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs(input):
 @pytest.mark.parametrize('input', [('a'), (2), (100.1)])
 def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs_type(input):
     with pytest.raises(Exception) as e:
-        buxton_values = utils.asl_model_buxton(
+        buxton_values = signal_dynamic.asl_model_buxton(
             tau=input, w=[10, 20, 30], m0=1000, cbf=450, att=1500
         )
     assert (
@@ -93,7 +94,7 @@ def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs_type(input):
 @pytest.mark.parametrize('input', [(['a']), (['2']), (['100.1'])])
 def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs_values(input):
     with pytest.raises(Exception) as e:
-        buxton_values = utils.asl_model_buxton(
+        buxton_values = signal_dynamic.asl_model_buxton(
             tau=input, w=[10, 20, 30], m0=1000, cbf=450, att=1500
         )
     assert e.value.args[0] == 'tau list must contain float or int values'
@@ -104,7 +105,7 @@ def test_asl_model_buxton_tau_raise_errors_with_wrong_inputs_values(input):
 )
 def test_asl_model_buxton_w_raise_errors_with_wrong_inputs(input):
     with pytest.raises(Exception) as e:
-        buxton_values = utils.asl_model_buxton(
+        buxton_values = signal_dynamic.asl_model_buxton(
             tau=[10, 20, 30], w=input, m0=1000, cbf=450, att=1500
         )
     assert e.value.args[0] == 'w list must contain float or int values'
@@ -113,14 +114,14 @@ def test_asl_model_buxton_w_raise_errors_with_wrong_inputs(input):
 @pytest.mark.parametrize('input', [('a'), (1), (100.1), (np.ndarray)])
 def test_asl_model_buxton_w_raise_errors_with_wrong_inputs_not_list(input):
     with pytest.raises(Exception) as e:
-        buxton_values = utils.asl_model_buxton(
+        buxton_values = signal_dynamic.asl_model_buxton(
             tau=[10, 20, 30], w=input, m0=1000, cbf=450, att=1500
         )
     assert e.value.args[0] == 'w parameter must be a list or tuple of values.'
 
 
 def test_asl_model_buxton_runs_with_inner_if_clauses():
-    buxton_values = utils.asl_model_buxton(
+    buxton_values = signal_dynamic.asl_model_buxton(
         tau=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
         w=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
         m0=3761480.0,
@@ -132,7 +133,7 @@ def test_asl_model_buxton_runs_with_inner_if_clauses():
 
 
 def test_asl_model_multi_te_return_sucess_list_of_values():
-    multite_values = utils.asl_model_multi_te(
+    multite_values = signal_dynamic.asl_model_multi_te(
         tau=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
         w=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
         te=[13.56, 67.82, 122.08, 176.33, 230.59, 284.84, 339.100, 393.36],
