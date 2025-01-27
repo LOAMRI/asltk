@@ -171,8 +171,14 @@ if args.verbose:
     print('LD: ' + str(args.ld))
     print('----------------')
     print('Optional parameters:')
-    print('Output folder path: ' + str(args.output_folder))
-    print('Mask image file path: ' + str(args.mask))
+    if args.output_folder:
+        print('Output folder path: ' + str(args.output_folder))
+    else:
+        print('Output folder path: assuming the input folder path')
+    if args.mask:
+        print('Mask image file path: ' + str(args.mask))
+    else:
+        print('Mask image file path: not applying brain mask')
     print('TE values: ' + str(args.te))
     print('DW values: ' + str(args.dw))
     print('Input/Output file format: ' + args.file_fmt)
