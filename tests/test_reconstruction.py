@@ -243,6 +243,18 @@ def test_multite_asl_get_att_map_success():
     mte.set_att_map(fake_att)
     assert np.mean(mte.get_att_map()) == 20
 
+def test_multite_asl_get_t1blgm_map_attribution_success():
+    mte = MultiTE_ASLMapping(asldata_te)
+    fake_att = np.ones((10, 10)) * 20
+    mte._t1blgm_map= fake_att
+    assert np.mean(mte.get_t1blgm_map()) == 20
+
+def test_multite_asl_get_t1blgm_map_create_map_update_success():
+    mte = MultiTE_ASLMapping(asldata_te)
+    out = mte.create_map()
+
+    assert isinstance(mte.get_t1blgm_map(), np.ndarray)
+    assert np.mean(mte.get_t1blgm_map()) != 0
 
 @pytest.mark.parametrize('label', [(3), (-1), (1000000), (-1.1), (2.1)])
 def test_multite_asl_set_brain_mask_set_label_value_raise_error_value_not_found_in_mask(
