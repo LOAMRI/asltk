@@ -140,6 +140,15 @@ class MultiTE_ASLMapping(MRIParameters):
         """
         return self._att_map
 
+    def get_t1blgm_map(self):
+        """Get the T1blGM map storaged at the MultiTE_ASLMapping object
+
+        Returns:
+            (np.ndarray): The T1blGM map that is storaged in the
+            MultiTE_ASLMapping object
+        """
+        return self._t1blgm_map
+
     def create_map(
         self,
         ub: list = [np.inf],
