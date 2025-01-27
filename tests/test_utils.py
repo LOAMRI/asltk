@@ -242,3 +242,43 @@ def test_load_image_raise_FileNotFoundError_not_matching_image_file(
             suffix=suff,
         )
     assert 'ASL image file is missing' in e.value.args[0]
+
+
+def test_collect_data_volumes_return_correct_list_of_volumes_4D_data():
+    data = np.ones((2, 30, 40, 15))
+    data[0, :, :, :] = data[0, :, :, :] * 10
+    data[1, :, :, :] = data[1, :, :, :] * 20
+    collected_volumes, _ = utils.collect_data_volumes(data)
+    assert len(collected_volumes) == 2
+    assert collected_volumes[0].shape == (30, 40, 15)
+    assert np.mean(collected_volumes[0]) == 10
+    assert np.mean(collected_volumes[1]) == 20
+
+
+def test_collect_data_volumes_return_correct_list_of_volumes_5D_data():
+    data = np.ones((2, 2, 30, 40, 15))
+    data[0, 0, :, :, :] = data[0, 0, :, :, :] * 10
+    data[0, 1, :, :, :] = data[0, 1, :, :, :] * 10
+    data[1, 0, :, :, :] = data[1, 0, :, :, :] * 20
+    data[1, 1, :, :, :] = data[1, 1, :, :, :] * 20
+    collected_volumes, _ = utils.collect_data_volumes(data)
+    assert len(collected_volumes) == 4
+    assert collected_volumes[0].shape == (30, 40, 15)
+    assert np.mean(collected_volumes[0]) == 10
+    assert np.mean(collected_volumes[1]) == 10
+    assert np.mean(collected_volumes[2]) == 20
+    assert np.mean(collected_volumes[3]) == 20
+
+
+def test_collect_data_volumes_error_if_input_is_not_numpy_array():
+    data = [1, 2, 3]
+    with pytest.raises(Exception) as e:
+        collected_volumes, _ = utils.collect_data_volumes(data)
+    assert 'data is not a numpy array' in e.value.args[0]
+
+
+def test_collect_data_volumes_error_if_input_is_less_than_3D():
+    data = np.ones((30, 40))
+    with pytest.raises(Exception) as e:
+        collected_volumes, _ = utils.collect_data_volumes(data)
+    assert 'data is a 3D volume or higher dimensions' in e.value.args[0]
