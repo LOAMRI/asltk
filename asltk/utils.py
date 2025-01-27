@@ -227,3 +227,37 @@ def load_asl_data(fullpath: str):
     """
     _check_input_path(fullpath)
     return dill.load(open(fullpath, 'rb'))
+
+
+def collect_data_volumes(data: np.ndarray):
+    """Collect the data volumes from a higher dimension array.
+
+    This method is used to collect the data volumes from a higher dimension
+    array. The method assumes that the data is a 4D array, where the first
+    dimension is the number of volumes. The method will collect the volumes
+    and return a list of 3D arrays.
+
+    The method is used to separate the 3D volumes from the higher dimension
+    array. This is useful when the user wants to apply a filter to each volume
+    separately.
+
+    Args:
+        data (np.ndarray): The data to be separated.
+
+    Returns:
+        list: A list of 3D arrays, each one representing a volume.
+    """
+    if not isinstance(data, np.ndarray):
+        raise TypeError('data is not a numpy array.')
+
+    if data.ndim < 3:
+        raise ValueError('data is a 3D volume or higher dimensions')
+
+    volumes = []
+    # Calculate the number of volumes by multiplying all dimensions except the last three
+    num_volumes = int(np.prod(data.shape[:-3]))
+    reshaped_data = data.reshape((int(num_volumes),) + data.shape[-3:])
+    for i in range(num_volumes):
+        volumes.append(reshaped_data[i])
+
+    return volumes, data.shape
