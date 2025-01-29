@@ -246,6 +246,7 @@ def collect_data_volumes(data: np.ndarray):
 
     Returns:
         list: A list of 3D arrays, each one representing a volume.
+        tuple: The original shape of the data.
     """
     if not isinstance(data, np.ndarray):
         raise TypeError('data is not a numpy array.')
