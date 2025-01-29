@@ -9,9 +9,9 @@ from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.aux_methods import _check_mask_values
+from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
-from asltk.utils import asl_model_multi_te
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -139,6 +139,15 @@ class MultiTE_ASLMapping(MRIParameters):
             (np.ndarray): _description_
         """
         return self._att_map
+
+    def get_t1blgm_map(self):
+        """Get the T1blGM map storaged at the MultiTE_ASLMapping object
+
+        Returns:
+            (np.ndarray): The T1blGM map that is storaged in the
+            MultiTE_ASLMapping object
+        """
+        return self._t1blgm_map
 
     def create_map(
         self,

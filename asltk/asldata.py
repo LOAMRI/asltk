@@ -82,12 +82,20 @@ class ASLData:
         if kwargs.get('dw_values'):
             self._parameters['dw'] = kwargs.get('dw_values')
 
-    def set_image(self, full_path: str, spec: str):
+    def set_image(self, image, spec: str):
         """Insert a image necessary to define de ASL data processing.
 
         The `spec` parameters specifies what is the type of image to be used in
         ASL processing step. Choose one of the options: `m0` for the M0 volume,
         `pcasl` for the pCASL data.
+
+        Note:
+            The image can be a full path to the image file or a numpy array.
+            In case the image parameter is a path, then the method will load
+            the image file directly and associate it with the `spec` parameter.
+            However, if the image is a numpy array, then the method will
+            pass it to the ASLData object image data regarding the `spec`
+            parameter as well.
 
         Examples:
             >>> data = ASLData()
@@ -97,13 +105,19 @@ class ASLData:
             (5, 35, 35)
 
         Args:
-            full_path (str): The full path with filename to be loaded
+            image (str): The image to be used.
             spec (str): The type of image being used in the ASL processing.
         """
-        if spec == 'm0':
-            self._m0_image = load_image(full_path)
-        elif spec == 'pcasl':
-            self._asl_image = load_image(full_path)
+        if isinstance(image, str) and os.path.exists(image):
+            if spec == 'm0':
+                self._m0_image = load_image(image)
+            elif spec == 'pcasl':
+                self._asl_image = load_image(image)
+        elif isinstance(image, np.ndarray):
+            if spec == 'm0':
+                self._m0_image = image
+            elif spec == 'pcasl':
+                self._asl_image = image
 
     def get_ld(self):
         """Obtain the LD array values"""

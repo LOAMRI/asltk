@@ -46,6 +46,9 @@ nav:
   - 'api/asldata.md'
   - 'api/reconstruction.md'
   - 'api/utils.md'
+  - 'scripts/cbf_script.md'
+  - 'scripts/multi_te_script.md'
+  - 'scripts/generate_sub_asl_image.md'
   - 'contribute.md'
 
 plugins:
