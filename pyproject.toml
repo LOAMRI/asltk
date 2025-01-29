@@ -59,7 +59,7 @@ line_length = 79
 lint = "blue . && isort ."
 docs = "mkdocs serve"
 pre_test="task lint"
-test = "pytest --ignore-glob='./asltk/scripts/*.py' -s -x --cov=asltk -vv"
+test = "pytest --ignore-glob='./asltk/scripts/*.py' -s -x --cov=asltk -vv --disable-warnings"
 post_test = "coverage html"
 
 [build-system]
