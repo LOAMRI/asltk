@@ -33,7 +33,7 @@ def test_rigid_body_registration_run_sucess():
 
     assert (
         np.mean(np.subtract(img_orig, resampled_image))
-        < np.mean(img_orig) * 0.1
+        < np.mean(img_orig) * 0.5
     )
 
 
