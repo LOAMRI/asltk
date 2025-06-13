@@ -2,7 +2,7 @@
 
 [![Documentation Stable](https://readthedocs.org/projects/asltk/badge/?version=main)](https://asltk.readthedocs.io/en/main/?badge=main)
 [![codecov](https://codecov.io/gh/LOAMRI/asltk/graph/badge.svg?token=1W8GQ7SLU9)](https://codecov.io/gh/LOAMRI/asltk)
-![CI_main](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml/badge.svg)
+[![CI_main](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml)
 [![CI_develop](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml)
 [![PyPI version](https://badge.fury.io/py/asltk.svg)](https://badge.fury.io/py/asltk)
 
