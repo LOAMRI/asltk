@@ -1,0 +1,9 @@
+{  
+        "atlas_name": "MNI Structural Atlas - 2009",
+        "dataset_url": "",
+        "official_url": "https://www.bic.mni.mcgill.ca/ServicesAtlases/ICBM152NLin2009",
+        "description": "A number of unbiased non-linear averages of the MNI152 database have been generated that combines the attractions of both high-spatial resolution and signal-to-noise while not being subject to the vagaries of any single brain.",
+        "dataset_doi": "",
+        "citation_doi": [],
+        "labels": {}
+    }

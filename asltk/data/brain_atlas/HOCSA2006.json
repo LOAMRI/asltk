@@ -1,0 +1,14 @@
+{
+        "atlas_name": "Harvard-Oxford Cortical and Subcortical Structural Atlases - 2006",
+        "dataset_url": "",
+        "official_url": "https://neurovault.org/collections/262/",
+        "description": "Probabilistic atlases covering 48 cortical and 21 subcortical structural areas, derived from structural data and segmentations kindly provided by the Harvard Center for Morphometric Analysis.",
+        "dataset_doi": "",
+        "citation_doi": [
+            "10.1016/j.schres.2005.11.020",
+            "10.1176/appi.ajp.162.7.1256",
+            "10.1016/j.neuroimage.2006.01.021",
+            "10.1016/j.biopsych.2006.06.027",
+        ],
+        "labels": {},
+    }
