@@ -49,7 +49,6 @@ def download_brain_atlas(dataset_url: str):
     return path
 
 
-
 # def collect_cucaracha_model(cucaracha_preset: str):
 #     """
 #     Collects the Cucaracha model from the given preset.
