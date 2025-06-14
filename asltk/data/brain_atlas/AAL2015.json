@@ -1,0 +1,13 @@
+{
+        "atlas_name": "Automated Anatomical Labeling (AAL) - 2015",
+        "dataset_url": "",
+        "official_url": "https://www.gin.cnrs.fr/en/tools/aal/",
+        "description": "The automated anatomical parcellation AAL3 of the spatially normalized single-subject high-resolution T1 volume provided by the Montreal Neurological Institute (MNI).",
+        "dataset_doi": "",
+        "citation_doi": [
+            "10.1006/nimg.2001.0978",
+            "10.1016/j.neuroimage.2015.07.075",
+            "10.1006/nimg.2001.0978"
+        ],
+        "labels": {}
+    }
