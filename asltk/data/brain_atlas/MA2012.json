@@ -1,0 +1,9 @@
+{
+        "atlas_name": "Mindboggle Atlas 101 - 2012",
+        "dataset_url": "",
+        "official_url": "https://mindboggle.info/data",
+        "description": "dataset consists of 101 labeled brain images that have been manually labeled largely following the Desikan protocol. It also consists of a group-level parcellation atlas which has been included into Lead-DBS for connectomic analyses.",
+        "dataset_doi": "",
+        "citation_doi": ["10.3389/fnins.2012.00171"],
+        "labels": {}
+    }
