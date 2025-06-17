@@ -3,6 +3,17 @@ import pytest
 from asltk.data.brain_atlas import BrainAtlas
 
 
+def test_set_atlas_raise_error_when_atlas_name_does_not_exist():
+    """
+    Test if setting an atlas raises an error when the atlas name does not exist.
+    """
+    atlas = BrainAtlas()
+    with pytest.raises(ValueError) as e:
+        atlas.set_atlas('non_existent_atlas')
+
+    assert 'not found in the database' in str(e.value)
+
+
 def test_list_all_atlas():
     """
     Test if the BrainAtlas class can list all available atlases.
@@ -11,6 +22,28 @@ def test_list_all_atlas():
     atlases = atlas.list_atlas()
     assert isinstance(atlases, list), 'The list of atlases should be a list.'
     assert len(atlases) > 0, 'There should be at least one atlas available.'
+
+
+def test_get_atlas_url():
+    """
+    Test if the BrainAtlas class can retrieve the URL of a known atlas.
+    """
+    atlas = BrainAtlas(atlas_name='MNI2009')
+    url = atlas.get_atlas_url('MNI2009')
+    assert isinstance(url, str)   # The URL should be a string.
+    assert 'loamri' in url
+
+
+def test_get_atlas_labels():
+    """
+    Test if the BrainAtlas class can retrieve labels for a known atlas.
+    """
+    atlas = BrainAtlas(atlas_name='MNI2009')
+    labels = atlas.get_atlas_labels()
+    assert isinstance(labels, dict)   # 'Labels should be a dictionary.'
+    assert (
+        len(labels) > 0
+    )   # 'There should be at least one label in the atlas.'
 
 
 @pytest.mark.parametrize('known_atlas', ['AAL', 'HOCSA2006', 'AAT'])
