@@ -5,6 +5,7 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.registration import head_movement_correction
+from asltk.registration.atlas_normalization import space_normalization
 from asltk.registration.rigid import rigid_body_registration
 from asltk.utils import load_image
 
@@ -110,3 +111,16 @@ def test_head_movement_correction_success():
 
     assert pcasl_corrected.shape == pcasl_orig('pcasl').shape
     assert any(not np.array_equal(mtx, np.eye(4)) for mtx in trans_mtxs)
+
+
+def test_space_normalization_success():
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    # Use the ASLData object directly
+    normalized_image, transform = space_normalization(
+        pcasl_orig('m0'), template_image='MNI2009'
+    )
+
+    assert isinstance(normalized_image, np.ndarray)
+    assert normalized_image.shape == (182, 218, 182)
+    assert len(transform) == 2
