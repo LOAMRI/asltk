@@ -59,6 +59,7 @@ line_length = 79
 
 [tool.taskipy.tasks]
 lint = "blue . && isort ."
+lint_check = "blue --check . && isort --check ."
 docs = "mkdocs serve"
 pre_test="task lint"
 test = "pytest --ignore-glob='./asltk/scripts/*.py' -s -x --cov=asltk -vv --disable-warnings"
