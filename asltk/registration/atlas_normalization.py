@@ -1,11 +1,13 @@
 import ants
 import numpy as np
+from rich.console import Console
+
+from asltk.data.brain_atlas import BrainAtlas
 
 
-def brain_normalization(
+def space_normalization(
     moving_image: np.ndarray,
-    template_image: np.ndarray,
-    output_prefix: str = 'norm',
+    template_image: BrainAtlas,
     moving_mask: np.ndarray = None,
     template_mask: np.ndarray = None,
     transform_type: str = 'SyN',
@@ -25,8 +27,6 @@ def brain_normalization(
         Path to the moving image.
     template_image : np.ndarray
         Path to the template image.
-    output_prefix : str, optional
-        Prefix for the output files (default is 'norm').
     moving_mask : np.ndarray, optional
         Path to the moving mask.
     template_mask : np.ndarray, optional
@@ -50,7 +50,13 @@ def brain_normalization(
 
     # Load images
     moving = ants.from_numpy(moving_image)
-    template = ants.from_numpy(template_image)
+
+    # Get template image from BrainAtlas
+    if isinstance(template_image, BrainAtlas):
+        template_image = template_image.get_atlas()['t1_data']
+    elif isinstance(template_image, str):
+        template_image = BrainAtlas(template_image).get_atlas()['t1_data']
+    template = ants.image_read(template_image)
 
     # Load masks if provided
     if moving_mask:
@@ -59,13 +65,18 @@ def brain_normalization(
         template_mask = ants.image_read(template_mask)
 
     # Perform registration
-    registration = ants.registration(
-        fixed=template,
-        moving=moving,
-        type_of_transform=transform_type,
-        mask=moving_mask,
-        mask_fixed=template_mask,
-    )
+    console = Console()
+    with console.status(
+        '[bold green]Calculating registration...', spinner='dots'
+    ):
+        registration = ants.registration(
+            fixed=template,
+            moving=moving,
+            type_of_transform=transform_type,
+            mask=moving_mask,
+            mask_fixed=template_mask,
+        )
 
-    # Save results
-    return None
+    # Passing the warped image and forward transforms
+    console.log('[bold green]Registration completed successfully.')
+    return registration['warpedmovout'].numpy(), registration['fwdtransforms']
