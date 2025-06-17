@@ -1,9 +1,10 @@
 # Brain atlas list for ASLtk
 # All the data are storage in the Kaggle ASLtk project
 # When a new data is called, then the brain atlas is allocated locally
+import json
 import os
 
-from asltk.data.kaggle_tools import download_brain_atlas
+import kagglehub
 
 # TODO https://www.lead-dbs.org/helpsupport/knowledge-base/atlasesresources/cortical-atlas-parcellations-mni-space/
 # TODO MNI2009 - Check the FSL compatible atlas
@@ -13,14 +14,77 @@ class BrainAtlas:
 
     ATLAS_JSON_PATH = os.path.join(os.path.dirname(__file__))
 
-    def __init__(self):
-        pass
+    def __init__(self, atlas_name: str = 'MNI2009'):
+        """
+        Initializes the BrainAtlas class with a specified atlas name.
+        If no atlas name is provided, it defaults to 'MNI2009'.
+
+        Args:
+            atlas_name (str, optional):  The name of the atlas to be used. Defaults to 'MNI2009'.
+        """
+        self._chosen_atlas = None
+        self.set_atlas(atlas_name)
+
+    def set_atlas(self, atlas_name: str):
+        """
+        Sets the brain atlas to be used for ASLtk operations.
+        This method checks if the provided atlas name exists in the available atlas database.
+        If found, it loads the corresponding atlas JSON file, downloads the atlas data using the
+        URL specified in the JSON (via kagglehub), and updates the atlas data with the local file
+        location. The selected atlas data is then stored internally for further use.
+
+        Notes:
+        The atlas name should match one of the available atlases in the ASLtk database.
+        To see all the available atlases, you can use the `list_atlas` method.
+
+        Args:
+            atlas_name (str): The name of the atlas to set. Must match an available atlas.
+
+        Raises:
+            ValueError: If the atlas name is not found in the database or if there is an error
+                        downloading the atlas data.
+        """
+        if atlas_name not in self.list_atlas():
+            raise ValueError(f'Atlas {atlas_name} not found in the database.')
+
+        atlas_path = os.path.join(self.ATLAS_JSON_PATH, f'{atlas_name}.json')
+        with open(atlas_path, 'r') as f:
+            atlas_data = json.load(f)
+
+        # Add the current atlas file location in the atlas data
+        try:
+            path = kagglehub.dataset_download(
+                atlas_data.get('dataset_url', None)
+            )
+        except Exception as e:
+            raise ValueError(f'Error downloading the atlas: {e}')
+
+        # Assuming the atlas_data is a dictionary, we can add the path to it
+        atlas_data['atlas_file_location'] = path
+        # Assuming the atlas data contains a key for T1-weighted and Label image data
+        atlas_data['t1_data'] = os.path.join(path, self._collect_t1(path))
+        atlas_data['label_data'] = os.path.join(
+            path, self._collect_label(path)
+        )
+
+        self._chosen_atlas = atlas_data
+
+    def get_atlas(self):
+        """
+        Get the current brain atlas data.
+
+        Returns:
+            dict: The current atlas data.
+        """
+        return self._chosen_atlas
 
     def get_atlas_url(self, atlas_name: str):
         """
-        Get the dataset URL of the atlas from the ASLtk database.
+        Get the brain atlas URL of the chosen format in the ASLtk database.
         The atlas URL is the base Kaggle URL where the atlas is stored.
 
+
+        Notes:
         The `atlas_name` should be the name of the atlas as it is stored in the ASLtk database.
         To check all the available atlases, you can use the `list_atlas` method.
 
@@ -36,17 +100,26 @@ class BrainAtlas:
         if atlas_name not in self.list_atlas():
             raise ValueError(f'Atlas {atlas_name} not found in the database.')
 
-        atlas_path = os.path.join(self.ATLAS_JSON_PATH, f'{atlas_name}.json')
-        with open(atlas_path, 'r') as f:
-            atlas_info = f.read()
+        try:
+            atlas_url = self._chosen_atlas.get('dataset_url', None)
+        except AttributeError:
+            raise ValueError(
+                f'Atlas {atlas_name} is not set or does not have a dataset URL.'
+            )
 
-        return atlas_info.get('dataset_url', None)
+        return atlas_url
 
-    def get_atlas_labels(self, atlas_name: str):
-        pass
+    def get_atlas_labels(self):
+        """
+        Get the labels of the chosen brain atlas.
+        This method retrieves the labels associated with the current atlas.
+        Notes:
+        The labels are typically used for parcellation or segmentation tasks in brain imaging.
 
-    def get_atlas_info(self, atlas_name: str):
-        pass
+        Returns:
+            dict: The labels of the current atlas if available, otherwise None.
+        """
+        return self._chosen_atlas.get('labels', None)
 
     def list_atlas(self):
         """
@@ -65,6 +138,34 @@ class BrainAtlas:
             if f.endswith('.json')
         ]
 
-    def _check_atlas_name(self, atlas_name: str):
-        # check if the atlas_name exist into the ASLtk atlas database
-        pass
+    def _collect_t1(self, path: str):
+        """
+        Collect the T1-weighted image data from the atlas directory.
+        Args:
+            path (str): The path to the atlas directory.
+        Returns:
+            str: The filename of the T1-weighted image data.
+        """
+        t1_file = next((f for f in os.listdir(path) if '_t1' in f), None)
+        if t1_file is None:
+            raise ValueError(
+                f"No file with '_t1' found in the atlas directory: {path}"
+            )
+
+        return t1_file
+
+    def _collect_label(self, path: str):
+        """
+        Collect the label file from the atlas directory.
+        Args:
+            path (str): The path to the atlas directory.
+        Returns:
+            str: The filename of the label file.
+        """
+        label_file = next((f for f in os.listdir(path) if '_label' in f), None)
+        if label_file is None:
+            raise ValueError(
+                f"No file with '_label' found in the atlas directory: {path}"
+            )
+
+        return label_file
