@@ -9,6 +9,37 @@ from asltk.utils import collect_data_volumes
 def head_movement_correction(
     asl_data: ASLData, ref_vol: int = 0, verbose: bool = False
 ):
+    """
+    Correct head movement in ASL data using rigid body registration.
+
+    This function applies rigid body registration to correct head movement 
+    in ASL data. It registers each volume in the ASL data to a reference volume.
+
+    Hence, it can be helpfull to correct for head movements that may have 
+    occurred during the acquisition of ASL data.
+    Note:
+        The reference volume is selected based on the `ref_vol` parameter, 
+        which should be a valid index of the total number of volumes in the ASL data.
+        The `ref_vol` value for 0 means that the first volume will be used as the reference.
+
+    Args:
+        asl_data: ASLData)
+            The ASLData object containing the pcasl image to be corrected. 
+        ref_vol: (int, optional)
+            The index of the reference volume to which all other volumes will be registered.
+            Defaults to 0.
+        verbose: (bool, optional) 
+            If True, prints progress messages. Defaults to False.
+
+    Raises:
+        TypeError: _description_
+        ValueError: _description_
+        RuntimeError: _description_
+
+    Returns:
+        tuple: ASLData object with corrected volumes and a list of transformation matrices.
+    """
+
     # Check if the input is a valid ASLData object.
     if not isinstance(asl_data, ASLData):
         raise TypeError('Input must be an ASLData object.')
