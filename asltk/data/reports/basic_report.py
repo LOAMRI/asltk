@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class BasicReport(ABC):
-    
     def __init__(self, title: str, **kwargs):
         self.title = title
         self.report = None
@@ -24,4 +23,4 @@ class BasicReport(ABC):
             The format of the report file. Options are 'pdf', 'csv' (default is 'csv').
         """
         if self.report is None:
-            raise ValueError("Report has not been generated yet.")
+            raise ValueError('Report has not been generated yet.')

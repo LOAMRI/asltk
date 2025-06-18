@@ -1,5 +1,6 @@
 from asltk.data.reports import ParcellationReport
 
+
 def test_parcellation_report_create_object_sucess():
     """
     Test the ParcellationReport class.

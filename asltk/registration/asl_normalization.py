@@ -12,23 +12,23 @@ def head_movement_correction(
     """
     Correct head movement in ASL data using rigid body registration.
 
-    This function applies rigid body registration to correct head movement 
+    This function applies rigid body registration to correct head movement
     in ASL data. It registers each volume in the ASL data to a reference volume.
 
-    Hence, it can be helpfull to correct for head movements that may have 
+    Hence, it can be helpfull to correct for head movements that may have
     occurred during the acquisition of ASL data.
     Note:
-        The reference volume is selected based on the `ref_vol` parameter, 
+        The reference volume is selected based on the `ref_vol` parameter,
         which should be a valid index of the total number of volumes in the ASL data.
         The `ref_vol` value for 0 means that the first volume will be used as the reference.
 
     Args:
         asl_data: ASLData)
-            The ASLData object containing the pcasl image to be corrected. 
+            The ASLData object containing the pcasl image to be corrected.
         ref_vol: (int, optional)
             The index of the reference volume to which all other volumes will be registered.
             Defaults to 0.
-        verbose: (bool, optional) 
+        verbose: (bool, optional)
             If True, prints progress messages. Defaults to False.
 
     Raises:
