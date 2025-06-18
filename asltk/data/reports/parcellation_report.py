@@ -1,8 +1,8 @@
 from asltk.data.brain_atlas import BrainAtlas
 from asltk.data.reports.basic_report import BasicReport
 
-class ParcellationReport(BasicReport):
 
+class ParcellationReport(BasicReport):
     def __init__(self, atlas_name: str = 'MNI2009'):
         pass
 
