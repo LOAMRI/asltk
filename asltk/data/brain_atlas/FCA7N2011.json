@@ -1,0 +1,17 @@
+{
+    "atlas_name": "Functional Connectivity Atlas 7 Networks",
+    "dataset_url": "loamri/brain-atlas-fca7n2011",
+    "official_url": "https://surfer.nmr.mgh.harvard.edu/fswiki/CorticalParcellation_Yeo2011",
+    "description": "Data from 1000 young, healthy adults were registered using surface-based alignment. All data were acquired on Siemens 3T scanners using the same functional and structural sequences. A clustering approach was employed to identify and replicate networks of functionally coupled regions across the cerebral cortex",
+    "dataset_doi": "10.34740/kaggle/dsv/12200454",
+    "citation_doi": ["10.1152/jn.00338.2011"],
+    "labels":   {
+        "1": "7Networks_1",
+        "2": "7Networks_2",
+        "3": "7Networks_3",
+        "4": "7Networks_4",
+        "5": "7Networks_5",
+        "6": "7Networks_6",
+        "7": "7Networks_7"
+    }
+}
