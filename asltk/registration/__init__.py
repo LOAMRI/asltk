@@ -111,10 +111,10 @@ def space_normalization(
         )
 
     # Load masks if provided
-    if moving_mask:
-        moving_mask = ants.image_read(moving_mask)
-    if template_mask:
-        template_mask = ants.image_read(template_mask)
+    if isinstance(moving_mask, np.ndarray):
+        moving_mask = ants.from_numpy(moving_mask)
+    if isinstance(template_mask, np.ndarray):
+        template_mask = ants.from_numpy(template_mask)
 
     # Perform registration
     console = Console()
