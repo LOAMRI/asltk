@@ -4,7 +4,10 @@ import numpy as np
 import pytest
 
 from asltk.asldata import ASLData
-from asltk.registration.asl_normalization import head_movement_correction
+from asltk.registration.asl_normalization import (
+    asl_template_registration,
+    head_movement_correction,
+)
 from asltk.utils import load_image
 
 SEP = os.sep
@@ -76,3 +79,58 @@ def test_head_movement_correction_returns_asl_data_corrected():
     assert isinstance(asl_data_corrected, ASLData)
     assert asl_data_corrected('pcasl').shape == pcasl_orig('pcasl').shape
     assert asl_data_corrected('pcasl').dtype == pcasl_orig('pcasl').dtype
+
+
+# TODO Reformulate data to use into this test (try with M0 only)
+# def test_asl_template_registration_success():
+#     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+#     asl_data_mask = np.ones_like(pcasl_orig('m0'), dtype=bool)
+
+#     asl_data_registered, trans_mtxs = asl_template_registration(
+#         pcasl_orig, ref_vol=0, asl_data_mask=asl_data_mask, atlas_name='MNI2009', verbose=True
+#     )
+
+#     assert isinstance(asl_data_registered, ASLData)
+#     assert asl_data_registered('pcasl').shape == pcasl_orig('pcasl').shape
+#     assert isinstance(trans_mtxs, list)
+#     assert len(trans_mtxs) == pcasl_orig('pcasl').shape[0]
+
+
+def test_asl_template_registration_invalid_input_type():
+    with pytest.raises(TypeError) as e:
+        asl_template_registration('not_asldata')
+    assert str(e.value) == 'Input must be an ASLData object.'
+
+
+def test_asl_template_registration_invalid_ref_vol_type():
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+    with pytest.raises(ValueError) as e:
+        asl_template_registration(pcasl_orig, ref_vol='invalid')
+    assert str(e.value) == 'ref_vol must be a non-negative integer.'
+
+
+def test_asl_template_registration_invalid_ref_vol_type_with_negative_volume():
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+    with pytest.raises(ValueError) as e:
+        asl_template_registration(pcasl_orig, ref_vol=-1)
+    assert str(e.value) == 'ref_vol must be a non-negative integer.'
+
+
+def test_asl_template_registration_invalid_ref_vol_index():
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+    n_vols = 1000000
+    with pytest.raises(ValueError) as e:
+        asl_template_registration(pcasl_orig, ref_vol=n_vols)
+    assert 'ref_vol must be a valid index' in str(e.value)
+
+
+# def test_asl_template_registration_returns_transforms():
+#     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+#     asl_data_mask = np.ones_like(pcasl_orig('pcasl')[0], dtype=bool)
+
+#     asl_data_registered, trans_mtxs = asl_template_registration(
+#         pcasl_orig, ref_vol=0, asl_data_mask=asl_data_mask
+#     )
+
+#     assert isinstance(trans_mtxs, list)
+#     assert all(isinstance(mtx, np.ndarray) for mtx in trans_mtxs)
