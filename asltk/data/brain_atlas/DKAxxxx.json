@@ -1,3 +1,9 @@
 {
-    "atlas_name": "Desikan-Killiany Atlas"
+    "atlas_name": "Desikan-Killiany Atlas",
+    "dataset_url": "",
+    "official_url": "",
+    "description": "",
+    "dataset_doi": "",
+    "citation_doi": [""],
+    "labels": {}
 }
