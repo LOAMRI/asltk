@@ -24,7 +24,7 @@ Also, feel free to contribute directly to the project! Check it out the [issues]
 A quick to use install is via `pip`, as follows:
 
 > [!NOTE]
-> The installation requires Python 3.10 or higher
+> The installation requires Python 3.9 or higher
 
 ```bash
 pip install asltk
