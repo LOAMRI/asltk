@@ -96,3 +96,26 @@ def test_get_atlas_url_raise_error_when_atlas_name_does_not_exist():
         atlas.get_atlas_url('non_existent_atlas')
 
     assert 'not found in the database' in str(e)
+
+
+@pytest.mark.parametrize(
+    'atlas_name',
+    [
+        'MNI2009',
+        'AAL32024',
+        'HOCSA2006',
+        'AAT2022',
+        'AICHA2021',
+        'DKA2006',
+        'FCA7N2011',
+        'HA2003',
+        'JHA2005',
+        'LGPHCC2022',
+    ],
+)
+def test_brain_atlas_creation_with_various_names(atlas_name):
+    """
+    Test creating BrainAtlas objects with different valid atlas names.
+    """
+    atlas = BrainAtlas(atlas_name=atlas_name)
+    assert isinstance(atlas.get_atlas(), dict)
