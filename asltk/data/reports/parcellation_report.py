@@ -90,7 +90,7 @@ class ParcellationReport(BasicReport):
             # TODO revise the CSV formatting to include all necessary information
             # Save the regions DataFrame to a CSV file
             self.report_data['regions_dataframe'].to_csv(
-                file_path, index=False
+                self.default_fullpath, index=False
             )
         elif format == 'pdf':
             # Save the report as a PDF file
