@@ -127,6 +127,76 @@ def asl_template_registration(
     return new_asl, trans_m0_mtx
 
 
+def asl_template_registration(
+    asl_data: ASLData,
+    ref_vol: int = 0,
+    asl_data_mask: np.ndarray = None,
+    atlas_name: str = 'MNI2009',
+    verbose: bool = False,
+):
+    """
+    Register ASL data to MNI space using rigid body registration.
+
+    This function applies rigid body registration to correct head movement
+    in ASL data. It registers each volume in the ASL data to a reference volume.
+
+    Args:
+        asl_data: ASLData
+            The ASLData object containing the pcasl and/or m0 image to be corrected.
+        ref_vol: (int, optional)
+            The index of the reference volume to which all other volumes will be registered.
+            Defaults to 0.
+        verbose: (bool, optional)
+            If True, prints progress messages. Defaults to False.
+
+    Raises:
+        TypeError: If the input is not an ASLData object.
+        ValueError: If ref_vol is not a valid index.
+        RuntimeError: If an error occurs during registration.
+
+    Returns:
+        tuple: ASLData object with corrected volumes and a list of transformation matrices.
+    """
+    if not isinstance(asl_data, ASLData):
+        raise TypeError('Input must be an ASLData object.')
+
+    if not isinstance(ref_vol, int) or ref_vol < 0:
+        raise ValueError('ref_vol must be a non-negative integer.')
+
+    total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
+
+    if ref_vol >= len(total_vols):
+        raise ValueError(
+            'ref_vol must be a valid index based on the total ASL data volumes.'
+        )
+
+    atlas = BrainAtlas(atlas_name=atlas_name)
+
+    def norm_function(vol, _):
+        return space_normalization(
+            moving_image=vol,
+            template_image=atlas_name,
+            moving_mask=asl_data_mask,
+            template_mask=None,
+            transform_type='SyNBoldAff',
+        )
+
+    corrected_vols, trans_mtx = __apply_array_normalization(
+        total_vols, ref_vol, orig_shape, norm_function, verbose
+    )
+
+    # TODO Make the verbose output more informative
+    if asl_data('m0') is not None:
+        corrected_m0_vols, _ = __apply_array_normalization(
+            asl_data('m0'), ref_vol, orig_shape, norm_function, verbose
+        )
+        asl_data.set_image(corrected_m0_vols, 'm0')
+    # Update the ASLData object with the corrected volumes
+    asl_data.set_image(corrected_vols, 'pcasl')
+
+    return asl_data, trans_mtx
+
+
 def head_movement_correction(
     asl_data: ASLData,
     ref_vol: np.ndarray = None,
