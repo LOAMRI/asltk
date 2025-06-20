@@ -5,6 +5,7 @@ from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
 from asltk.registration import rigid_body_registration, space_normalization
 from asltk.utils import collect_data_volumes
+from rich.progress import Progress
 
 
 def asl_template_registration(
@@ -149,20 +150,19 @@ def __apply_array_normalization(
     )
 
     # TODO build a progress bar using rich
-    for idx, vol in enumerate(total_vols):
-        if verbose:
-            print(f'[b green]Correcting volume {idx}...[/]', end='')
-        try:
-            corrected_vol, trans_m = normalization_function(vol, ref_volume)
-        except Exception as e:
-            raise RuntimeError(
-                f'[red]Error during registration of volume {idx}: {e}[/red]'
-            ) from e
+    with Progress() as progress:
+        task = progress.add_task("[green]Registering volumes...", total=len(total_vols))
+        for idx, vol in enumerate(total_vols):
+            try:
+                corrected_vol, trans_m = normalization_function(vol, ref_volume)
+            except Exception as e:
+                raise RuntimeError(
+                    f'[red on white]Error during registration of volume {idx}: {e}[/]'
+                ) from e
 
-        if verbose:
-            print('[b green]...finished.[/]')
-        corrected_vols.append(corrected_vol)
-        trans_mtx.append(trans_m)
+            corrected_vols.append(corrected_vol)
+            trans_mtx.append(trans_m)
+            progress.update(task, advance=1)
 
     # Rebuild the original ASLData object with the corrected volumes
     corrected_vols = np.stack(corrected_vols).reshape(orig_shape)
