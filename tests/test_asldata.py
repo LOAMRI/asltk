@@ -269,3 +269,34 @@ def test_set_image_sucess_pcasl():
     obj = asldata.ASLData()
     obj.set_image(M0, 'pcasl')
     assert isinstance(obj('pcasl'), np.ndarray)
+
+
+def test_asldata_copy_creates_deepcopy():
+    obj = asldata.ASLData(
+        pcasl=PCASL_MTE,
+        ld_values=[1, 2, 3],
+        pld_values=[1, 2, 3],
+        te_values=[10, 20, 30],
+        dw_values=[100, 200, 300],
+    )
+    obj_copy = obj.copy()
+    assert isinstance(obj_copy, asldata.ASLData)
+    assert obj is not obj_copy
+    assert obj.get_ld() == obj_copy.get_ld()
+    assert obj.get_pld() == obj_copy.get_pld()
+    assert obj.get_te() == obj_copy.get_te()
+    assert obj.get_dw() == obj_copy.get_dw()
+    # Mutate original, copy should not change
+    obj.set_ld([9, 8, 7])
+    assert obj.get_ld() != obj_copy.get_ld()
+
+
+def test_asldata_len_returns_zero_for_no_image():
+    obj = asldata.ASLData()
+    assert len(obj) == 0
+
+
+def test_asldata_len_returns_total_volumes():
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    assert len(asl) == 56
