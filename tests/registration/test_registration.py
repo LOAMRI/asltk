@@ -10,6 +10,7 @@ from asltk.registration import (
     affine_registration,
     rigid_body_registration,
     space_normalization,
+    apply_transformation,
 )
 from asltk.utils import load_image
 
@@ -244,3 +245,48 @@ def test_affine_registration_slow_method():
     assert np.mean(np.abs(img_orig - resampled_image)) < 0.5 * np.mean(
         img_orig
     )
+
+def test_apply_transformation_success():
+    img_orig = load_image(M0_ORIG)
+    img_rot = load_image(M0_RIGID)
+    # Get transformation matrix from rigid registration
+    _, trans_matrix = rigid_body_registration(img_orig, img_rot)
+    # Apply transformation
+    transformed_img = apply_transformation(img_rot, img_orig, trans_matrix)
+    assert isinstance(transformed_img, np.ndarray)
+    assert transformed_img.shape == img_rot.shape
+    assert np.mean(np.abs(transformed_img - img_rot)) < 0.5 * np.mean(img_rot)
+
+
+def test_apply_transformation_invalid_fixed_image():
+    img_rot = load_image(M0_RIGID)
+    _, trans_matrix = rigid_body_registration(img_rot, img_rot)
+    with pytest.raises(Exception) as e:
+        apply_transformation('invalid_image', img_rot, trans_matrix)
+    assert 'must be numpy arrays' in str(e.value)
+
+
+def test_apply_transformation_invalid_moving_image():
+    img_orig = load_image(M0_ORIG)
+    _, trans_matrix = rigid_body_registration(img_orig, img_orig)
+    with pytest.raises(Exception) as e:
+        apply_transformation(img_orig, 'invalid_image', trans_matrix)
+    assert 'must be numpy arrays' in str(e.value)
+
+
+def test_apply_transformation_invalid_transformation_matrix():
+    img_orig = load_image(M0_ORIG)
+    img_rot = load_image(M0_RIGID)
+    with pytest.raises(Exception) as e:
+        apply_transformation(img_orig, img_rot, 'invalid_matrix')
+    assert 'transforms must be a list of transformation matrices' in str(e.value)
+
+
+def test_apply_transformation_with_mask():
+    img_orig = load_image(M0_ORIG)
+    img_rot = load_image(M0_RIGID)
+    mask = np.ones_like(img_orig, dtype=bool)
+    _, trans_matrix = rigid_body_registration(img_orig, img_rot)
+    transformed_img = apply_transformation(img_orig, img_rot, trans_matrix, mask=mask)
+    assert isinstance(transformed_img, np.ndarray)
+    assert transformed_img.shape == img_rot.shape
