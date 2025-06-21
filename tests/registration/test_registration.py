@@ -11,7 +11,6 @@ from asltk.registration import (
     apply_transformation,
     rigid_body_registration,
     space_normalization,
-    apply_transformation,
 )
 from asltk.registration.asl_normalization import head_movement_correction
 from asltk.utils.io import load_image

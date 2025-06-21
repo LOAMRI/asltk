@@ -177,12 +177,11 @@ def asl_template_registration(
     if not isinstance(ref_vol, int) or ref_vol < 0:
         raise ValueError('ref_vol must be a non-negative integer.')
 
-
     if asl_data('m0') is not None:
         ref_vol = 0
-        total_vols = [asl_data(
-            'm0'
-        )]   # If M0 is provided, use it for normalization
+        total_vols = [
+            asl_data('m0')
+        ]   # If M0 is provided, use it for normalization
         orig_shape = asl_data('m0').shape
     else:
         total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
