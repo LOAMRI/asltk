@@ -1,6 +1,5 @@
 import ants
 import numpy as np
-from rich.console import Console
 
 from asltk.data.brain_atlas import BrainAtlas
 
@@ -117,20 +116,15 @@ def space_normalization(
         template_mask = ants.from_numpy(template_mask)
 
     # Perform registration
-    console = Console()
-    with console.status(
-        '[bold green]Calculating registration...', spinner='dots'
-    ):
-        registration = ants.registration(
-            fixed=template,
-            moving=moving,
-            type_of_transform=transform_type,
-            mask=moving_mask,
-            mask_fixed=template_mask,
-        )
+    registration = ants.registration(
+        fixed=template,
+        moving=moving,
+        type_of_transform=transform_type,
+        mask=moving_mask,
+        mask_fixed=template_mask,
+    )
 
     # Passing the warped image and forward transforms
-    console.log('[bold green]Registration completed successfully.')
     return registration['warpedmovout'].numpy(), registration['fwdtransforms']
 
 
