@@ -6,10 +6,6 @@ import os
 
 import kagglehub
 
-# TODO https://www.lead-dbs.org/helpsupport/knowledge-base/atlasesresources/cortical-atlas-parcellations-mni-space/
-# TODO MNI2009 - Check the FSL compatible atlas
-
-
 class BrainAtlas:
 
     ATLAS_JSON_PATH = os.path.join(os.path.dirname(__file__))
