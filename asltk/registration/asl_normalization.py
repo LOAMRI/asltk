@@ -1,11 +1,9 @@
 import numpy as np
-from rich import print
+from rich.progress import Progress
 
 from asltk.asldata import ASLData
-from asltk.data.brain_atlas import BrainAtlas
 from asltk.registration import rigid_body_registration, space_normalization
 from asltk.utils import collect_data_volumes
-from rich.progress import Progress
 
 
 def asl_template_registration(
@@ -16,10 +14,18 @@ def asl_template_registration(
     verbose: bool = False,
 ):
     """
-    Register ASL data to MNI space using rigid body registration.
+    Register ASL data to common atlas space.
 
-    This function applies rigid body registration to correct head movement
-    in ASL data. It registers each volume in the ASL data to a reference volume.
+    This function applies a elastic normalization to fit the subject head
+    space into the atlas template space.
+
+
+    Note:
+        This method takes in consideration the ASLData object, which contains
+        the pcasl and/or m0 image. The registration is performed using primarily
+        the `m0`image if available, otherwise it uses the `pcasl` image.
+        Therefore, choose wisely the `ref_vol` parameter, which should be a valid index
+        for the best `pcasl`volume reference to be registered to the atlas.
 
     Args:
         asl_data: ASLData
@@ -27,6 +33,12 @@ def asl_template_registration(
         ref_vol: (int, optional)
             The index of the reference volume to which all other volumes will be registered.
             Defaults to 0.
+        asl_data_mask: np.ndarray
+            A single volume image mask. This can assist the normalization method to converge
+            into the atlas space. If not provided, the full image is adopted.
+        atlas_name: str
+            The atlas type to be considered. The BrainAtlas class is applied, then choose
+            the `atlas_name` based on the ASLtk brain atlas list.
         verbose: (bool, optional)
             If True, prints progress messages. Defaults to False.
 
@@ -44,14 +56,20 @@ def asl_template_registration(
     if not isinstance(ref_vol, int) or ref_vol < 0:
         raise ValueError('ref_vol must be a non-negative integer.')
 
-    total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
+
+    if asl_data('m0') is not None:
+        ref_vol = 0
+        total_vols = [asl_data(
+            'm0'
+        )]   # If M0 is provided, use it for normalization
+        orig_shape = asl_data('m0').shape
+    else:
+        total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
 
     if ref_vol >= len(total_vols):
         raise ValueError(
             'ref_vol must be a valid index based on the total ASL data volumes.'
         )
-
-    atlas = BrainAtlas(atlas_name=atlas_name)
 
     def norm_function(vol, _):
         return space_normalization(
@@ -62,18 +80,20 @@ def asl_template_registration(
             transform_type='SyNBoldAff',
         )
 
+    # TODO ARRUMAR O COREGISTRO PARA APLICAR PRIMEIRO NO M0 E DPEOIS APLICAR A TRANSFORMADA PARA TODO ASL
     corrected_vols, trans_mtx = __apply_array_normalization(
         total_vols, ref_vol, orig_shape, norm_function, verbose
     )
 
-    # TODO Make the verbose output more informative
     if asl_data('m0') is not None:
         corrected_m0_vols, _ = __apply_array_normalization(
             asl_data('m0'), ref_vol, orig_shape, norm_function, verbose
         )
         asl_data.set_image(corrected_m0_vols, 'm0')
-    # Update the ASLData object with the corrected volumes
-    asl_data.set_image(corrected_vols, 'pcasl')
+
+    # Create a new ASLData to allocate the normalized image
+    new_asl = asl_data.copy()
+    new_asl.set_image(corrected_vols, 'pcasl')
 
     return asl_data, trans_mtx
 
@@ -132,11 +152,10 @@ def head_movement_correction(
         total_vols, ref_vol, orig_shape, norm_function, verbose
     )
 
-    # TODO The corrected volumes should be set in the ASLData object.
-    # # Update the ASLData object with the corrected volumes
-    asl_data.set_image(corrected_vols, 'pcasl')
+    new_asl_data = asl_data.copy()
+    new_asl_data.set_image(corrected_vols, 'pcasl')
 
-    return asl_data, trans_mtx
+    return new_asl_data, trans_mtx
 
 
 def __apply_array_normalization(
@@ -149,12 +168,15 @@ def __apply_array_normalization(
         total_vols[ref_vol] if isinstance(total_vols, list) else total_vols
     )
 
-    # TODO build a progress bar using rich
     with Progress() as progress:
-        task = progress.add_task("[green]Registering volumes...", total=len(total_vols))
+        task = progress.add_task(
+            '[green]Registering volumes...', total=len(total_vols)
+        )
         for idx, vol in enumerate(total_vols):
             try:
-                corrected_vol, trans_m = normalization_function(vol, ref_volume)
+                corrected_vol, trans_m = normalization_function(
+                    vol, ref_volume
+                )
             except Exception as e:
                 raise RuntimeError(
                     f'[red on white]Error during registration of volume {idx}: {e}[/]'
