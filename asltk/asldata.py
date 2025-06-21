@@ -198,15 +198,18 @@ class ASLData:
         This method creates a deep copy of the ASLData object, including all
         its attributes and data. It is useful when you want to preserve the
         original object while working with a modified version.
+
+        Note:
+            This method uses `copy.deepcopy` to ensure that all nested objects
+            are also copied, preventing any unintended side effects from
+            modifying the original object.
+
         Examples:
             >>> data = ASLData(pcasl='./tests/files/t1-mri.nrrd')
             >>> data_copy = data.copy()
             >>> type(data_copy)
             <class 'asltk.asldata.ASLData'>
-        Note:
-            This method uses `copy.deepcopy` to ensure that all nested objects
-            are also copied, preventing any unintended side effects from
-            modifying the original object.
+
 
         Returns:
             ASLData: A new instance of ASLData that is a deep copy of the original object.
