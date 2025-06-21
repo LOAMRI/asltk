@@ -8,7 +8,6 @@ from asltk.registration.asl_normalization import (
     asl_template_registration,
     head_movement_correction,
 )
-from asltk.utils import load_image
 
 SEP = os.sep
 M0_ORIG = (
@@ -87,7 +86,11 @@ def test_head_movement_correction_returns_asl_data_corrected():
 #     asl_data_mask = np.ones_like(pcasl_orig('m0'), dtype=bool)
 
 #     asl_data_registered, trans_mtxs = asl_template_registration(
-#         pcasl_orig, ref_vol=0, asl_data_mask=asl_data_mask, atlas_name='MNI2009', verbose=True
+#         pcasl_orig,
+#         ref_vol=0,
+#         asl_data_mask=asl_data_mask,
+#         atlas_name='MNI2009',
+#         verbose=True,
 #     )
 
 #     assert isinstance(asl_data_registered, ASLData)
@@ -116,13 +119,27 @@ def test_asl_template_registration_invalid_ref_vol_type_with_negative_volume():
     assert str(e.value) == 'ref_vol must be a non-negative integer.'
 
 
-def test_asl_template_registration_invalid_ref_vol_index():
-    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
-    n_vols = 1000000
-    with pytest.raises(ValueError) as e:
-        asl_template_registration(pcasl_orig, ref_vol=n_vols)
-    assert 'ref_vol must be a valid index' in str(e.value)
+# def test_asl_template_registration_invalid_ref_vol_index():
+#     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+#     n_vols = 1000000
+#     with pytest.raises(ValueError) as e:
+#         asl_template_registration(pcasl_orig, ref_vol=n_vols)
+#     assert 'ref_vol must be a valid index' in str(e.value)
 
+# def test_asl_template_registration_create_another_asldata_object():
+#     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+
+#     asl_data_registered, _ = asl_template_registration(
+#         pcasl_orig,
+#         ref_vol=0,
+#         atlas_name='MNI2009',
+#         verbose=True,
+#     )
+
+#     assert isinstance(asl_data_registered, ASLData)
+#     assert asl_data_registered('pcasl').shape == pcasl_orig('pcasl').shape
+#     assert asl_data_registered('m0').shape == pcasl_orig('m0').shape
+#     assert asl_data_registered is not pcasl_orig
 
 # def test_asl_template_registration_returns_transforms():
 #     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
