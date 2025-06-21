@@ -1,9 +1,10 @@
+import copy
 import os
 
 import numpy as np
 import SimpleITK as sitk
 
-from asltk.utils import load_image
+from asltk.utils import collect_data_volumes, load_image
 
 
 class ASLData:
@@ -191,6 +192,27 @@ class ASLData:
         self._check_input_parameter(dw_values, 'DW')
         self._parameters['dw'] = dw_values
 
+    def copy(self):
+        """
+        Make a copy of the ASLData object.
+        This method creates a deep copy of the ASLData object, including all
+        its attributes and data. It is useful when you want to preserve the
+        original object while working with a modified version.
+        Examples:
+            >>> data = ASLData(pcasl='./tests/files/t1-mri.nrrd')
+            >>> data_copy = data.copy()
+            >>> type(data_copy)
+            <class 'asltk.asldata.ASLData'>
+        Note:
+            This method uses `copy.deepcopy` to ensure that all nested objects
+            are also copied, preventing any unintended side effects from
+            modifying the original object.
+
+        Returns:
+            ASLData: A new instance of ASLData that is a deep copy of the original object.
+        """
+        return copy.deepcopy(self)
+
     def __call__(self, spec: str):
         """Object caller to expose the image data.
 
@@ -209,6 +231,20 @@ class ASLData:
             return self._asl_image
         elif spec == 'm0':
             return self._m0_image
+
+    def __len__(self):
+        """Return the number of volumes in the ASL data.
+
+        This method returns the number of volumes in the ASL data based on
+        the pCASL image format.
+
+        Returns:
+            int: The number of volumes in the ASL data considering the `pcasl` data.
+        """
+        if self._asl_image is not None:
+            return len(collect_data_volumes(self._asl_image)[0])
+        else:
+            return 0
 
     def _check_input_parameter(self, values, param_type):
         for v in values:
