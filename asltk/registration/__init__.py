@@ -245,11 +245,12 @@ def affine_registration(
 
     return warped_image, transformation_matrix
 
+
 def apply_transformation(
     moving_image: np.ndarray,
     reference_image: np.ndarray,
     transforms: list,
-    **kwargs
+    **kwargs,
 ):
     """
     Apply a transformation list set to an image.
@@ -278,15 +279,20 @@ def apply_transformation(
             The transformed image.
     """
     # TODO handle kwargs for additional parameters based on ants.apply_transforms
-    if not isinstance(moving_image, np.ndarray) or not isinstance(reference_image, np.ndarray):
+    if not isinstance(moving_image, np.ndarray) or not isinstance(
+        reference_image, np.ndarray
+    ):
         raise TypeError('image and reference_image must be numpy arrays.')
 
     if not isinstance(transforms, list):
-        raise TypeError('transforms must be a list of transformation matrices.')
+        raise TypeError(
+            'transforms must be a list of transformation matrices.'
+        )
 
     corr_image = ants.apply_transforms(
-            fixed=ants.from_numpy(reference_image),
-            moving=ants.from_numpy(moving_image),
-            transformlist=transforms)
+        fixed=ants.from_numpy(reference_image),
+        moving=ants.from_numpy(moving_image),
+        transformlist=transforms,
+    )
 
     return corr_image.numpy()

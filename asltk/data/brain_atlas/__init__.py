@@ -6,6 +6,7 @@ import os
 
 import kagglehub
 
+
 class BrainAtlas:
 
     ATLAS_JSON_PATH = os.path.join(os.path.dirname(__file__))

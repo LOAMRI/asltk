@@ -8,9 +8,9 @@ from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
 from asltk.registration import (
     affine_registration,
+    apply_transformation,
     rigid_body_registration,
     space_normalization,
-    apply_transformation,
 )
 from asltk.utils import load_image
 
@@ -246,6 +246,7 @@ def test_affine_registration_slow_method():
         img_orig
     )
 
+
 def test_apply_transformation_success():
     img_orig = load_image(M0_ORIG)
     img_rot = load_image(M0_RIGID)
@@ -279,7 +280,9 @@ def test_apply_transformation_invalid_transformation_matrix():
     img_rot = load_image(M0_RIGID)
     with pytest.raises(Exception) as e:
         apply_transformation(img_orig, img_rot, 'invalid_matrix')
-    assert 'transforms must be a list of transformation matrices' in str(e.value)
+    assert 'transforms must be a list of transformation matrices' in str(
+        e.value
+    )
 
 
 def test_apply_transformation_with_mask():
@@ -287,6 +290,8 @@ def test_apply_transformation_with_mask():
     img_rot = load_image(M0_RIGID)
     mask = np.ones_like(img_orig, dtype=bool)
     _, trans_matrix = rigid_body_registration(img_orig, img_rot)
-    transformed_img = apply_transformation(img_orig, img_rot, trans_matrix, mask=mask)
+    transformed_img = apply_transformation(
+        img_orig, img_rot, trans_matrix, mask=mask
+    )
     assert isinstance(transformed_img, np.ndarray)
     assert transformed_img.shape == img_rot.shape
