@@ -250,3 +250,49 @@ def affine_registration(
     )
 
     return warped_image, transformation_matrix
+
+def apply_transformation(
+    moving_image: np.ndarray,
+    reference_image: np.ndarray,
+    transforms: list,
+    **kwargs
+):
+    """
+    Apply a transformation list set to an image.
+
+    This method applies a list of transformations to a moving image
+    to align it with a reference image. The transformations are typically
+    obtained from a registration process, such as rigid or affine
+    registration.
+
+    Note:
+        The `transforms` parameter should be a list of transformation matrices
+        obtained from a registration process. The transformations are applied
+        in the order they are provided in the list.
+
+    Args:
+        image: np.ndarray
+            The image to be transformed.
+        reference_image: np.ndarray
+            The reference image to which the transformed image will be aligned.
+            If not provided, the original image will be used as the reference.
+        transformation_matrix: list
+            The transformation matrix list.
+
+    Returns:
+        transformed_image: np.ndarray
+            The transformed image.
+    """
+    # TODO handle kwargs for additional parameters based on ants.apply_transforms
+    if not isinstance(moving_image, np.ndarray) or not isinstance(reference_image, np.ndarray):
+        raise TypeError('image and reference_image must be numpy arrays.')
+
+    if not isinstance(transforms, list):
+        raise TypeError('transforms must be a list of transformation matrices.')
+
+    corr_image = ants.apply_transforms(
+            fixed=ants.from_numpy(reference_image),
+            moving=ants.from_numpy(moving_image),
+            transformlist=transforms)
+
+    return corr_image.numpy()
