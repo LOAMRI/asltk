@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-from scipy.io import loadmat
 
 from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
