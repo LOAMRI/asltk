@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-from scipy.io import loadmat
 
 from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
@@ -295,3 +294,23 @@ def test_apply_transformation_with_mask():
     )
     assert isinstance(transformed_img, np.ndarray)
     assert transformed_img.shape == img_rot.shape
+
+def test_apply_transformation_with_BrainAtlas_reference_input_error():
+    img_rot = load_image(M0_RIGID)
+    img_orig = load_image(M0_ORIG)
+    _, trans_matrix = rigid_body_registration(img_orig, img_rot)
+    with pytest.raises(Exception) as e:
+        apply_transformation(img_rot, 'invalid atlas', trans_matrix)
+
+    assert 'reference_image must be a numpy array or a BrainAtlas object' in str(e.value)
+
+def test_apply_transformation_with_BrainAtlas_reference_input_sucess():
+    img_rot = load_image(M0_RIGID)
+    img_orig = load_image(M0_ORIG)
+    _, trans_matrix = rigid_body_registration(img_orig, img_rot)
+    atlas = BrainAtlas(atlas_name='MNI2009')
+    atlas_img = load_image(atlas.get_atlas()['t1_data'])
+    corr_img = apply_transformation(img_rot, atlas, trans_matrix)
+
+    assert isinstance(corr_img, np.ndarray)
+    assert corr_img.shape == atlas_img.shape
