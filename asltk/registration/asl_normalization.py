@@ -56,19 +56,26 @@ def asl_template_registration(
     if not isinstance(ref_vol, int) or ref_vol < 0:
         raise ValueError('ref_vol must be a non-negative integer.')
 
-    if asl_data('m0') is not None:
-        ref_vol = 0
-        total_vols = [
-            asl_data('m0')
-        ]   # If M0 is provided, use it for normalization
-        orig_shape = asl_data('m0').shape
-    else:
-        total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
-
+    total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
     if ref_vol >= len(total_vols):
         raise ValueError(
             'ref_vol must be a valid index based on the total ASL data volumes.'
         )
+    
+    # Create a new ASLData to allocate the normalized image
+    new_asl = asl_data.copy()
+    
+    if asl_data('m0') is not None:
+        ref_vol = 0
+        tmp_vol_list = [
+            asl_data('m0')
+        ]   # If M0 exists, use it for normalization
+        orig_shape = asl_data('m0').shape
+
+        corrected_m0_vols, _ = __apply_array_normalization(
+            tmp_vol_list, ref_vol, orig_shape, norm_function, verbose
+        )
+        asl_data.set_image(corrected_m0_vols, 'm0')
 
     def norm_function(vol, _):
         return space_normalization(
@@ -84,14 +91,6 @@ def asl_template_registration(
         total_vols, ref_vol, orig_shape, norm_function, verbose
     )
 
-    if asl_data('m0') is not None:
-        corrected_m0_vols, _ = __apply_array_normalization(
-            asl_data('m0'), ref_vol, orig_shape, norm_function, verbose
-        )
-        asl_data.set_image(corrected_m0_vols, 'm0')
-
-    # Create a new ASLData to allocate the normalized image
-    new_asl = asl_data.copy()
     new_asl.set_image(corrected_vols, 'pcasl')
 
     return asl_data, trans_mtx
@@ -163,9 +162,7 @@ def __apply_array_normalization(
     # Apply the rigid body registration to each volume (considering the ref_vol)
     corrected_vols = []
     trans_mtx = []
-    ref_volume = (
-        total_vols[ref_vol] if isinstance(total_vols, list) else total_vols
-    )
+    ref_volume = total_vols[ref_vol] 
 
     with Progress() as progress:
         task = progress.add_task(
