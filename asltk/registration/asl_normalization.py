@@ -1,7 +1,9 @@
 import ants
 import numpy as np
+import ants
 from rich.progress import Progress
 
+from asltk.data.brain_atlas import BrainAtlas
 from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
 from asltk.registration import (
@@ -174,47 +176,67 @@ def asl_template_registration(
     if not isinstance(asl_data, ASLData):
         raise TypeError('Input must be an ASLData object.')
 
-    if not isinstance(ref_vol, int) or ref_vol < 0:
-        raise ValueError('ref_vol must be a non-negative integer.')
+    # if not isinstance(ref_vol, int) or ref_vol < 0:
+    #     raise ValueError('ref_vol must be a non-negative integer.')
 
     total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
-    if ref_vol >= len(total_vols):
+    # if ref_vol >= len(total_vols):
+    #     raise ValueError(
+    #         'ref_vol must be a valid index based on the total ASL data volumes.'
+    #     )
+    
+    if asl_data('m0') is None:
         raise ValueError(
-            'ref_vol must be a valid index based on the total ASL data volumes.'
+            'M0 image is required for normalization. Please provide an ASLData with a valid M0 image.'
+        )
+    
+    
+    atlas = BrainAtlas(atlas_name)
+    atlas_img = ants.image_read(atlas.get_atlas()['t1_data']).numpy()
+    def norm_function(vol, _):
+        return space_normalization(
+            moving_image=vol,
+            template_image=atlas,
+            moving_mask=asl_data_mask,
+            template_mask=None,
+            transform_type='SyNBoldAff',
         )
     
     # Create a new ASLData to allocate the normalized image
     new_asl = asl_data.copy()
     
-    if asl_data('m0') is not None:
-        ref_vol = 0
-        tmp_vol_list = [
-            asl_data('m0')
-        ]   # If M0 exists, use it for normalization
-        orig_shape = asl_data('m0').shape
+    ref_vol = 0
+    tmp_vol_list = [asl_data('m0')]
+    orig_shape = asl_data('m0').shape
 
-        corrected_m0_vols, _ = __apply_array_normalization(
-            tmp_vol_list, ref_vol, orig_shape, norm_function, verbose
-        )
-        asl_data.set_image(corrected_m0_vols, 'm0')
-
-    def norm_function(vol, _):
-        return space_normalization(
-            moving_image=vol,
-            template_image=atlas_name,
-            moving_mask=asl_data_mask,
-            template_mask=None,
-            transform_type='SyNBoldAff',
-        )
-
-    # TODO ARRUMAR O COREGISTRO PARA APLICAR PRIMEIRO NO M0 E DPEOIS APLICAR A TRANSFORMADA PARA TODO ASL
-    corrected_vols, trans_mtx = __apply_array_normalization(
-        total_vols, ref_vol, orig_shape, norm_function, verbose
+    m0_vol_corrected, trans_m0_mtx = __apply_array_normalization(
+        tmp_vol_list, ref_vol, orig_shape, norm_function, verbose
     )
+    # if asl_data('m0') is not None:
+    new_asl.set_image(m0_vol_corrected, 'm0')
+    
+    # Apply the transformation to the pcasl image
+    with Progress() as progress:
+        task = progress.add_task(
+            '[green]Registering pcasl volumes to M0 space...', total=len(total_vols)
+        )
+        corrected_vols = []
+        for vol in total_vols:
+            corrected_vol = apply_transformation(
+                moving_image=vol,
+                reference_image=atlas_img,
+                transforms=trans_m0_mtx)
+            corrected_vols.append(corrected_vol)
+            progress.update(task, advance=1)
 
     new_asl.set_image(corrected_vols, 'pcasl')
+        
+    # # TODO ARRUMAR O COREGISTRO PARA APLICAR PRIMEIRO NO M0 E DPEOIS APLICAR A TRANSFORMADA PARA TODO ASL
+    # corrected_vols, trans_mtx = __apply_array_normalization(
+    #     total_vols, ref_vol, orig_shape, norm_function, verbose
+    # )
 
-    return asl_data, trans_mtx
+    return new_asl, trans_m0_mtx
 
 
 def head_movement_correction(
