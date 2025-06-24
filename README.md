@@ -5,6 +5,7 @@
 ![CI_main](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml/badge.svg)
 [![CI_develop](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml)
 [![PyPI version](https://badge.fury.io/py/asltk.svg)](https://badge.fury.io/py/asltk)
+[![GitHub issues](https://img.shields.io/github/issues-raw/LOAMRI/asltk.svg?maxAge=2592000)]()
 
 # Arterial Spin Labeling Toolkit (asltk)
 
