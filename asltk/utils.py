@@ -1,5 +1,7 @@
 import fnmatch
 import os
+import json
+from pathlib import Path
 
 import dill
 import numpy as np
@@ -12,6 +14,66 @@ from asltk import AVAILABLE_IMAGE_FORMATS, BIDS_IMAGE_FORMATS
 def _check_input_path(full_path: str):
     if not os.path.exists(full_path):
         raise FileNotFoundError(f'The file {full_path} does not exist.')
+
+
+def _is_bids_directory(path: str) -> bool:
+    """Check if a directory is a valid BIDS dataset."""
+    try:
+        layout = BIDSLayout(path)
+        return True
+    except:
+        return False
+
+
+def _get_bids_filename(base_path: str, subject: str, session: str = None, 
+                      modality: str = None, suffix: str = None, 
+                      extension: str = '.nii.gz') -> str:
+    """Generate a BIDS-compliant filename and path."""
+    parts = []
+    if subject:
+        parts.append(f"sub-{subject}")
+    if session:
+        parts.append(f"ses-{session}")
+    
+    filename = "_".join(parts)
+    
+    if modality:
+        filename += f"_{modality}"
+    if suffix:
+        filename += f"_{suffix}"
+    
+    filename += extension
+    
+    if modality == 'asl':
+        subdir = 'perf'
+    else:
+        subdir = modality if modality else 'derivatives'
+    
+    path_parts = [base_path]
+    if subject:
+        path_parts.append(f"sub-{subject}")
+        if session:
+            path_parts.append(f"ses-{session}")
+        path_parts.append(subdir)
+    
+    os.makedirs(os.path.join(*path_parts), exist_ok=True)
+    return os.path.join(*path_parts, filename)
+
+
+def _update_bids_json(image_path: str, metadata: dict = None):
+    """Create or update a BIDS sidecar JSON file."""
+    json_path = image_path.replace('.nii.gz', '.json')
+    
+    existing_metadata = {}
+    if os.path.exists(json_path):
+        with open(json_path, 'r') as f:
+            existing_metadata = json.load(f)
+    
+    if metadata:
+        existing_metadata.update(metadata)
+    
+    with open(json_path, 'w') as f:
+        json.dump(existing_metadata, f, indent=4)
 
 
 def _get_file_from_folder_layout(
@@ -138,59 +200,77 @@ def load_image(
     return sitk.GetArrayFromImage(img)
 
 
-def save_image(img: np.ndarray, full_path: str):
-    """Save image to a file path.
+def save_image(img: np.ndarray, full_path: str, bids_metadata: dict = None, 
+              subject: str = None, session: str = None, 
+              modality: str = None, suffix: str = None):
+    """Save image to a file path with optional BIDS formatting.
 
     All the available image formats provided in the SimpleITK API can be
-    used here.
+    used here. If the target directory is a BIDS dataset, the image will
+    be saved in the appropriate location with proper naming and metadata.
 
     Args:
-        full_path (str): Full absolute path with image file name provided.
+        img (np.ndarray): Image data to save
+        full_path (str): Full path - can be either a directory (for BIDS) or filename
+        bids_metadata (dict, optional): Metadata for BIDS JSON sidecar. Defaults to None.
+        subject (str, optional): Subject identifier for BIDS. Defaults to None.
+        session (str, optional): Session identifier for BIDS. Defaults to None.
+        modality (str, optional): Modality for BIDS. Defaults to None.
+        suffix (str, optional): Suffix for BIDS filename. Defaults to None.
     """
     sitk_img = sitk.GetImageFromArray(img)
-    sitk.WriteImage(sitk_img, full_path)
+    
+    if _is_bids_directory(full_path) or (subject is not None and os.path.isdir(full_path)):
+        extension = '.nii.gz'  # Default BIDS image format
+        output_path = _get_bids_filename(
+            full_path, subject, session, modality, suffix, extension
+        )
+        sitk.WriteImage(sitk_img, output_path)
+        
+        if bids_metadata is not None:
+            _update_bids_json(output_path, bids_metadata)
+    else:
+        sitk.WriteImage(sitk_img, full_path)
 
 
-def save_asl_data(asldata, fullpath: str):
+def save_asl_data(asldata, fullpath: str, bids_metadata: dict = None,
+                 subject: str = None, session: str = None):
     """
-    Save ASL data to a pickle file.
+    Save ASL data to a pickle file with optional BIDS formatting.
 
     This method saves the ASL data to a pickle file using the dill library. All
-    the ASL data will be saved in a single file. After the file being saved, it
-    can be loaded using the `load_asl_data` method.
+    the ASL data will be saved in a single file. If the target directory is a
+    BIDS dataset, the file will be saved in the derivatives folder with proper
+    BIDS naming.
 
-    This method can be helpful when one wants to save the ASL data to a file
-    and share it with others or use it in another script. The entire ASLData
-    object will be loaded from the file, maintaining all the data and
-    parameters described in the `ASLData` class.
-
-    Examples:
-        >>> from asltk.asldata import ASLData
-        >>> asldata = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz',ld_values=[1.8, 1.8, 1.8], pld_values=[1.8, 1.8, 1.8], te_values=[1.8, 1.8, 1.8])
-        >>> import tempfile
-        >>> with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as temp_file:
-        ...     temp_file_path = temp_file.name
-        >>> save_asl_data(asldata, temp_file_path)
-
-
-    Note:
-        This method only accepts the ASLData object as input. If you want to
-        save an image, then use the `save_image` method.
-
-    Parameters:
-        asldata : ASLData
-            The ASL data to be saved. This can be any Python object that is serializable by dill.
-        fullpath : str
-            The full path where the pickle file will be saved. The filename must end with '.pkl'.
-
-    Raises:
-    ValueError:
-        If the provided filename does not end with '.pkl'.
+    Args:
+        asldata: The ASL data to be saved
+        fullpath (str): Full path - can be either a directory (for BIDS) or filename
+        bids_metadata (dict, optional): Metadata for BIDS JSON sidecar. Defaults to None.
+        subject (str, optional): Subject identifier for BIDS. Defaults to None.
+        session (str, optional): Session identifier for BIDS. Defaults to None.
     """
-    if not fullpath.endswith('.pkl'):
-        raise ValueError('Filename must be a pickle file (.pkl)')
-
-    dill.dump(asldata, open(fullpath, 'wb'))
+    if _is_bids_directory(fullpath) or (subject is not None and os.path.isdir(fullpath)):
+        # Generate BIDS-compliant filename in derivatives folder
+        extension = '.pkl'
+        output_path = _get_bids_filename(
+            os.path.join(fullpath, 'derivatives'), 
+            subject, 
+            session, 
+            'aslprep',  # Using aslprep as the processing pipeline name
+            'asldata',   # Suffix
+            extension
+        )
+        
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        dill.dump(asldata, open(output_path, 'wb'))
+        
+        if bids_metadata is not None:
+            _update_bids_json(output_path, bids_metadata)
+    else:
+        if not fullpath.endswith('.pkl'):
+            raise ValueError('Filename must be a pickle file (.pkl)')
+        dill.dump(asldata, open(fullpath, 'wb'))
 
 
 def load_asl_data(fullpath: str):
