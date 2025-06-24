@@ -13,7 +13,7 @@ from asltk import AVAILABLE_IMAGE_FORMATS, BIDS_IMAGE_FORMATS
 
 def _check_input_path(full_path: str):
     if not os.path.exists(full_path):
-        raise FileNotFoundError(f'The file {full_path} does not exist.')
+        raise FileNotFoundError(f"The file {full_path} does not exist.")
 
 
 def _is_bids_directory(path: str) -> bool:
@@ -25,54 +25,59 @@ def _is_bids_directory(path: str) -> bool:
         return False
 
 
-def _get_bids_filename(base_path: str, subject: str, session: str = None, 
-                      modality: str = None, suffix: str = None, 
-                      extension: str = '.nii.gz') -> str:
+def _get_bids_filename(
+    base_path: str,
+    subject: str,
+    session: str = None,
+    modality: str = None,
+    suffix: str = None,
+    extension: str = ".nii.gz",
+) -> str:
     """Generate a BIDS-compliant filename and path."""
     parts = []
     if subject:
         parts.append(f"sub-{subject}")
     if session:
         parts.append(f"ses-{session}")
-    
+
     filename = "_".join(parts)
-    
+
     if modality:
         filename += f"_{modality}"
     if suffix:
         filename += f"_{suffix}"
-    
+
     filename += extension
-    
-    if modality == 'asl':
-        subdir = 'perf'
+
+    if modality == "asl":
+        subdir = "perf"
     else:
-        subdir = modality if modality else 'derivatives'
-    
+        subdir = modality if modality else "derivatives"
+
     path_parts = [base_path]
     if subject:
         path_parts.append(f"sub-{subject}")
         if session:
             path_parts.append(f"ses-{session}")
         path_parts.append(subdir)
-    
+
     os.makedirs(os.path.join(*path_parts), exist_ok=True)
     return os.path.join(*path_parts, filename)
 
 
 def _update_bids_json(image_path: str, metadata: dict = None):
     """Create or update a BIDS sidecar JSON file."""
-    json_path = image_path.replace('.nii.gz', '.json')
-    
+    json_path = image_path.replace(".nii.gz", ".json")
+
     existing_metadata = {}
     if os.path.exists(json_path):
-        with open(json_path, 'r') as f:
+        with open(json_path, "r") as f:
             existing_metadata = json.load(f)
-    
+
     if metadata:
         existing_metadata.update(metadata)
-    
-    with open(json_path, 'w') as f:
+
+    with open(json_path, "w") as f:
         json.dump(existing_metadata, f, indent=4)
 
 
@@ -88,30 +93,28 @@ def _get_file_from_folder_layout(
     if all(param is None for param in [subject, session, modality, suffix]):
         for root, _, files in os.walk(full_path):
             for file in files:
-                if '_asl' in file and file.endswith(BIDS_IMAGE_FORMATS):
+                if "_asl" in file and file.endswith(BIDS_IMAGE_FORMATS):
                     selected_file = os.path.join(root, file)
     else:
         layout_files = layout.files.keys()
         matching_files = []
         for f in layout_files:
-            search_pattern = ''
+            search_pattern = ""
             if subject:
-                search_pattern = f'*sub-*{subject}*'
+                search_pattern = f"*sub-*{subject}*"
             if session:
-                search_pattern += search_pattern + f'*ses-*{session}'
+                search_pattern += search_pattern + f"*ses-*{session}"
             if modality:
-                search_pattern += search_pattern + f'*{modality}*'
+                search_pattern += search_pattern + f"*{modality}*"
             if suffix:
-                search_pattern += search_pattern + f'*{suffix}*'
+                search_pattern += search_pattern + f"*{suffix}*"
 
-            if fnmatch.fnmatch(f, search_pattern) and f.endswith(
-                BIDS_IMAGE_FORMATS
-            ):
+            if fnmatch.fnmatch(f, search_pattern) and f.endswith(BIDS_IMAGE_FORMATS):
                 matching_files.append(f)
 
         if not matching_files:
             raise FileNotFoundError(
-                f'ASL image file is missing for subject {subject} in directory {full_path}'
+                f"ASL image file is missing for subject {subject} in directory {full_path}"
             )
         selected_file = matching_files[0]
 
@@ -200,9 +203,15 @@ def load_image(
     return sitk.GetArrayFromImage(img)
 
 
-def save_image(img: np.ndarray, full_path: str, bids_metadata: dict = None, 
-              subject: str = None, session: str = None, 
-              modality: str = None, suffix: str = None):
+def save_image(
+    img: np.ndarray,
+    full_path: str,
+    bids_metadata: dict = None,
+    subject: str = None,
+    session: str = None,
+    modality: str = None,
+    suffix: str = None,
+):
     """Save image to a file path with optional BIDS formatting.
 
     All the available image formats provided in the SimpleITK API can be
@@ -219,22 +228,29 @@ def save_image(img: np.ndarray, full_path: str, bids_metadata: dict = None,
         suffix (str, optional): Suffix for BIDS filename. Defaults to None.
     """
     sitk_img = sitk.GetImageFromArray(img)
-    
-    if _is_bids_directory(full_path) or (subject is not None and os.path.isdir(full_path)):
-        extension = '.nii.gz'  # Default BIDS image format
+
+    if _is_bids_directory(full_path) or (
+        subject is not None and os.path.isdir(full_path)
+    ):
+        extension = ".nii.gz"  # Default BIDS image format
         output_path = _get_bids_filename(
             full_path, subject, session, modality, suffix, extension
         )
         sitk.WriteImage(sitk_img, output_path)
-        
+
         if bids_metadata is not None:
             _update_bids_json(output_path, bids_metadata)
     else:
         sitk.WriteImage(sitk_img, full_path)
 
 
-def save_asl_data(asldata, fullpath: str, bids_metadata: dict = None,
-                 subject: str = None, session: str = None):
+def save_asl_data(
+    asldata,
+    fullpath: str,
+    bids_metadata: dict = None,
+    subject: str = None,
+    session: str = None,
+):
     """
     Save ASL data to a pickle file with optional BIDS formatting.
 
@@ -250,27 +266,29 @@ def save_asl_data(asldata, fullpath: str, bids_metadata: dict = None,
         subject (str, optional): Subject identifier for BIDS. Defaults to None.
         session (str, optional): Session identifier for BIDS. Defaults to None.
     """
-    if _is_bids_directory(fullpath) or (subject is not None and os.path.isdir(fullpath)):
+    if _is_bids_directory(fullpath) or (
+        subject is not None and os.path.isdir(fullpath)
+    ):
         # Generate BIDS-compliant filename in derivatives folder
-        extension = '.pkl'
+        extension = ".pkl"
         output_path = _get_bids_filename(
-            os.path.join(fullpath, 'derivatives'), 
-            subject, 
-            session, 
-            'aslprep',  # Using aslprep as the processing pipeline name
-            'asldata',   # Suffix
-            extension
+            os.path.join(fullpath, "derivatives"),
+            subject,
+            session,
+            "aslprep",  # Using aslprep as the processing pipeline name
+            "asldata",  # Suffix
+            extension,
         )
-        
+
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        dill.dump(asldata, open(output_path, 'wb'))
-        
+        dill.dump(asldata, open(output_path, "wb"))
+
         if bids_metadata is not None:
             _update_bids_json(output_path, bids_metadata)
     else:
-        if not fullpath.endswith('.pkl'):
-            raise ValueError('Filename must be a pickle file (.pkl)')
-        dill.dump(asldata, open(fullpath, 'wb'))
+        if not fullpath.endswith(".pkl"):
+            raise ValueError("Filename must be a pickle file (.pkl)")
+        dill.dump(asldata, open(fullpath, "wb"))
 
 
 def load_asl_data(fullpath: str):
@@ -306,7 +324,7 @@ def load_asl_data(fullpath: str):
         ASLData: The deserialized ASL data object from the file.
     """
     _check_input_path(fullpath)
-    return dill.load(open(fullpath, 'rb'))
+    return dill.load(open(fullpath, "rb"))
 
 
 def collect_data_volumes(data: np.ndarray):
@@ -329,10 +347,10 @@ def collect_data_volumes(data: np.ndarray):
         tuple: The original shape of the data.
     """
     if not isinstance(data, np.ndarray):
-        raise TypeError('data is not a numpy array.')
+        raise TypeError("data is not a numpy array.")
 
     if data.ndim < 3:
-        raise ValueError('data is a 3D volume or higher dimensions')
+        raise ValueError("data is a 3D volume or higher dimensions")
 
     volumes = []
     # Calculate the number of volumes by multiplying all dimensions except the last three
