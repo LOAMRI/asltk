@@ -260,7 +260,7 @@ def test_apply_transformation_invalid_fixed_image():
     _, trans_matrix = rigid_body_registration(img_rot, img_rot)
     with pytest.raises(Exception) as e:
         apply_transformation('invalid_image', img_rot, trans_matrix)
-    assert 'must be numpy arrays' in str(e.value)
+    assert 'moving image must be numpy array' in str(e.value)
 
 
 def test_apply_transformation_invalid_moving_image():
@@ -268,7 +268,7 @@ def test_apply_transformation_invalid_moving_image():
     _, trans_matrix = rigid_body_registration(img_orig, img_orig)
     with pytest.raises(Exception) as e:
         apply_transformation(img_orig, 'invalid_image', trans_matrix)
-    assert 'must be numpy arrays' in str(e.value)
+    assert 'reference_image must be a numpy array' in str(e.value)
 
 
 def test_apply_transformation_invalid_transformation_matrix():
@@ -292,6 +292,7 @@ def test_apply_transformation_with_mask():
     assert isinstance(transformed_img, np.ndarray)
     assert transformed_img.shape == img_rot.shape
 
+
 def test_apply_transformation_with_BrainAtlas_reference_input_error():
     img_rot = load_image(M0_RIGID)
     img_orig = load_image(M0_ORIG)
@@ -299,7 +300,11 @@ def test_apply_transformation_with_BrainAtlas_reference_input_error():
     with pytest.raises(Exception) as e:
         apply_transformation(img_rot, 'invalid atlas', trans_matrix)
 
-    assert 'reference_image must be a numpy array or a BrainAtlas object' in str(e.value)
+    assert (
+        'reference_image must be a numpy array or a BrainAtlas object'
+        in str(e.value)
+    )
+
 
 def test_apply_transformation_with_BrainAtlas_reference_input_sucess():
     img_rot = load_image(M0_RIGID)
