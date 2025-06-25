@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from asltk.smooth.gaussian import isotropic_gaussian
-from asltk.utils import load_image
+from asltk.utils.io import load_image
 
 SEP = os.sep
 PCASL_MTE = f'tests' + SEP + 'files' + SEP + 'pcasl_mte.nii.gz'

@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 import pytest
-import SimpleITK as sitk
 
 from asltk import asldata
+from asltk.utils import io
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -16,6 +16,21 @@ M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 def test_create_successfuly_asldata_object():
     obj = asldata.ASLData()
     assert isinstance(obj, asldata.ASLData)
+
+
+def test_asldata_object_shows_warning_if_m0_has_more_than_3D_dimensions(
+    tmp_path,
+):
+    tmp_file = tmp_path / 'temp_m0_4D.nii.gz'
+    # Create a 4D M0 image
+    m0_4d = np.stack(
+        [io.load_image(M0), io.load_image(M0), io.load_image(M0)], axis=0
+    )
+    io.save_image(m0_4d, str(tmp_file))
+    with pytest.warns(Warning) as record:
+        obj = asldata.ASLData(m0=str(tmp_file))
+    assert len(record) == 1
+    assert 'M0 image has more than 3 dimensions.' in str(record[0].message)
 
 
 def test_create_successfuly_asldata_object_with_inputs():

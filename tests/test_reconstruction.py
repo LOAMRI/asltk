@@ -11,7 +11,7 @@ from asltk.reconstruction import (
     MultiDW_ASLMapping,
     MultiTE_ASLMapping,
 )
-from asltk.utils import load_image
+from asltk.utils.io import load_image
 
 SEP = os.sep
 
