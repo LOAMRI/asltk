@@ -11,7 +11,7 @@ from asltk.registration import (
     rigid_body_registration,
     space_normalization,
 )
-from asltk.utils import load_image
+from asltk.utils.io import load_image
 
 SEP = os.sep
 M0_ORIG = (

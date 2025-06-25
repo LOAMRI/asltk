@@ -119,3 +119,42 @@ def test_brain_atlas_creation_with_various_names(atlas_name):
     """
     atlas = BrainAtlas(atlas_name=atlas_name)
     assert isinstance(atlas.get_atlas(), dict)
+
+
+def test_atlas_download_failure(mocker):
+    """
+    Test that appropriate error is raised when atlas download fails.
+    """
+    atlas = BrainAtlas()
+    # Mock the kagglehub.dataset_download function to raise an exception
+    mock_download = mocker.patch(
+        'kagglehub.dataset_download', side_effect=Exception('Connection error')
+    )
+
+    # Attempt to set an atlas that would trigger the download
+    with pytest.raises(ValueError) as e:
+        atlas.set_atlas('MNI2009')  # This should try to download the atlas
+
+    # Verify the error message contains the expected text
+    assert 'Error downloading the atlas' in str(e.value)
+    assert 'Connection error' in str(e.value)
+
+    # Verify that the mocked function was called
+    mock_download.assert_called_once()
+
+
+def test_atlas_url_raises_error_when_atlas_not_set():
+    """
+    Test that appropriate error is raised when trying to get atlas URL
+    without setting an atlas first.
+    """
+    atlas = BrainAtlas()
+    atlas._chosen_atlas = None  # Simulate that no atlas is set
+    # Don't set any atlas, which should cause an AttributeError in the implementation
+    # that's caught and converted to a ValueError
+    with pytest.raises(Exception) as e:
+        # Access the private method directly since we want to test the specific exception handling
+        atlas.get_atlas_url('MNI2009')
+
+    # Verify the error message
+    assert 'is not set or does not have a dataset URL' in str(e.value)
