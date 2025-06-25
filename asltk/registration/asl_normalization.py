@@ -1,4 +1,3 @@
-import ants
 import numpy as np
 from rich.progress import Progress
 
@@ -131,7 +130,6 @@ def asl_template_registration(
 
 def asl_template_registration(
     asl_data: ASLData,
-    ref_vol: int = 0,
     asl_data_mask: np.ndarray = None,
     atlas_name: str = 'MNI2009',
     verbose: bool = False,
@@ -191,7 +189,8 @@ def asl_template_registration(
         )
 
     atlas = BrainAtlas(atlas_name)
-    atlas_img = ants.image_read(atlas.get_atlas()['t1_data']).numpy()
+    # atlas_img = ants.image_read(atlas.get_atlas()['t1_data']).numpy()
+    atlas_img = load_image(atlas.get_atlas()['t1_data'])
 
     def norm_function(vol, _):
         return space_normalization(
@@ -199,21 +198,22 @@ def asl_template_registration(
             template_image=atlas,
             moving_mask=asl_data_mask,
             template_mask=None,
-            transform_type='SyNBoldAff',
+            transform_type='Affine',
+            check_orientation=True,
+            orientation_verbose=verbose,
         )
 
     # Create a new ASLData to allocate the normalized image
     new_asl = asl_data.copy()
 
-    ref_vol = 0
     tmp_vol_list = [asl_data('m0')]
     orig_shape = asl_data('m0').shape
 
     m0_vol_corrected, trans_m0_mtx = __apply_array_normalization(
-        tmp_vol_list, ref_vol, orig_shape, norm_function, verbose
+        tmp_vol_list, 0, orig_shape, norm_function, verbose
     )
     # if asl_data('m0') is not None:
-    new_asl.set_image(m0_vol_corrected, 'm0')
+    new_asl.set_image(m0_vol_corrected[0], 'm0')
 
     # Apply the transformation to the pcasl image
     with Progress() as progress:
