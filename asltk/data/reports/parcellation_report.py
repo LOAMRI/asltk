@@ -10,7 +10,7 @@ from asltk import PARCELLATION_REPORT_PATH as default_path
 from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
 from asltk.data.reports.basic_report import BasicReport
-from asltk.utils import load_image
+from asltk.utils.io import load_image
 
 
 class ParcellationReport(BasicReport):
