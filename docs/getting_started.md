@@ -80,7 +80,7 @@ As as standard notation, the `asltk` library assumes that all the image data fil
 1. Loading and saving an image
 
 ```python
-from asltk.utils import load_image, save_image
+from asltk.utils.io import load_image, save_image
 
 img = load_image('path/to/pcasl.nii.gz') #Loading an image
 type(img)
