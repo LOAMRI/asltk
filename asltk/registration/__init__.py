@@ -1,7 +1,10 @@
 import ants
 import numpy as np
+import SimpleITK as sitk
 
 from asltk.data.brain_atlas import BrainAtlas
+from asltk.utils.image_manipulation import check_and_fix_orientation
+from asltk.utils.io import load_image
 
 
 def space_normalization(
@@ -10,6 +13,7 @@ def space_normalization(
     moving_mask: np.ndarray = None,
     template_mask: np.ndarray = None,
     transform_type: str = 'SyNBoldAff',
+    **kwargs,
 ):
     """
     Perform brain normalization to register the moving image into the
@@ -66,6 +70,11 @@ def space_normalization(
         the template image will be used as the mask.
     transform_type : str, optional
         Type of transformation ('SyN', 'BSpline', etc.). Default is 'SyNBoldAff'.
+    check_orientation : bool, optional
+        Whether to automatically check and fix orientation mismatches between
+        moving and template images. Default is True.
+    orientation_verbose : bool, optional
+        Whether to print detailed orientation analysis. Default is False.
     num_iterations : int, optional
         Number of iterations for the registration. Default is 1000.
 
@@ -91,23 +100,41 @@ def space_normalization(
             f'Template image {template_image} is not a valid BrainAtlas name.'
         )
 
-    # Load images
-    moving = ants.from_numpy(moving_image)
-
-    template = None
-    # Get template image from BrainAtlas
+    # Load template image first
+    template_array = None
     if isinstance(template_image, BrainAtlas):
-        template_image = template_image.get_atlas()['t1_data']
-        template = ants.image_read(template_image)
+        template_file = template_image.get_atlas()['t1_data']
+        template_array = load_image(template_file)
     elif isinstance(template_image, str):
-        template_image = BrainAtlas(template_image).get_atlas()['t1_data']
-        template = ants.image_read(template_image)
+        template_file = BrainAtlas(template_image).get_atlas()['t1_data']
+        template_array = load_image(template_file)
     elif isinstance(template_image, np.ndarray):
-        template = ants.from_numpy(template_image)
+        template_array = template_image
     else:
         raise TypeError(
             'template_image must be a BrainAtlas object, a string with the atlas name, or a numpy array.'
         )
+
+    # Check for orientation mismatch and fix if needed
+    check_orientation = kwargs.get('check_orientation', True)
+    verbose = kwargs.get('verbose', False)
+
+    corrected_moving_image = moving_image
+    orientation_transform = None
+
+    if check_orientation:
+        (
+            corrected_moving_image,
+            orientation_transform,
+        ) = check_and_fix_orientation(
+            moving_image, template_array, verbose=verbose
+        )
+        if verbose and orientation_transform:
+            print(f'Applied orientation correction: {orientation_transform}')
+
+    # Convert to ANTs images
+    moving = ants.from_numpy(corrected_moving_image)
+    template = ants.from_numpy(template_array)
 
     # Load masks if provided
     if isinstance(moving_mask, np.ndarray):
@@ -122,6 +149,7 @@ def space_normalization(
         type_of_transform=transform_type,
         mask=moving_mask,
         mask_fixed=template_mask,
+        **kwargs,  # Additional parameters for ants.registration
     )
 
     # Passing the warped image and forward transforms
@@ -287,9 +315,10 @@ def apply_transformation(
             'reference_image must be a numpy array or a BrainAtlas object.'
         )
     elif isinstance(reference_image, BrainAtlas):
-        reference_image = ants.image_read(
-            reference_image.get_atlas()['t1_data']
-        ).numpy()
+        # reference_image = ants.image_read(
+        #     reference_image.get_atlas()['t1_data']
+        # ).numpy()
+        reference_image = load_image(reference_image.get_atlas()['t1_data'])
 
     if not isinstance(transforms, list):
         raise TypeError(

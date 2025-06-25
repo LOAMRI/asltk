@@ -1,10 +1,11 @@
 import copy
 import os
+import warnings
 
 import numpy as np
-import SimpleITK as sitk
 
-from asltk.utils import collect_data_volumes, load_image
+from asltk.utils.image_manipulation import collect_data_volumes
+from asltk.utils.io import load_image
 
 
 class ASLData:
@@ -65,7 +66,9 @@ class ASLData:
             self._asl_image = load_image(kwargs.get('pcasl'))
 
         if kwargs.get('m0') is not None:
-            self._m0_image = load_image(kwargs.get('m0'))
+            avg_m0 = kwargs.get('average_m0', False)
+            self._m0_image = load_image(kwargs.get('m0'), average_m0=avg_m0)
+            self._check_m0_dimension()
 
         self._parameters['ld'] = (
             [] if kwargs.get('ld_values') is None else kwargs.get('ld_values')
@@ -264,4 +267,12 @@ class ASLData:
         if len(ld) != len(pld):
             raise ValueError(
                 f'LD and PLD must have the same array size. LD size is {len(ld)} and PLD size is {len(pld)}'
+            )
+
+    def _check_m0_dimension(self):
+        if len(self._m0_image.shape) > 3:
+            warnings.warn(
+                'M0 image has more than 3 dimensions. '
+                'This may cause issues in processing. '
+                'Consider averaging the M0 image across the first dimension.'
             )
