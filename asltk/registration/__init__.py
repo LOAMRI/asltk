@@ -282,14 +282,14 @@ def apply_transformation(
     if not isinstance(moving_image, np.ndarray):
         raise TypeError('moving image must be numpy array.')
 
-    if not isinstance(
-        reference_image, (np.ndarray, BrainAtlas)
-    ):
+    if not isinstance(reference_image, (np.ndarray, BrainAtlas)):
         raise TypeError(
             'reference_image must be a numpy array or a BrainAtlas object.'
         )
     elif isinstance(reference_image, BrainAtlas):
-        reference_image = ants.image_read(reference_image.get_atlas()['t1_data']).numpy()
+        reference_image = ants.image_read(
+            reference_image.get_atlas()['t1_data']
+        ).numpy()
 
     if not isinstance(transforms, list):
         raise TypeError(
