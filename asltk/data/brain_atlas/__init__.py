@@ -7,6 +7,8 @@ import os
 import kagglehub
 
 
+# TODO Fix the t1_data loading because the brain atlases will have the 1mm and 2mm options
+# TODO Ajust each kagglehub dataset to have the 2mm resolution option
 class BrainAtlas:
 
     ATLAS_JSON_PATH = os.path.join(os.path.dirname(__file__))
@@ -135,7 +137,7 @@ class BrainAtlas:
             if f.endswith('.json')
         ]
 
-    def _collect_t1(self, path: str):
+    def _collect_t1(self, path: str):  # pragma: no cover
         """
         Collect the T1-weighted image data from the atlas directory.
         Args:
@@ -151,7 +153,7 @@ class BrainAtlas:
 
         return t1_file
 
-    def _collect_label(self, path: str):
+    def _collect_label(self, path: str):   # pragma: no cover
         """
         Collect the label file from the atlas directory.
         Args:
