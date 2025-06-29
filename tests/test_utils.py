@@ -282,3 +282,21 @@ def test_collect_data_volumes_error_if_input_is_less_than_3D():
     with pytest.raises(Exception) as e:
         collected_volumes, _ = utils.collect_data_volumes(data)
     assert 'data is a 3D volume or higher dimensions' in e.value.args[0]
+
+
+def test_load_image_from_bids_structure_returns_valid_array():
+    bids_root = 'tests/files/bids-example/asl001'
+    subject = 'Sub103'
+    session = None
+    modality = 'asl'
+    suffix = None  # m0 is deleted, because it does not exist
+
+    img = utils.load_image(
+        full_path=bids_root,
+        subject=subject,
+        session=session,
+        modality=modality,
+        suffix=suffix,
+    )
+
+    assert img is not None
