@@ -138,7 +138,27 @@ def load_image(
     return sitk.GetArrayFromImage(img)
 
 
-def save_image(img: np.ndarray, full_path: str):
+def _make_bids_path(bids_root, subject, session=None, suffix='asl', extension='.nii.gz'):
+    subj_dir = f"sub-{subject}"
+    ses_dir = f"ses-{session}" if session else None
+    modality_dir = "asl"
+
+    if ses_dir:
+        out_dir = os.path.join(bids_root, subj_dir, ses_dir, modality_dir)
+    else:
+        out_dir = os.path.join(bids_root, subj_dir, modality_dir)
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    filename = f"sub-{subject}"
+    if session:
+        filename += f"_ses-{session}"
+    filename += f"_{suffix}{extension}"
+
+    return os.path.join(out_dir, filename)
+
+
+def save_image(img: np.ndarray, full_path: str = None, *, bids_root: str = None, subject: str = None, session: str = None):
     """Save image to a file path.
 
     All the available image formats provided in the SimpleITK API can be
@@ -146,12 +166,21 @@ def save_image(img: np.ndarray, full_path: str):
 
     Args:
         full_path (str): Full absolute path with image file name provided.
+        bids_root (str): Optional BIDS root directory to save in BIDS structure.
+        subject (str): Subject ID for BIDS saving.
+        session (str): Optional session ID for BIDS saving.
     """
+    if bids_root and subject:
+        full_path = _make_bids_path(bids_root, subject, session)
+
+    if not full_path:
+        raise ValueError("Either full_path or bids_root + subject must be provided.")
+
     sitk_img = sitk.GetImageFromArray(img)
     sitk.WriteImage(sitk_img, full_path)
 
 
-def save_asl_data(asldata, fullpath: str):
+def save_asl_data(asldata, fullpath: str = None, *, bids_root: str = None, subject: str = None, session: str = None):
     """
     Save ASL data to a pickle file.
 
@@ -187,6 +216,12 @@ def save_asl_data(asldata, fullpath: str):
     ValueError:
         If the provided filename does not end with '.pkl'.
     """
+    if bids_root and subject:
+        fullpath = _make_bids_path(bids_root, subject, session, suffix='asl', extension='.pkl')
+
+    if not fullpath:
+        raise ValueError("Either fullpath or bids_root + subject must be provided.")
+
     if not fullpath.endswith('.pkl'):
         raise ValueError('Filename must be a pickle file (.pkl)')
 
