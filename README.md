@@ -4,7 +4,11 @@
 [![codecov](https://codecov.io/gh/LOAMRI/asltk/graph/badge.svg?token=1W8GQ7SLU9)](https://codecov.io/gh/LOAMRI/asltk)
 [![CI_main](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml)
 [![CI_develop](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml)
-[![PyPI version](https://badge.fury.io/py/asltk.svg)](https://badge.fury.io/py/asltk)
+![Python Versions](https://img.shields.io/badge/python-3.9%20|+-blue)
+![PyPI downloads](https://img.shields.io/pypi/dm/asltk)
+![GitHub issues](https://img.shields.io/github/issues/LOAMRI/asltk)
+![Contributors](https://img.shields.io/github/contributors/LOAMRI/asltk)
+[![GitHub Sponsor](https://img.shields.io/badge/Sponsor-❤️%20acsenrafilho-orange?logo=github)](https://github.com/sponsors/acsenrafilho)
 
 # Arterial Spin Labeling Toolkit (asltk)
 
@@ -24,7 +28,7 @@ Also, feel free to contribute directly to the project! Check it out the [issues]
 A quick to use install is via `pip`, as follows:
 
 > [!NOTE]
-> The installation requires Python 3.10 or higher
+> The installation requires Python 3.9 or higher
 
 ```bash
 pip install asltk
