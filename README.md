@@ -34,6 +34,12 @@ A quick to use install is via `pip`, as follows:
 pip install asltk
 ```
 
+## Special thanks for all the contributors
+
+Thank you all the special people that invested their time and knowledge to improve this project. 👏
+
+![Contributors](https://contrib.rocks/image?repo=LOAMRI/asltk)
+
 ## Citation
 
 We appreciate if one or more of the following references can be added in your projects due to the usage of `asltk` outcomes.
