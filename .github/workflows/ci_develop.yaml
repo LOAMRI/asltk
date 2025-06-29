@@ -1,4 +1,4 @@
-name: CI_develop
+name: ASLtk Continuous Integration for Develop Branch
 on: 
   push:
     branches: [ develop ]
@@ -30,6 +30,9 @@ jobs:
 
       - name: Install asltk project dependecies
         run: poetry install
+
+      - name: Run code formatting check
+        run: poetry run task lint
 
       - name: Run project tests
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
@@ -65,6 +68,9 @@ jobs:
       - name: Install asltk project dependecies
         run: poetry install
 
+      - name: Run code formatting check
+        run: poetry run task lint
+
       - name: Run project tests
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
 
@@ -95,6 +101,9 @@ jobs:
 
       - name: Install asltk project dependecies
         run: poetry install
+
+      - name: Run code formatting check
+        run: poetry run task lint
 
       - name: Run project tests
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
