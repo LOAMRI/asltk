@@ -28,6 +28,63 @@ t2gm = None
 
 class MultiDW_ASLMapping(MRIParameters):
     def __init__(self, asl_data: ASLData):
+        """Multi-Diffusion-Weighted ASL mapping constructor for advanced perfusion analysis.
+
+        MultiDW_ASLMapping enables sophisticated ASL analysis by incorporating multiple
+        diffusion weightings (b-values) to separate intravascular and tissue 
+        compartments. This approach provides enhanced characterization of perfusion
+        and can help differentiate between different vascular compartments.
+
+        The class implements diffusion-weighted ASL analysis that can distinguish:
+        - Fast-flowing blood (intravascular component)
+        - Slow-flowing blood and tissue perfusion
+        - Apparent diffusion coefficients for each compartment
+        - Water exchange parameters between compartments
+
+        Notes:
+            The ASLData object must contain `dw_values` - a list of diffusion 
+            b-values used during ASL acquisition. These b-values are essential
+            for the multi-compartment diffusion model fitting.
+
+        Examples:
+            Basic multi-DW ASL mapping setup:
+            >>> from asltk.asldata import ASLData
+            >>> from asltk.reconstruction import MultiDW_ASLMapping
+            >>> # Create ASL data with diffusion weighting
+            >>> asl_data = ASLData(
+            ...     pcasl='./tests/files/pcasl_mdw.nii.gz',
+            ...     m0='./tests/files/m0.nii.gz',
+            ...     dw_values=[0, 50, 100, 200],    # b-values in s/mm²
+            ...     ld_values=[1.8, 1.8, 1.8, 1.8],
+            ...     pld_values=[0.8, 1.8, 2.8, 3.8]
+            ... )
+            >>> mdw_mapper = MultiDW_ASLMapping(asl_data)
+
+            Verify diffusion parameters:
+            >>> b_values = asl_data.get_dw()
+            >>> print(f"B-values: {b_values} s/mm²")
+            >>> print(f"Number of diffusion weightings: {len(b_values)}")
+
+            Access diffusion-related maps (after processing):
+            >>> # These maps will be populated after create_map() is called
+            >>> # A1: Signal amplitude for compartment 1
+            >>> # D1: Apparent diffusion coefficient for compartment 1  
+            >>> # A2: Signal amplitude for compartment 2
+            >>> # D2: Apparent diffusion coefficient for compartment 2
+            >>> # kw: Water exchange parameter
+
+        Args:
+            asl_data (ASLData): The ASL data object containing multi-DW acquisition.
+                Must include dw_values (b-values), ld_values, and pld_values.
+
+        Raises:
+            ValueError: If ASLData object lacks required DW values for 
+                diffusion-weighted analysis.
+
+        See Also:
+            CBFMapping: For basic CBF/ATT mapping without diffusion weighting
+            MultiTE_ASLMapping: For multi-echo ASL analysis
+        """
         super().__init__()
         self._asl_data = asl_data
         self._basic_maps = CBFMapping(asl_data)
@@ -52,20 +109,45 @@ class MultiDW_ASLMapping(MRIParameters):
         self._kw = np.zeros(self._asl_data('m0').shape)
 
     def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
-        """Defines whether a brain a mask is applied to the MultiDW_ASLMapping
-        calculation
+        """Set brain mask for MultiDW-ASL processing (strongly recommended).
 
-        A image mask is simply an image that defines the voxels where the ASL
-        calculation should be made. Basically any integer value can be used as
-        proper label mask.
+        A brain mask is especially important for multi-diffusion-weighted ASL
+        processing as it significantly reduces computation time by limiting 
+        the intensive voxel-wise fitting to brain tissue regions only.
 
-        A most common approach is to use a binary image (zeros for background
-        and 1 for the brain tissues). Anyway, the default behavior of the
-        method can transform a integer-pixel values image to a binary mask with
-        the `label` parameter provided by the user
+        Without a brain mask, processing time can be prohibitively long (hours)
+        for whole-volume analysis. A proper brain mask can reduce processing
+        time by 5-10x while maintaining analysis quality.
 
         Args:
-            brain_mask (np.ndarray): The image representing the brain mask label (int, optional): The label value used to define the foreground tissue (brain). Defaults to 1.
+            brain_mask (np.ndarray): The image representing the brain mask.
+                Must match the spatial dimensions of the M0 image.
+            label (int, optional): The label value used to define brain tissue.
+                Defaults to 1. Voxels with this value will be processed.
+
+        Examples:
+            Set a brain mask for efficient processing:
+            >>> from asltk.asldata import ASLData
+            >>> from asltk.reconstruction import MultiDW_ASLMapping
+            >>> import numpy as np
+            >>> asl_data = ASLData(
+            ...     pcasl='./tests/files/pcasl_mdw.nii.gz',
+            ...     m0='./tests/files/m0.nii.gz',
+            ...     dw_values=[0, 50, 100], ld_values=[1.8]*3, pld_values=[1.8]*3
+            ... )
+            >>> mdw_mapper = MultiDW_ASLMapping(asl_data)
+            >>> # Create conservative brain mask (center region only)
+            >>> mask_shape = asl_data('m0').shape
+            >>> brain_mask = np.zeros(mask_shape)
+            >>> brain_mask[1:4, 5:30, 5:30] = 1  # Conservative brain region
+            >>> mdw_mapper.set_brain_mask(brain_mask)
+            >>> # This will significantly speed up processing
+            >>> print(f"Processing {np.sum(brain_mask)} voxels instead of {brain_mask.size}")
+
+        Note:
+            For multi-DW ASL, consider using a more conservative (smaller) brain
+            mask initially to test parameters and processing time, then expand
+            to full brain analysis once satisfied with results.
         """
         _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
 
@@ -124,6 +206,103 @@ class MultiDW_ASLMapping(MRIParameters):
         ub: list = [np.inf, np.inf, np.inf, np.inf],
         par0: list = [0.5, 0.000005, 0.5, 0.000005],
     ):
+        """Create multi-diffusion-weighted ASL maps for compartment analysis.
+
+        This method performs advanced diffusion-weighted ASL analysis to generate
+        multi-compartment perfusion maps. The analysis uses multiple b-values to
+        separate fast-flowing intravascular and slower tissue perfusion components.
+
+        The method fits a bi-exponential diffusion model to estimate:
+        - Signal amplitudes and apparent diffusion coefficients for two compartments
+        - Water exchange parameters between vascular and tissue compartments
+        - Enhanced CBF characterization with compartment specificity
+
+        Note:
+            The CBF and ATT maps can be provided before calling this method using
+            set_cbf_map() and set_att_map() methods. If not provided, basic maps
+            are automatically calculated using the CBFMapping class.
+
+        Warning:
+            This method is computationally intensive as it performs voxel-wise
+            non-linear fitting without parallel processing. Consider using a brain
+            mask to limit processing to relevant tissue areas.
+
+        Args:
+            lb (list, optional): Lower bounds for [A1, D1, A2, D2] parameters.
+                Defaults to [0.0, 0.0, 0.0, 0.0]. All parameters should be non-negative.
+                - A1, A2: Signal amplitudes (relative units)
+                - D1, D2: Apparent diffusion coefficients (mm²/s)
+            ub (list, optional): Upper bounds for [A1, D1, A2, D2] parameters.
+                Defaults to [np.inf, np.inf, np.inf, np.inf].
+            par0 (list, optional): Initial guess for [A1, D1, A2, D2] parameters.
+                Defaults to [0.5, 0.000005, 0.5, 0.000005].
+                - A1, A2: Typical values 0.1-1.0 (relative amplitudes)
+                - D1, D2: Typical values 1e-6 to 1e-3 mm²/s
+
+        Returns:
+            dict: Dictionary containing diffusion-weighted ASL maps:
+                - 'cbf': Basic CBF map in original units (numpy.ndarray)
+                - 'cbf_norm': Normalized CBF in mL/100g/min (numpy.ndarray)
+                - 'att': Arterial transit time in ms (numpy.ndarray)
+                - 'A1': Signal amplitude for compartment 1 (numpy.ndarray)
+                - 'D1': Apparent diffusion coefficient for compartment 1 in mm²/s (numpy.ndarray)
+                - 'A2': Signal amplitude for compartment 2 (numpy.ndarray)  
+                - 'D2': Apparent diffusion coefficient for compartment 2 in mm²/s (numpy.ndarray)
+                - 'kw': Water exchange parameter (numpy.ndarray)
+
+        Examples:
+            Basic multi-DW ASL analysis:
+            >>> from asltk.asldata import ASLData
+            >>> from asltk.reconstruction import MultiDW_ASLMapping
+            >>> import numpy as np
+            >>> # Load multi-DW ASL data
+            >>> asl_data = ASLData(
+            ...     pcasl='./tests/files/pcasl_mdw.nii.gz',
+            ...     m0='./tests/files/m0.nii.gz',
+            ...     dw_values=[0, 50, 100, 200],  # b-values in s/mm²
+            ...     ld_values=[1.8, 1.8, 1.8, 1.8],
+            ...     pld_values=[0.8, 1.8, 2.8, 3.8]
+            ... )
+            >>> mdw_mapper = MultiDW_ASLMapping(asl_data)
+            >>> # Set brain mask for faster processing (recommended)
+            >>> brain_mask = np.ones(asl_data('m0').shape)
+            >>> brain_mask[0:2, :, :] = 0  # Remove some background slices
+            >>> mdw_mapper.set_brain_mask(brain_mask)
+            >>> # Generate all maps (may take several minutes)
+            >>> results = mdw_mapper.create_map()
+
+            Custom parameters for specific tissue analysis:
+            >>> # For analyzing fast vs slow perfusion components
+            >>> results = mdw_mapper.create_map(
+            ...     lb=[0.1, 1e-6, 0.1, 1e-7],      # Minimum realistic values
+            ...     ub=[2.0, 1e-3, 2.0, 1e-4],      # Maximum realistic values
+            ...     par0=[0.8, 5e-5, 0.3, 1e-5]     # Initial guesses
+            ... )
+
+            Interpreting diffusion compartments:
+            >>> results = mdw_mapper.create_map()
+            >>> A1_map = results['A1']    # Fast compartment amplitude
+            >>> D1_map = results['D1']    # Fast compartment diffusion
+            >>> A2_map = results['A2']    # Slow compartment amplitude  
+            >>> D2_map = results['D2']    # Slow compartment diffusion
+            >>> kw_map = results['kw']    # Water exchange parameter
+            >>> # Typical interpretations:
+            >>> # D1 > D2: Fast compartment = intravascular, Slow = tissue
+            >>> # A1/A2 ratio: Relative contribution of each compartment
+            >>> # kw: Water exchange rate between compartments
+            >>> print(f"Fast diffusion range: {np.min(D1_map):.2e} - {np.max(D1_map):.2e} mm²/s")
+            >>> print(f"Slow diffusion range: {np.min(D2_map):.2e} - {np.max(D2_map):.2e} mm²/s")
+
+        Note:
+            Processing time scales with brain mask size. For a full brain analysis,
+            expect processing times of 30+ minutes depending on data size and
+            hardware capabilities.
+
+        See Also:
+            set_cbf_map(): Provide pre-computed CBF map
+            set_att_map(): Provide pre-computed ATT map  
+            CBFMapping: For basic CBF/ATT mapping
+        """
         self._basic_maps.set_brain_mask(self._brain_mask)
 
         basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
