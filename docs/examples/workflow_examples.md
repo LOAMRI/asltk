@@ -36,6 +36,8 @@ brain_mask = load_image('./data/brain_mask.nii.gz')
 cbf_mapper.set_brain_mask(brain_mask)
 
 # Step 4: Generate CBF and ATT maps
+# Note: All parameters (ub, lb, par0, cores) have default values and are optional
+# You can simply call: results = cbf_mapper.create_map() for default behavior
 results = cbf_mapper.create_map(
     ub=[1.0, 5000.0],      # Upper bounds: [CBF, ATT]
     lb=[0.0, 0.0],         # Lower bounds: [CBF, ATT] 
@@ -49,6 +51,8 @@ att_map = results['att']         # ATT in milliseconds
 cbf_raw = results['cbf']         # Raw CBF values
 
 # Save results
+# Important: Image saving formats are limited to asltk API settings
+# Available formats: .nii, .nii.gz, .mha, .nrrd (see save_image documentation)
 save_image(cbf_map, './results/cbf_map.nii.gz')
 save_image(att_map, './results/att_map.nii.gz')
 
@@ -62,6 +66,12 @@ print(f"Mean ATT: {np.mean(att_map[brain_mask > 0]):.0f} ms")
 ### Expected Results
 - **Healthy CBF values**: 50-80 mL/100g/min (grey matter), 20-30 mL/100g/min (white matter)
 - **Healthy ATT values**: 800-2000 ms depending on vascular territory
+
+### Example CBF and ATT Maps
+<!-- Placeholder for 2D image samples -->
+<!-- TODO: Add sample CBF map: ![CBF Map](images/cbf_sample.png) -->
+<!-- TODO: Add sample ATT map: ![ATT Map](images/att_sample.png) -->
+*Sample CBF and ATT maps will be provided to demonstrate typical output quality and anatomical features.*
 
 ## Multi-Echo ASL Analysis
 
@@ -120,6 +130,12 @@ print(f"Mean T1blGM: {np.mean(t1blgm_map[brain_mask > 0]):.0f} ms")
 # Grey matter: 200-600 ms (faster exchange)
 # White matter: 400-800 ms (slower exchange)
 ```
+
+### Example Multi-TE Results
+<!-- Placeholder for multi-TE image samples -->
+<!-- TODO: Add sample T1blGM map: ![T1blGM Map](images/t1blgm_sample.png) -->
+<!-- TODO: Add sample multi-TE CBF map: ![Multi-TE CBF](images/mte_cbf_sample.png) -->
+*Sample multi-TE results will be provided to demonstrate T1 blood-gray matter exchange mapping and enhanced CBF characterization.*
 
 ## Diffusion-Weighted ASL Analysis
 
