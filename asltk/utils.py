@@ -105,18 +105,42 @@ def load_image(
         suffix (str, optional): Suffix of the file to load. Defaults to 'T1w'.
 
     Examples:
+        Load a single image file directly:
+        >>> data = load_image("./tests/files/pcasl_mte.nii.gz")
+        >>> type(data)
+        <class 'numpy.ndarray'>
+        >>> data.shape  # Example: 5D ASL data
+        (8, 7, 5, 35, 35)
+
+        Load M0 reference image:
+        >>> m0_data = load_image("./tests/files/m0.nii.gz")
+        >>> m0_data.shape  # Example: 3D reference image
+        (5, 35, 35)
+
+        Load from BIDS directory (automatic detection):
         >>> data = load_image("./tests/files/bids-example/asl001")
         >>> type(data)
         <class 'numpy.ndarray'>
 
-        In this form the input data is a BIDS directory. It all the BIDS
+        In this form the input data is a BIDS directory. If all the BIDS
         parameters are kept as `None`, then the method will search for the
         first image that is an ASL image.
 
-        One can choose to load a determined BIDS data using more deatail, such
-        as the subject, session, modality and suffix:
-        >>> data = load_image("./tests/files/bids-example/asl001", subject='103', suffix='asl')
+        Load specific BIDS data with detailed parameters:
+        >>> data = load_image("./tests/files/bids-example/asl001", subject='Sub103', suffix='asl')
         >>> type(data)
+        <class 'numpy.ndarray'>
+
+        Load with session information (note: this example assumes session exists):
+        >>> # data = load_image("./tests/files/bids-example/asl001", 
+        >>> #                   subject='Sub103', session='01', suffix='asl')
+        >>> # type(data)
+        >>> # <class 'numpy.ndarray'>
+
+        Different file formats are supported:
+        >>> # Load NRRD format
+        >>> nrrd_data = load_image("./tests/files/t1-mri.nrrd")
+        >>> type(nrrd_data)
         <class 'numpy.ndarray'>
 
     Returns:
@@ -171,13 +195,40 @@ def save_image(
     """Save image to a file path.
 
     All the available image formats provided in the SimpleITK API can be
-    used here.
+    used here. Supported formats include: .nii, .nii.gz, .nrrd, .mha, .tif, 
+    and other formats supported by SimpleITK.
 
     Args:
+        img (np.ndarray): The image array to be saved. Can be 2D, 3D, or 4D.
         full_path (str): Full absolute path with image file name provided.
         bids_root (str): Optional BIDS root directory to save in BIDS structure.
         subject (str): Subject ID for BIDS saving.
         session (str): Optional session ID for BIDS saving.
+
+    Examples:
+        Save an image using a direct file path:
+        >>> import tempfile
+        >>> import numpy as np
+        >>> img = np.random.rand(10, 10, 10)
+        >>> with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
+        ...     save_image(img, f.name)
+
+        Save an image using BIDS structure:
+        >>> import tempfile
+        >>> img = np.random.rand(10, 10, 10)  
+        >>> with tempfile.TemporaryDirectory() as temp_dir:
+        ...     save_image(img, bids_root=temp_dir, subject='001', session='01')
+
+        Save processed ASL results:
+        >>> from asltk.asldata import ASLData
+        >>> asl_data = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz')
+        >>> processed_img = asl_data('pcasl')[0]  # Get first volume
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
+        ...     save_image(processed_img, f.name)
+
+    Raises:
+        ValueError: If neither full_path nor (bids_root + subject) are provided.
     """
     if bids_root and subject:
         full_path = _make_bids_path(bids_root, subject, session)
@@ -290,20 +341,56 @@ def collect_data_volumes(data: np.ndarray):
     """Collect the data volumes from a higher dimension array.
 
     This method is used to collect the data volumes from a higher dimension
-    array. The method assumes that the data is a 4D array, where the first
-    dimension is the number of volumes. The method will collect the volumes
+    array. The method works with 4D or 5D arrays, where the volumes are 
+    separated along the higher dimensions. The method will collect the volumes
     and return a list of 3D arrays.
 
-    The method is used to separate the 3D volumes from the higher dimension
-    array. This is useful when the user wants to apply a filter to each volume
-    separately.
+    The method is useful when you want to:
+    - Apply filters to each volume separately
+    - Process multi-echo or multi-b-value ASL data
+    - Separate time series data into individual volumes
+    - Prepare data for volume-wise analysis
 
     Args:
-        data (np.ndarray): The data to be separated.
+        data (np.ndarray): The data to be separated. Must be at least 3D.
 
     Returns:
-        list: A list of 3D arrays, each one representing a volume.
-        tuple: The original shape of the data.
+        tuple: A tuple containing:
+            - list: A list of 3D arrays, each one representing a volume.
+            - tuple: The original shape of the data.
+
+    Examples:
+        Separate 4D ASL data into individual volumes:
+        >>> from asltk.asldata import ASLData
+        >>> asl_data = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz')
+        >>> pcasl_4d = asl_data('pcasl')
+        >>> volumes, original_shape = collect_data_volumes(pcasl_4d)
+        >>> len(volumes)  # Number of volumes
+        56
+        >>> volumes[0].shape  # Shape of each volume
+        (5, 35, 35)
+        >>> original_shape  # Original 5D shape
+        (8, 7, 5, 35, 35)
+
+        Process each volume separately:
+        >>> volumes, shape = collect_data_volumes(pcasl_4d)
+        >>> # Apply processing to first volume
+        >>> processed_vol = volumes[0] * 1.5  # Example processing
+        >>> processed_vol.shape
+        (5, 35, 35)
+
+        Work with 3D data (single volume):
+        >>> import numpy as np
+        >>> single_vol = np.random.rand(10, 20, 30)
+        >>> volumes, shape = collect_data_volumes(single_vol)
+        >>> len(volumes)
+        1
+        >>> volumes[0].shape
+        (10, 20, 30)
+
+    Raises:
+        TypeError: If data is not a numpy array.
+        ValueError: If data has less than 3 dimensions.
     """
     if not isinstance(data, np.ndarray):
         raise TypeError('data is not a numpy array.')
