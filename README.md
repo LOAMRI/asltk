@@ -6,8 +6,8 @@
 [![CI_develop](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml)
 ![Python Versions](https://img.shields.io/badge/python-3.9%20|+-blue)
 ![PyPI downloads](https://img.shields.io/pypi/dm/asltk)
-![GitHub issues](https://img.shields.io/github/issues/LOAMRI/asltk)
 ![Contributors](https://img.shields.io/github/contributors/LOAMRI/asltk)
+[![GitHub issues](https://img.shields.io/github/issues-raw/LOAMRI/asltk.svg?maxAge=2592000)]()
 [![GitHub Sponsor](https://img.shields.io/badge/Sponsor-❤️%20acsenrafilho-orange?logo=github)](https://github.com/sponsors/acsenrafilho)
 
 # Arterial Spin Labeling Toolkit (asltk)
@@ -33,6 +33,12 @@ A quick to use install is via `pip`, as follows:
 ```bash
 pip install asltk
 ```
+
+## Special thanks for all the contributors
+
+Thank you all the special people that invested their time and knowledge to improve this project. 👏
+
+![Contributors](https://contrib.rocks/image?repo=LOAMRI/asltk)
 
 ## Citation
 
