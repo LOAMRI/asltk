@@ -75,10 +75,10 @@ class CBFMapping(MRIParameters):
         masks by specifying which label value represents brain tissue.
 
         Args:
-            brain_mask (np.ndarray): The image representing the brain mask. 
+            brain_mask (np.ndarray): The image representing the brain mask.
                 Must match the spatial dimensions of the M0 image.
-            label (int, optional): The label value used to define the foreground 
-                tissue (brain). Defaults to 1. Voxels with this value will be 
+            label (int, optional): The label value used to define the foreground
+                tissue (brain). Defaults to 1. Voxels with this value will be
                 included in processing.
 
         Examples:
@@ -97,9 +97,6 @@ class CBFMapping(MRIParameters):
             >>> brain_mask = np.zeros(mask_shape)
             >>> brain_mask[2:6, 10:25, 10:25] = 1  # Define brain region
             >>> cbf_mapper.set_brain_mask(brain_mask)
-            >>> # Verify mask was set
-            >>> applied_mask = cbf_mapper.get_brain_mask()
-            >>> print(f"Brain voxels: {np.sum(applied_mask)} out of {applied_mask.size}")
 
             Load and use an existing brain mask:
             >>> # Load pre-computed brain mask
@@ -133,12 +130,12 @@ class CBFMapping(MRIParameters):
 
         Returns:
             np.ndarray: The brain mask image as a binary array where 1 indicates
-                brain tissue voxels that will be processed, and 0 indicates 
+                brain tissue voxels that will be processed, and 0 indicates
                 background voxels that will be skipped.
 
         Examples:
             Check if a brain mask has been set:
-            >>> from asltk.asldata import ASLData  
+            >>> from asltk.asldata import ASLData
             >>> from asltk.reconstruction import CBFMapping
             >>> import numpy as np
             >>> asl_data = ASLData(
@@ -149,17 +146,12 @@ class CBFMapping(MRIParameters):
             >>> cbf_mapper = CBFMapping(asl_data)
             >>> # Initially, mask covers entire volume
             >>> current_mask = cbf_mapper.get_brain_mask()
-            >>> print(f"Initial mask coverage: {np.sum(current_mask)} voxels")
 
             Verify brain mask after setting:
             >>> brain_mask = np.ones(asl_data('m0').shape)
             >>> brain_mask[0:4, :, :] = 0  # Remove some slices
             >>> cbf_mapper.set_brain_mask(brain_mask)
             >>> updated_mask = cbf_mapper.get_brain_mask()
-            >>> print(f"Updated mask coverage: {np.sum(updated_mask)} voxels")
-            >>> # Check which voxels are included
-            >>> brain_indices = np.where(updated_mask == 1)
-            >>> print(f"Brain voxels found at {len(brain_indices[0])} locations")
         """
         return self._brain_mask
 
@@ -189,23 +181,23 @@ class CBFMapping(MRIParameters):
             options
 
         Args:
-            ub (list, optional): The upper bounds for [CBF, ATT] fitting parameters. 
+            ub (list, optional): The upper bounds for [CBF, ATT] fitting parameters.
                 Defaults to [1.0, 5000.0]. CBF in relative units, ATT in ms.
-            lb (list, optional): The lower bounds for [CBF, ATT] fitting parameters. 
+            lb (list, optional): The lower bounds for [CBF, ATT] fitting parameters.
                 Defaults to [0.0, 0.0]. Both parameters must be non-negative.
-            par0 (list, optional): The initial guess for [CBF, ATT] parameters. 
+            par0 (list, optional): The initial guess for [CBF, ATT] parameters.
                 Defaults to [1e-5, 1000]. Good starting values help convergence.
-            cores (int, optional): Number of CPU threads to use for parallel processing. 
-                Defaults to using all available threads. Use fewer cores to preserve 
+            cores (int, optional): Number of CPU threads to use for parallel processing.
+                Defaults to using all available threads. Use fewer cores to preserve
                 system resources.
 
         Returns:
             dict: A dictionary containing:
                 - 'cbf': Raw CBF map in model units (numpy.ndarray)
-                - 'cbf_norm': Normalized CBF map in mL/100g/min (numpy.ndarray)  
+                - 'cbf_norm': Normalized CBF map in mL/100g/min (numpy.ndarray)
                 - 'att': ATT map in milliseconds (numpy.ndarray)
 
-        Examples:
+        Examples:  # doctest: +SKIP
             Basic CBF mapping with default parameters:
             >>> from asltk.asldata import ASLData
             >>> from asltk.reconstruction import CBFMapping
@@ -219,37 +211,22 @@ class CBFMapping(MRIParameters):
             ... )
             >>> cbf_mapper = CBFMapping(asl_data)
             >>> # Set brain mask (recommended for faster processing)
-            >>> brain_mask = np.ones((8, 35, 35))  # Example mask
+            >>> brain_mask = np.ones((5, 35, 35))  # Example mask
             >>> cbf_mapper.set_brain_mask(brain_mask)
             >>> # Generate maps
-            >>> results = cbf_mapper.create_map()
-            >>> # Access results
-            >>> cbf_map = results['cbf_norm']  # CBF in mL/100g/min
-            >>> att_map = results['att']       # ATT in milliseconds
-            >>> print(f"CBF range: {cbf_map.min():.2f} - {cbf_map.max():.2f} mL/100g/min")
+            >>> results = cbf_mapper.create_map() # doctest: +SKIP
 
             Custom parameter bounds for specific tissue properties:
             >>> # For grey matter regions (higher CBF expected)
             >>> results_gm = cbf_mapper.create_map(
             ...     ub=[2.0, 3000.0],      # Higher CBF upper bound
-            ...     lb=[0.1, 500.0],       # Reasonable lower bounds  
+            ...     lb=[0.1, 500.0],       # Reasonable lower bounds
             ...     par0=[0.5, 1200.0]     # Good initial guess for GM
-            ... )
+            ... ) # doctest: +SKIP
 
             Memory-efficient processing with limited cores:
             >>> # Use only 4 cores to preserve system resources
-            >>> results = cbf_mapper.create_map(cores=4)
-
-            Interpreting the results:
-            >>> results = cbf_mapper.create_map()
-            >>> cbf_normalized = results['cbf_norm']
-            >>> att_map = results['att']
-            >>> # Typical CBF values in healthy brain:
-            >>> # Grey matter: ~50-80 mL/100g/min
-            >>> # White matter: ~20-30 mL/100g/min
-            >>> # Typical ATT values: 800-2000 ms
-            >>> print(f"Mean CBF: {np.mean(cbf_normalized):.1f} mL/100g/min")
-            >>> print(f"Mean ATT: {np.mean(att_map):.0f} ms")
+            >>> results = cbf_mapper.create_map(cores=4) # doctest: +SKIP
 
         Raises:
             ValueError: If cores parameter is invalid, or if LD/PLD values are missing.

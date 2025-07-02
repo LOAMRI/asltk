@@ -132,7 +132,7 @@ def load_image(
         <class 'numpy.ndarray'>
 
         Load with session information (note: this example assumes session exists):
-        >>> # data = load_image("./tests/files/bids-example/asl001", 
+        >>> # data = load_image("./tests/files/bids-example/asl001",
         >>> #                   subject='Sub103', session='01', suffix='asl')
         >>> # type(data)
         >>> # <class 'numpy.ndarray'>
@@ -195,7 +195,7 @@ def save_image(
     """Save image to a file path.
 
     All the available image formats provided in the SimpleITK API can be
-    used here. Supported formats include: .nii, .nii.gz, .nrrd, .mha, .tif, 
+    used here. Supported formats include: .nii, .nii.gz, .nrrd, .mha, .tif,
     and other formats supported by SimpleITK.
 
     Args:
@@ -215,7 +215,7 @@ def save_image(
 
         Save an image using BIDS structure:
         >>> import tempfile
-        >>> img = np.random.rand(10, 10, 10)  
+        >>> img = np.random.rand(10, 10, 10)
         >>> with tempfile.TemporaryDirectory() as temp_dir:
         ...     save_image(img, bids_root=temp_dir, subject='001', session='01')
 
@@ -341,7 +341,7 @@ def collect_data_volumes(data: np.ndarray):
     """Collect the data volumes from a higher dimension array.
 
     This method is used to collect the data volumes from a higher dimension
-    array. The method works with 4D or 5D arrays, where the volumes are 
+    array. The method works with 4D or 5D arrays, where the volumes are
     separated along the higher dimensions. The method will collect the volumes
     and return a list of 3D arrays.
 

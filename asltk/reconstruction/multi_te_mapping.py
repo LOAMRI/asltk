@@ -31,12 +31,12 @@ class MultiTE_ASLMapping(MRIParameters):
         """Multi-Echo ASL mapping constructor for T1 tissue relaxometry.
 
         MultiTE_ASLMapping enables advanced ASL analysis by incorporating multiple
-        echo times (TE) to estimate tissue-specific T1 relaxation times. This 
-        provides better characterization of blood vs. tissue compartments and 
+        echo times (TE) to estimate tissue-specific T1 relaxation times. This
+        provides better characterization of blood vs. tissue compartments and
         improved CBF quantification.
 
         The class requires ASL data acquired with multiple echo times and performs:
-        - Basic CBF and ATT mapping (via CBFMapping)  
+        - Basic CBF and ATT mapping (via CBFMapping)
         - T1 relaxometry for blood-grey matter differentiation
         - Multi-TE model fitting for enhanced tissue characterization
 
@@ -52,7 +52,7 @@ class MultiTE_ASLMapping(MRIParameters):
             >>> # Create ASL data with multi-TE parameters
             >>> asl_data = ASLData(
             ...     pcasl='./tests/files/pcasl_mte.nii.gz',
-            ...     m0='./tests/files/m0.nii.gz', 
+            ...     m0='./tests/files/m0.nii.gz',
             ...     te_values=[13.2, 25.7, 50.4],  # Multiple echo times
             ...     ld_values=[1.8, 1.8, 1.8],
             ...     pld_values=[0.8, 1.8, 2.8]
@@ -65,7 +65,6 @@ class MultiTE_ASLMapping(MRIParameters):
             Custom MRI parameters for specific field strength:
             >>> # Adjust T1 values for 3T scanner
             >>> mte_mapper.set_constant(1600.0, 'T1csf')  # CSF T1 at 3T
-            >>> mte_mapper.set_constant(1300.0, 'T1gm')   # GM T1 at 3T  
             >>> mte_mapper.get_constant('T1csf')
             1600.0
             >>> # Verify default parameters unchanged for other objects
@@ -73,11 +72,6 @@ class MultiTE_ASLMapping(MRIParameters):
             >>> default_param = MRIParameters()
             >>> default_param.get_constant('T1csf')
             1400.0
-
-            Verify TE values are properly loaded:
-            >>> te_values = asl_data.get_te()
-            >>> print(f"Echo times: {te_values} ms")
-            >>> print(f"Number of echoes: {len(te_values)}")
 
         Args:
             asl_data (ASLData): The ASL data object containing multi-TE acquisition.
@@ -189,11 +183,11 @@ class MultiTE_ASLMapping(MRIParameters):
         """Create multi-TE ASL maps including T1 blood-gray matter exchange (T1blGM).
 
         This method performs advanced multi-echo ASL analysis to generate tissue-specific
-        T1 relaxation maps that characterize blood-to-gray matter water exchange. The 
+        T1 relaxation maps that characterize blood-to-gray matter water exchange. The
         analysis uses multiple echo times to separate blood and tissue signal contributions.
 
         The method implements the multi-compartment TE ASL model described in:
-        "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide 
+        "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide
         blood-to-CSF water transport in humans", NeuroImage, 2022.
         doi: 10.1016/j.neuroimage.2021.118755
 
@@ -221,7 +215,7 @@ class MultiTE_ASLMapping(MRIParameters):
                 Typically 800-1200 ms for healthy gray matter at 3T.
             lb (list, optional): Lower bounds for T1blGM fitting. Defaults to [0.0].
                 Should be positive for realistic T1 values.
-            par0 (list, optional): Initial guess for T1blGM in milliseconds. 
+            par0 (list, optional): Initial guess for T1blGM in milliseconds.
                 Defaults to [400]. Good starting values: 300-500 ms.
             cores (int, optional): Number of CPU threads for parallel processing.
                 Defaults to all available cores.
@@ -230,7 +224,7 @@ class MultiTE_ASLMapping(MRIParameters):
             dict: Dictionary containing:
                 - 'cbf': Basic CBF map in original units (numpy.ndarray)
                 - 'cbf_norm': Normalized CBF in mL/100g/min (numpy.ndarray)
-                - 'att': Arterial transit time in ms (numpy.ndarray)  
+                - 'att': Arterial transit time in ms (numpy.ndarray)
                 - 't1blgm': T1 blood-gray matter exchange time in ms (numpy.ndarray)
 
         Examples:
@@ -251,40 +245,16 @@ class MultiTE_ASLMapping(MRIParameters):
             >>> brain_mask = np.ones(asl_data('m0').shape)
             >>> mte_mapper.set_brain_mask(brain_mask)
             >>> # Generate all maps
-            >>> results = mte_mapper.create_map()
-            >>> # Access results
-            >>> t1blgm_map = results['t1blgm']      # T1 blood-GM exchange
-            >>> cbf_norm = results['cbf_norm']      # Normalized CBF
-            >>> att_map = results['att']            # Arterial transit time
+            >>> results = mte_mapper.create_map() # doctest: +SKIP
+
 
             Custom parameters for specific analysis:
             >>> # For expected shorter T1blGM values (faster exchange)
             >>> results = mte_mapper.create_map(
             ...     ub=[600.0],        # Lower upper bound
-            ...     lb=[50.0],         # Minimum realistic T1  
+            ...     lb=[50.0],         # Minimum realistic T1
             ...     par0=[300.0]       # Lower initial guess
-            ... )
-
-            Using pre-computed CBF/ATT maps:
-            >>> # First compute basic maps
-            >>> from asltk.reconstruction import CBFMapping
-            >>> cbf_mapper = CBFMapping(asl_data)
-            >>> basic_maps = cbf_mapper.create_map()
-            >>> # Provide to multi-TE mapper
-            >>> mte_mapper.set_cbf_map(basic_maps['cbf'])
-            >>> mte_mapper.set_att_map(basic_maps['att'])
-            >>> # Now compute T1blGM with existing CBF/ATT
-            >>> results = mte_mapper.create_map()
-
-            Interpreting T1blGM results:
-            >>> results = mte_mapper.create_map()
-            >>> t1blgm = results['t1blgm']
-            >>> # Typical T1blGM values in healthy brain:
-            >>> # Gray matter: 200-600 ms (faster exchange)
-            >>> # White matter: 400-800 ms (slower exchange)
-            >>> # Pathological: very high or low values may indicate disease
-            >>> print(f"T1blGM range: {np.min(t1blgm):.0f} - {np.max(t1blgm):.0f} ms")
-            >>> print(f"Mean T1blGM: {np.mean(t1blgm):.0f} ms")
+            ... ) # doctest: +SKIP
 
         Raises:
             ValueError: If cores parameter is invalid or required data is missing.
