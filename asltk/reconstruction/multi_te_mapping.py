@@ -28,37 +28,61 @@ t2gm = None
 
 class MultiTE_ASLMapping(MRIParameters):
     def __init__(self, asl_data: ASLData) -> None:
-        """Basic MultiTE_ASLMapping constructor
+        """Multi-Echo ASL mapping constructor for T1 tissue relaxometry.
+
+        MultiTE_ASLMapping enables advanced ASL analysis by incorporating multiple
+        echo times (TE) to estimate tissue-specific T1 relaxation times. This
+        provides better characterization of blood vs. tissue compartments and
+        improved CBF quantification.
+
+        The class requires ASL data acquired with multiple echo times and performs:
+        - Basic CBF and ATT mapping (via CBFMapping)
+        - T1 relaxometry for blood-grey matter differentiation
+        - Multi-TE model fitting for enhanced tissue characterization
 
         Notes:
-            The ASLData is the base data used in the object constructor.
-            In order to create the CBF map correctly, a proper ASLData must be
-            provided. Check whether the ASLData given as input is defined
-            correctly. In particular, it must provide the `te_values` list of
-            values in the ASLData object
+            The ASLData object must contain `te_values` - a list of echo times
+            used during ASL acquisition. These TE values are critical for the
+            multi-echo model fitting and T1 estimation.
 
         Examples:
-            The default MRIParameters are used as default in the object
-            constructor
-            >>> asl_data = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz',m0='./tests/files/m0.nii.gz', te_values=[13.2, 25.7, 50.4])
-            >>> mte = MultiTE_ASLMapping(asl_data)
-            >>> mte.get_constant('T1csf')
+            Basic multi-TE ASL mapping setup:
+            >>> from asltk.asldata import ASLData
+            >>> from asltk.reconstruction import MultiTE_ASLMapping
+            >>> # Create ASL data with multi-TE parameters
+            >>> asl_data = ASLData(
+            ...     pcasl='./tests/files/pcasl_mte.nii.gz',
+            ...     m0='./tests/files/m0.nii.gz',
+            ...     te_values=[13.2, 25.7, 50.4],  # Multiple echo times
+            ...     ld_values=[1.8, 1.8, 1.8],
+            ...     pld_values=[0.8, 1.8, 2.8]
+            ... )
+            >>> mte_mapper = MultiTE_ASLMapping(asl_data)
+            >>> # Access default MRI parameters
+            >>> mte_mapper.get_constant('T1csf')
             1400.0
 
-            If the user want to change the MRIParameter value, for a specific
-            object, one can change it directly:
-            >>> mte.set_constant(1600.0, 'T1csf')
-            >>> mte.get_constant('T1csf')
+            Custom MRI parameters for specific field strength:
+            >>> # Adjust T1 values for 3T scanner
+            >>> mte_mapper.set_constant(1600.0, 'T1csf')  # CSF T1 at 3T
+            >>> mte_mapper.get_constant('T1csf')
             1600.0
+            >>> # Verify default parameters unchanged for other objects
+            >>> from asltk.mri_parameters import MRIParameters
             >>> default_param = MRIParameters()
             >>> default_param.get_constant('T1csf')
             1400.0
 
         Args:
-            asl_data (ASLData): The ASL data object (ASLData)
+            asl_data (ASLData): The ASL data object containing multi-TE acquisition.
+                Must include te_values, ld_values, and pld_values.
 
         Raises:
-            ValueError: Raises when an incomplete ASLData object is provided
+            ValueError: If ASLData object lacks required TE values for multi-echo analysis.
+
+        See Also:
+            CBFMapping: For basic CBF/ATT mapping without multi-TE analysis
+            MultiDW_ASLMapping: For diffusion-weighted ASL analysis
         """
         super().__init__()
         self._asl_data = asl_data
@@ -156,41 +180,89 @@ class MultiTE_ASLMapping(MRIParameters):
         par0: list = [400],
         cores=cpu_count(),
     ):
-        """Create the T1 relaxation exchange between blood and Grey Matter (GM)
-        , i.e. the T1blGM map resulted from the multi-compartiment TE ASL model.
+        """Create multi-TE ASL maps including T1 blood-gray matter exchange (T1blGM).
 
-        Reference:  Ultra-long-TE arterial spin labeling reveals rapid and
-        brain-wide blood-to-CSF water transport in humans, NeuroImage,
+        This method performs advanced multi-echo ASL analysis to generate tissue-specific
+        T1 relaxation maps that characterize blood-to-gray matter water exchange. The
+        analysis uses multiple echo times to separate blood and tissue signal contributions.
+
+        The method implements the multi-compartment TE ASL model described in:
+        "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide
+        blood-to-CSF water transport in humans", NeuroImage, 2022.
         doi: 10.1016/j.neuroimage.2021.118755
 
         Note:
             The CBF and ATT maps can be provided before calling this method,
-            using the proper set/get methods for each map. If the user does not
-            provide these maps, a new calculation is automatically made using
-            the default execution implemented at CBFMapping class.
+            using the set_cbf_map() and set_att_map() methods. If not provided,
+            basic CBF/ATT maps are automatically calculated using the CBFMapping class.
 
         Note:
-            The CBF map must be at the original scale to perform the correct
-            multiTE-ASL model. Therefore, provide the 'cbf' output.
+            The CBF map must be in original scale (not normalized) to perform the
+            correct multiTE-ASL model fitting. Use the 'cbf' output from CBFMapping,
+            not the 'cbf_norm' version.
 
-        The method assumes that the fine tunning map can be approached using
-        the adpted initial guess (parameter par0). Hence, the generated T1blGM
-        map applies a cut-off using only positive values (`>0`) and upper limit
-        of four times the initial guess (`4 * par0`).
+        The method assumes the T1blGM values are well-characterized by the initial
+        guess parameter. Results are filtered to include only positive values and
+        values below 4 times the initial guess to remove unrealistic outliers.
 
         Note:
-            It is a good practive to apply a spatial smoothing in the output
-            T1blGM map, in order to improve SNR. However, the `create_map`
-            method does not applies any image filter as default.
+            Consider applying spatial smoothing to the output T1blGM map to improve
+            SNR. The create_map() method does not apply filtering by default to
+            preserve spatial resolution.
 
         Args:
-            ub (list, optional): The upper limit values. Defaults to [1.0, 5000.0].
-            lb (list, optional): The lower limit values. Defaults to [0.0, 0.0].
-            par0 (list, optional): The initial guess parameter for non-linear fitting. Defaults to [1e-5, 1000].
-            cores (int, optional): Defines how many CPU threads can be used for the class. Defaults is using all the availble threads.
+            ub (list, optional): Upper bounds for T1blGM fitting. Defaults to [np.inf].
+                Typically 800-1200 ms for healthy gray matter at 3T.
+            lb (list, optional): Lower bounds for T1blGM fitting. Defaults to [0.0].
+                Should be positive for realistic T1 values.
+            par0 (list, optional): Initial guess for T1blGM in milliseconds.
+                Defaults to [400]. Good starting values: 300-500 ms.
+            cores (int, optional): Number of CPU threads for parallel processing.
+                Defaults to all available cores.
 
         Returns:
-            (dict): A dictionary with 'cbf', 'att' and 'cbf_norm'
+            dict: Dictionary containing:
+                - 'cbf': Basic CBF map in original units (numpy.ndarray)
+                - 'cbf_norm': Normalized CBF in mL/100g/min (numpy.ndarray)
+                - 'att': Arterial transit time in ms (numpy.ndarray)
+                - 't1blgm': T1 blood-gray matter exchange time in ms (numpy.ndarray)
+
+        Examples:
+            Basic multi-TE ASL analysis:
+            >>> from asltk.asldata import ASLData
+            >>> from asltk.reconstruction import MultiTE_ASLMapping
+            >>> import numpy as np
+            >>> # Load multi-TE ASL data
+            >>> asl_data = ASLData(
+            ...     pcasl='./tests/files/pcasl_mte.nii.gz',
+            ...     m0='./tests/files/m0.nii.gz',
+            ...     te_values=[13.2, 25.7, 50.4],  # Multiple echo times
+            ...     ld_values=[1.8, 1.8, 1.8],
+            ...     pld_values=[0.8, 1.8, 2.8]
+            ... )
+            >>> mte_mapper = MultiTE_ASLMapping(asl_data)
+            >>> # Set brain mask for faster processing
+            >>> brain_mask = np.ones(asl_data('m0').shape)
+            >>> mte_mapper.set_brain_mask(brain_mask)
+            >>> # Generate all maps
+            >>> results = mte_mapper.create_map() # doctest: +SKIP
+
+
+            Custom parameters for specific analysis:
+            >>> # For expected shorter T1blGM values (faster exchange)
+            >>> results = mte_mapper.create_map(
+            ...     ub=[600.0],        # Lower upper bound
+            ...     lb=[50.0],         # Minimum realistic T1
+            ...     par0=[300.0]       # Lower initial guess
+            ... ) # doctest: +SKIP
+
+        Raises:
+            ValueError: If cores parameter is invalid or required data is missing.
+
+        See Also:
+            set_cbf_map(): Provide pre-computed CBF map
+            set_att_map(): Provide pre-computed ATT map
+            CBFMapping: For basic CBF/ATT mapping
         """
         # # TODO As entradas ub, lb e par0 não são aplicadas para CBF. Pensar se precisa ter essa flexibilidade para acertar o CBF interno à chamada
         self._basic_maps.set_brain_mask(self._brain_mask)
