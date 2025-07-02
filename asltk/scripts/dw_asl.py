@@ -9,7 +9,7 @@ from rich import print
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import MultiDW_ASLMapping
-from asltk.utils import load_image, save_image
+from asltk.utils.io import load_image, save_image
 
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 

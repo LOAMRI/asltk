@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 import SimpleITK as sitk
 
-from asltk.utils import collect_data_volumes
+from asltk.utils.image_manipulation import collect_data_volumes
 
 
 def isotropic_gaussian(data, sigma: float = 1.0):

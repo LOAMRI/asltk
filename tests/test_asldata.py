@@ -2,9 +2,9 @@ import os
 
 import numpy as np
 import pytest
-import SimpleITK as sitk
 
 from asltk import asldata
+from asltk.utils import io
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -16,6 +16,21 @@ M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 def test_create_successfuly_asldata_object():
     obj = asldata.ASLData()
     assert isinstance(obj, asldata.ASLData)
+
+
+def test_asldata_object_shows_warning_if_m0_has_more_than_3D_dimensions(
+    tmp_path,
+):
+    tmp_file = tmp_path / 'temp_m0_4D.nii.gz'
+    # Create a 4D M0 image
+    m0_4d = np.stack(
+        [io.load_image(M0), io.load_image(M0), io.load_image(M0)], axis=0
+    )
+    io.save_image(m0_4d, str(tmp_file))
+    with pytest.warns(Warning) as record:
+        obj = asldata.ASLData(m0=str(tmp_file))
+    assert len(record) == 1
+    assert 'M0 image has more than 3 dimensions.' in str(record[0].message)
 
 
 def test_create_successfuly_asldata_object_with_inputs():
@@ -269,3 +284,34 @@ def test_set_image_sucess_pcasl():
     obj = asldata.ASLData()
     obj.set_image(M0, 'pcasl')
     assert isinstance(obj('pcasl'), np.ndarray)
+
+
+def test_asldata_copy_creates_deepcopy():
+    obj = asldata.ASLData(
+        pcasl=PCASL_MTE,
+        ld_values=[1, 2, 3],
+        pld_values=[1, 2, 3],
+        te_values=[10, 20, 30],
+        dw_values=[100, 200, 300],
+    )
+    obj_copy = obj.copy()
+    assert isinstance(obj_copy, asldata.ASLData)
+    assert obj is not obj_copy
+    assert obj.get_ld() == obj_copy.get_ld()
+    assert obj.get_pld() == obj_copy.get_pld()
+    assert obj.get_te() == obj_copy.get_te()
+    assert obj.get_dw() == obj_copy.get_dw()
+    # Mutate original, copy should not change
+    obj.set_ld([9, 8, 7])
+    assert obj.get_ld() != obj_copy.get_ld()
+
+
+def test_asldata_len_returns_zero_for_no_image():
+    obj = asldata.ASLData()
+    assert len(obj) == 0
+
+
+def test_asldata_len_returns_total_volumes():
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    assert len(asl) == 56

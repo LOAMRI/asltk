@@ -9,59 +9,13 @@ from bids import BIDSLayout
 from asltk import AVAILABLE_IMAGE_FORMATS, BIDS_IMAGE_FORMATS
 
 
-def _check_input_path(full_path: str):
-    if not os.path.exists(full_path):
-        raise FileNotFoundError(f'The file {full_path} does not exist.')
-
-
-def _get_file_from_folder_layout(
-    full_path: str,
-    subject: str = None,
-    session: str = None,
-    modality: str = None,
-    suffix: str = None,
-):
-    selected_file = None
-    layout = BIDSLayout(full_path)
-    if all(param is None for param in [subject, session, modality, suffix]):
-        for root, _, files in os.walk(full_path):
-            for file in files:
-                if '_asl' in file and file.endswith(BIDS_IMAGE_FORMATS):
-                    selected_file = os.path.join(root, file)
-    else:
-        layout_files = layout.files.keys()
-        matching_files = []
-        for f in layout_files:
-            search_pattern = ''
-            if subject:
-                search_pattern = f'*sub-*{subject}*'
-            if session:
-                search_pattern += search_pattern + f'*ses-*{session}'
-            if modality:
-                search_pattern += search_pattern + f'*{modality}*'
-            if suffix:
-                search_pattern += search_pattern + f'*{suffix}*'
-
-            if fnmatch.fnmatch(f, search_pattern) and f.endswith(
-                BIDS_IMAGE_FORMATS
-            ):
-                matching_files.append(f)
-
-        if not matching_files:
-            raise FileNotFoundError(
-                f'ASL image file is missing for subject {subject} in directory {full_path}'
-            )
-        selected_file = matching_files[0]
-
-    return selected_file
-
-
 def load_image(
     full_path: str,
     subject: str = None,
     session: str = None,
     modality: str = None,
     suffix: str = None,
+    **kwargs,
 ):
     """Load an image file from a BIDS directory using the standard SimpleITK API.
 
@@ -123,19 +77,25 @@ def load_image(
         (numpy.array): The loaded image
     """
     _check_input_path(full_path)
+    img = None
 
     if full_path.endswith(AVAILABLE_IMAGE_FORMATS):
         # If the full path is a file, then load the image directly
-        img = sitk.ReadImage(full_path)
-        return sitk.GetArrayFromImage(img)
+        img = sitk.GetArrayFromImage(sitk.ReadImage(full_path))
+    else:
+        # If the full path is a directory, then use BIDSLayout to find the file
+        selected_file = _get_file_from_folder_layout(
+            full_path, subject, session, modality, suffix
+        )
+        img = sitk.GetArrayFromImage(sitk.ReadImage(selected_file))
 
-    # Check if the full path is a directory using BIDS structure
-    selected_file = _get_file_from_folder_layout(
-        full_path, subject, session, modality, suffix
-    )
+    # Check if there are additional parameters
+    if kwargs.get('average_m0', False):
+        # If average_m0 is True, then average the M0 image
+        if img.ndim > 3:
+            img = np.mean(img, axis=0)
 
-    img = sitk.ReadImage(selected_file)
-    return sitk.GetArrayFromImage(img)
+    return img
 
 
 def _make_bids_path(
@@ -286,36 +246,48 @@ def load_asl_data(fullpath: str):
     return dill.load(open(fullpath, 'rb'))
 
 
-def collect_data_volumes(data: np.ndarray):
-    """Collect the data volumes from a higher dimension array.
+def _check_input_path(full_path: str):
+    if not os.path.exists(full_path):
+        raise FileNotFoundError(f'The file {full_path} does not exist.')
 
-    This method is used to collect the data volumes from a higher dimension
-    array. The method assumes that the data is a 4D array, where the first
-    dimension is the number of volumes. The method will collect the volumes
-    and return a list of 3D arrays.
 
-    The method is used to separate the 3D volumes from the higher dimension
-    array. This is useful when the user wants to apply a filter to each volume
-    separately.
+def _get_file_from_folder_layout(
+    full_path: str,
+    subject: str = None,
+    session: str = None,
+    modality: str = None,
+    suffix: str = None,
+):
+    selected_file = None
+    layout = BIDSLayout(full_path)
+    if all(param is None for param in [subject, session, modality, suffix]):
+        for root, _, files in os.walk(full_path):
+            for file in files:
+                if '_asl' in file and file.endswith(BIDS_IMAGE_FORMATS):
+                    selected_file = os.path.join(root, file)
+    else:
+        layout_files = layout.files.keys()
+        matching_files = []
+        for f in layout_files:
+            search_pattern = ''
+            if subject:
+                search_pattern = f'*sub-*{subject}*'
+            if session:
+                search_pattern += search_pattern + f'*ses-*{session}'
+            if modality:
+                search_pattern += search_pattern + f'*{modality}*'
+            if suffix:
+                search_pattern += search_pattern + f'*{suffix}*'
 
-    Args:
-        data (np.ndarray): The data to be separated.
+            if fnmatch.fnmatch(f, search_pattern) and f.endswith(
+                BIDS_IMAGE_FORMATS
+            ):
+                matching_files.append(f)
 
-    Returns:
-        list: A list of 3D arrays, each one representing a volume.
-        tuple: The original shape of the data.
-    """
-    if not isinstance(data, np.ndarray):
-        raise TypeError('data is not a numpy array.')
+        if not matching_files:
+            raise FileNotFoundError(
+                f'ASL image file is missing for subject {subject} in directory {full_path}'
+            )
+        selected_file = matching_files[0]
 
-    if data.ndim < 3:
-        raise ValueError('data is a 3D volume or higher dimensions')
-
-    volumes = []
-    # Calculate the number of volumes by multiplying all dimensions except the last three
-    num_volumes = int(np.prod(data.shape[:-3]))
-    reshaped_data = data.reshape((int(num_volumes),) + data.shape[-3:])
-    for i in range(num_volumes):
-        volumes.append(reshaped_data[i])
-
-    return volumes, data.shape
+    return selected_file

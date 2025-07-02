@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 
 from asltk.asldata import ASLData
-from asltk.registration import head_movement_correction
-from asltk.registration.rigid import rigid_body_registration
-from asltk.utils import load_image
+from asltk.registration import rigid_body_registration
+from asltk.registration.asl_normalization import head_movement_correction
+from asltk.utils.io import load_image
 
 SEP = os.sep
 M0_ORIG = (
@@ -70,8 +70,7 @@ def test_rigid_body_registration_output_registration_matrix_success():
 
     _, trans_matrix = rigid_body_registration(img_orig, img_rot)
 
-    assert isinstance(trans_matrix, np.ndarray)
-    assert trans_matrix.shape == (4, 4)
+    assert isinstance(trans_matrix, list)
 
 
 def test_head_movement_correction_build_asldata_success():

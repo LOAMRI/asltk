@@ -9,7 +9,7 @@ from rich import print
 from rich.progress import track
 from scipy.linalg import hadamard
 
-from asltk.utils import load_image, save_image
+from asltk.utils.io import load_image, save_image
 
 parser = argparse.ArgumentParser(
     prog='Generate Subtracted ASL Image',
