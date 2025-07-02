@@ -68,10 +68,15 @@ print(f"Mean ATT: {np.mean(att_map[brain_mask > 0]):.0f} ms")
 - **Healthy ATT values**: 800-2000 ms depending on vascular territory
 
 ### Example CBF and ATT Maps
-<!-- Placeholder for 2D image samples -->
-<!-- TODO: Add sample CBF map: ![CBF Map](images/cbf_sample.png) -->
-<!-- TODO: Add sample ATT map: ![ATT Map](images/att_sample.png) -->
-*Sample CBF and ATT maps will be provided to demonstrate typical output quality and anatomical features.*
+
+![CBF Map](../assets/images/cbf_map.png)
+
+A CBF map example, using multi PLD ASL imaging acquisition
+
+![ATT Map](../assets/images/att_map.png)
+
+An ATT map example, using multi PLD ASL imaging acquisition
+
 
 ## Multi-Echo ASL Analysis
 
@@ -132,10 +137,10 @@ print(f"Mean T1blGM: {np.mean(t1blgm_map[brain_mask > 0]):.0f} ms")
 ```
 
 ### Example Multi-TE Results
-<!-- Placeholder for multi-TE image samples -->
-<!-- TODO: Add sample T1blGM map: ![T1blGM Map](images/t1blgm_sample.png) -->
-<!-- TODO: Add sample multi-TE CBF map: ![Multi-TE CBF](images/mte_cbf_sample.png) -->
-*Sample multi-TE results will be provided to demonstrate T1 blood-gray matter exchange mapping and enhanced CBF characterization.*
+
+![T1blGM Map](../assets/images/t1_blood_gm_map.png)
+
+A T1 blood-GM map example, using the Multi TE ASL imaging acquisition
 
 ## Diffusion-Weighted ASL Analysis
 

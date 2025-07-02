@@ -42,6 +42,7 @@ nav:
   - 'index.md'
   - 'installation_guide.md'
   - 'getting_started.md'
+  - 'examples/workflow_examples.md'
   - 'faq.md'
   - 'api/asldata.md'
   - 'api/reconstruction.md'
