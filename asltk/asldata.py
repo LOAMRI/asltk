@@ -63,11 +63,11 @@ class ASLData:
         }
 
         logger = get_logger('asldata')
-        logger.info("Creating ASLData object")
-        
+        logger.info('Creating ASLData object')
+
         if kwargs.get('pcasl') is not None:
             pcasl_path = kwargs.get('pcasl')
-            logger.info(f"Loading ASL image from: {pcasl_path}")
+            logger.info(f'Loading ASL image from: {pcasl_path}')
             self._asl_image = load_image(pcasl_path)
             if self._asl_image is not None:
                 log_data_info('ASL image', self._asl_image.shape, pcasl_path)
@@ -85,24 +85,26 @@ class ASLData:
             if kwargs.get('pld_values') is None
             else kwargs.get('pld_values')
         )
-        
+
         if self._parameters['ld'] or self._parameters['pld']:
-            logger.info(f"ASL timing parameters - LD: {self._parameters['ld']}, PLD: {self._parameters['pld']}")
-        
+            logger.info(
+                f"ASL timing parameters - LD: {self._parameters['ld']}, PLD: {self._parameters['pld']}"
+            )
+
         self._check_ld_pld_sizes(
             self._parameters['ld'], self._parameters['pld']
         )
         if kwargs.get('te_values'):
             te_values = kwargs.get('te_values')
             self._parameters['te'] = te_values
-            logger.info(f"Multi-TE parameters set: {te_values}")
-            
+            logger.info(f'Multi-TE parameters set: {te_values}')
+
         if kwargs.get('dw_values'):
             dw_values = kwargs.get('dw_values')
             self._parameters['dw'] = dw_values
-            logger.info(f"Diffusion-weighted parameters set: {dw_values}")
-            
-        logger.debug("ASLData object created successfully")
+            logger.info(f'Diffusion-weighted parameters set: {dw_values}')
+
+        logger.debug('ASLData object created successfully')
 
     def set_image(self, image, spec: str):
         """Insert an image necessary to define the ASL data processing.
