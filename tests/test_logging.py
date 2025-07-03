@@ -10,15 +10,15 @@ from pathlib import Path
 import pytest
 
 from asltk.logging_config import (
-    get_logger,
-    setup_logging,
+    PACKAGE_LOGGER_NAME,
     configure_for_scripts,
+    get_logger,
+    log_data_info,
+    log_error_with_traceback,
     log_function_call,
     log_processing_step,
-    log_data_info,
     log_warning_with_context,
-    log_error_with_traceback,
-    PACKAGE_LOGGER_NAME,
+    setup_logging,
 )
 
 
