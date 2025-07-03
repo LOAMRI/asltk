@@ -122,15 +122,15 @@ class CBFMapping(MRIParameters):
             ValueError: If brain_mask dimensions don't match M0 image dimensions.
         """
         logger = get_logger('cbf_mapping')
-        logger.info(f"Setting brain mask with label {label}")
-        
+        logger.info(f'Setting brain mask with label {label}')
+
         _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
 
         binary_mask = (brain_mask == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
-        
+
         mask_volume = np.sum(binary_mask > 0)
-        logger.info(f"Brain mask set successfully: {mask_volume} voxels")
+        logger.info(f'Brain mask set successfully: {mask_volume} voxels')
 
     def get_brain_mask(self):
         """Get the current brain mask image being used for CBF calculations.
@@ -239,13 +239,15 @@ class CBFMapping(MRIParameters):
             ValueError: If cores parameter is invalid, or if LD/PLD values are missing.
         """
         logger = get_logger('cbf_mapping')
-        logger.info("Starting CBF map creation")
-        
+        logger.info('Starting CBF map creation')
+
         if (cores < 0) or (cores > cpu_count()) or not isinstance(cores, int):
             error_msg = 'Number of proecess must be at least 1 and less than maximum cores availble.'
-            logger.error(f"{error_msg} Requested: {cores}, Available: {cpu_count()}")
+            logger.error(
+                f'{error_msg} Requested: {cores}, Available: {cpu_count()}'
+            )
             raise ValueError(error_msg)
-            
+
         if (
             len(self._asl_data.get_ld()) == 0
             or len(self._asl_data.get_pld()) == 0
@@ -255,9 +257,9 @@ class CBFMapping(MRIParameters):
             raise ValueError(error_msg)
         # TODO Testar se retirando esse if do LD PLD sizes, continua rodando... isso é erro do ASLData
 
-        logger.info(f"Using {cores} CPU cores for parallel processing")
-        log_processing_step("Initializing CBF mapping computation")
-        
+        logger.info(f'Using {cores} CPU cores for parallel processing')
+        log_processing_step('Initializing CBF mapping computation')
+
         global asl_data, brain_mask
         asl_data = self._asl_data
         brain_mask = self._brain_mask
@@ -269,13 +271,17 @@ class CBFMapping(MRIParameters):
             self._asl_data('m0').shape[1],
             self._asl_data('m0').shape[0],
         )
-        
-        logger.info(f"Processing volume dimensions: {z_axis}x{y_axis}x{x_axis}")
+
+        logger.info(
+            f'Processing volume dimensions: {z_axis}x{y_axis}x{x_axis}'
+        )
 
         cbf_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
         att_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
 
-        log_processing_step("Running voxel-wise CBF fitting", "this may take several minutes")
+        log_processing_step(
+            'Running voxel-wise CBF fitting', 'this may take several minutes'
+        )
         with Pool(
             processes=cores,
             initializer=_cbf_init_globals,
@@ -313,10 +319,14 @@ class CBFMapping(MRIParameters):
         # Log completion statistics
         cbf_values = self._cbf_map[brain_mask > 0]
         att_values = self._att_map[brain_mask > 0]
-        
-        logger.info(f"CBF mapping completed successfully")
-        logger.info(f"CBF statistics - Mean: {np.mean(cbf_values):.4f}, Std: {np.std(cbf_values):.4f}")
-        logger.info(f"ATT statistics - Mean: {np.mean(att_values):.4f}, Std: {np.std(att_values):.4f}")
+
+        logger.info(f'CBF mapping completed successfully')
+        logger.info(
+            f'CBF statistics - Mean: {np.mean(cbf_values):.4f}, Std: {np.std(cbf_values):.4f}'
+        )
+        logger.info(
+            f'ATT statistics - Mean: {np.mean(att_values):.4f}, Std: {np.std(att_values):.4f}'
+        )
 
         return {
             'cbf': self._cbf_map,
