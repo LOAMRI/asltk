@@ -3,13 +3,13 @@ import warnings
 import numpy as np
 
 from asltk.asldata import ASLData
-from asltk.registration.rigid import rigid_body_registration
-from asltk.utils import collect_data_volumes
 from asltk.logging_config import (
     get_logger,
     log_processing_step,
     log_warning_with_context,
 )
+from asltk.registration.rigid import rigid_body_registration
+from asltk.utils import collect_data_volumes
 
 
 def head_movement_correction(

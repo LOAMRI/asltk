@@ -3,8 +3,8 @@ import os
 import numpy as np
 import SimpleITK as sitk
 
-from asltk.utils import load_image
 from asltk.logging_config import get_logger, log_data_info, log_function_call
+from asltk.utils import load_image
 
 
 class ASLData:

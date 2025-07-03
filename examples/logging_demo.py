@@ -12,9 +12,9 @@ from pathlib import Path
 # Add the asltk package to the path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from asltk import setup_logging, configure_for_scripts, get_logger
+from asltk import configure_for_scripts, get_logger, setup_logging
 from asltk.asldata import ASLData
-from asltk.logging_config import log_processing_step, log_data_info
+from asltk.logging_config import log_data_info, log_processing_step
 
 
 def main():

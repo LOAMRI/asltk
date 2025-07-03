@@ -7,9 +7,13 @@ import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
+from asltk.logging_config import (
+    configure_for_scripts,
+    get_logger,
+    log_processing_step,
+)
 from asltk.reconstruction import MultiTE_ASLMapping
 from asltk.utils import load_image, save_image
-from asltk.logging_config import configure_for_scripts, get_logger, log_processing_step
 
 parser = argparse.ArgumentParser(
     prog='Multi-TE ASL Mapping',
@@ -123,7 +127,6 @@ def checkUpParameters():
         error_msg = f'File format is not allowed or not available. The select type is {args.file_fmt}, but options are: nii, mha or nrrd'
         logger.error(error_msg)
         print(error_msg)
-        )
         is_ok = False
 
     return is_ok
@@ -162,7 +165,7 @@ if not checkUpParameters():
 
 
 # Step 2: Show the input information to assist manual conference
-logger.info("Multi-TE ASL processing started")
+logger.info('Multi-TE ASL processing started')
 if args.verbose:
     print(' --- Script Input Data ---')
     print('ASL file path: ' + args.pcasl)
@@ -180,33 +183,37 @@ if args.verbose:
         print('(optional) ATT map: ' + str(args.att))
     print('Output file format: ' + str(args.file_fmt))
 
-# Log input parameters 
-logger.info(f"Input parameters - PLD: {pld}, LD: {ld}, TE: {te}")
-logger.info(f"Output format: {args.file_fmt}")
+# Log input parameters
+logger.info(f'Input parameters - PLD: {pld}, LD: {ld}, TE: {te}')
+logger.info(f'Output format: {args.file_fmt}')
 
-log_processing_step("Creating ASLData object", f"Multi-TE with {len(te)} echo times")
+log_processing_step(
+    'Creating ASLData object', f'Multi-TE with {len(te)} echo times'
+)
 data = ASLData(
     pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, te_values=te
 )
 
-log_processing_step("Initializing Multi-TE ASL mapper")
+log_processing_step('Initializing Multi-TE ASL mapper')
 recon = MultiTE_ASLMapping(data)
 recon.set_brain_mask(mask_img)
 
 if isinstance(cbf_map, np.ndarray) and isinstance(att_map, np.ndarray):
-    logger.info("Setting optional CBF and ATT maps")
+    logger.info('Setting optional CBF and ATT maps')
     recon.set_cbf_map(cbf_map)
     recon.set_att_map(att_map)
 
-log_processing_step("Generating Multi-TE ASL maps", "this may take several minutes")
+log_processing_step(
+    'Generating Multi-TE ASL maps', 'this may take several minutes'
+)
 maps = recon.create_map()
-logger.info("Multi-TE ASL map generation completed successfully")
+logger.info('Multi-TE ASL map generation completed successfully')
 
-log_processing_step("Saving output maps")
+log_processing_step('Saving output maps')
 save_path = args.out_folder + os.path.sep + 'cbf_map.' + args.file_fmt
 if args.verbose and cbf_map is not None:
     print('Saving CBF map - Path: ' + save_path)
-logger.info(f"Saving CBF map to: {save_path}")
+logger.info(f'Saving CBF map to: {save_path}')
 save_image(maps['cbf'], save_path)
 
 save_path = (
@@ -214,19 +221,19 @@ save_path = (
 )
 if args.verbose and cbf_map is not None:
     print('Saving normalized CBF map - Path: ' + save_path)
-logger.info(f"Saving normalized CBF map to: {save_path}")
+logger.info(f'Saving normalized CBF map to: {save_path}')
 save_image(maps['cbf_norm'], save_path)
 
 save_path = args.out_folder + os.path.sep + 'att_map.' + args.file_fmt
 if args.verbose and att_map is not None:
     print('Saving ATT map - Path: ' + save_path)
-logger.info(f"Saving ATT map to: {save_path}")
+logger.info(f'Saving ATT map to: {save_path}')
 save_image(maps['att'], save_path)
 
 save_path = args.out_folder + os.path.sep + 'mte_t1blgm_map.' + args.file_fmt
 if args.verbose:
     print('Saving multiTE-ASL T1blGM map - Path: ' + save_path)
-logger.info(f"Saving T1blGM map to: {save_path}")
+logger.info(f'Saving T1blGM map to: {save_path}')
 save_image(maps['t1blgm'], save_path)
 
 if args.verbose:
