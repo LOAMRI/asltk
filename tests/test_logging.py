@@ -66,6 +66,11 @@ class TestLoggingSetup:
                 log_content = f.read()
             assert 'Test file message' in log_content
 
+            # Properly close and remove all handlers to release the file on Windows
+            for handler in logger.handlers[:]:
+                handler.close()
+                logger.removeHandler(handler)
+
     def test_configure_for_scripts_verbose(self, caplog):
         """Test script configuration with verbose mode."""
         caplog.set_level(logging.DEBUG, logger=PACKAGE_LOGGER_NAME)
