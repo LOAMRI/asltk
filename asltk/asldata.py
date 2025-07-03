@@ -62,8 +62,15 @@ class ASLData:
             'dw': None,
         }
 
+        logger = get_logger('asldata')
+        logger.info("Creating ASLData object")
+        
         if kwargs.get('pcasl') is not None:
-            self._asl_image = load_image(kwargs.get('pcasl'))
+            pcasl_path = kwargs.get('pcasl')
+            logger.info(f"Loading ASL image from: {pcasl_path}")
+            self._asl_image = load_image(pcasl_path)
+            if self._asl_image is not None:
+                log_data_info('ASL image', self._asl_image.shape, pcasl_path)
 
         if kwargs.get('m0') is not None:
             avg_m0 = kwargs.get('average_m0', False)
@@ -78,13 +85,24 @@ class ASLData:
             if kwargs.get('pld_values') is None
             else kwargs.get('pld_values')
         )
+        
+        if self._parameters['ld'] or self._parameters['pld']:
+            logger.info(f"ASL timing parameters - LD: {self._parameters['ld']}, PLD: {self._parameters['pld']}")
+        
         self._check_ld_pld_sizes(
             self._parameters['ld'], self._parameters['pld']
         )
         if kwargs.get('te_values'):
-            self._parameters['te'] = kwargs.get('te_values')
+            te_values = kwargs.get('te_values')
+            self._parameters['te'] = te_values
+            logger.info(f"Multi-TE parameters set: {te_values}")
+            
         if kwargs.get('dw_values'):
-            self._parameters['dw'] = kwargs.get('dw_values')
+            dw_values = kwargs.get('dw_values')
+            self._parameters['dw'] = dw_values
+            logger.info(f"Diffusion-weighted parameters set: {dw_values}")
+            
+        logger.debug("ASLData object created successfully")
 
     def set_image(self, image, spec: str):
         """Insert an image necessary to define the ASL data processing.
@@ -264,6 +282,7 @@ class ASLData:
                 )
 
     def _check_ld_pld_sizes(self, ld, pld):
+        logger = get_logger('asldata')
         if len(ld) != len(pld):
             raise ValueError(
                 f'LD and PLD must have the same array size. LD size is {len(ld)} and PLD size is {len(pld)}'
