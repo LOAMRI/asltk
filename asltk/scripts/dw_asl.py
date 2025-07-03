@@ -57,26 +57,29 @@ optional.add_argument(
     required=False,
     help='The ATT map that is provided to skip this step in the MultiTE-ASL calculation. If ATT is not provided, than a ATT map is calculated at the runtime.',
 )
-required.add_argument(
+optional.add_argument(
     '--pld',
     type=str,
     nargs='+',
-    required=True,
-    help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers',
+    required=False,
+    default=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+    help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
-required.add_argument(
+optional.add_argument(
     '--ld',
     type=str,
     nargs='+',
-    required=True,
-    help='Labeling Duration trend (LD), arranged in a sequence of float numbers.',
+    required=False,
+    default=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+    help='Labeling Duration trend (LD), arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
-required.add_argument(
+optional.add_argument(
     '--dw',
     type=str,
     nargs='+',
-    required=True,
-    help='Diffusion b-values arranged in a sequence of float numbers.',
+    required=False,
+    default=[0, 50, 100, 250],
+    help='Diffusion b-values arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
 optional.add_argument(
     '--verbose',
