@@ -2,6 +2,7 @@
 Tests for the ASLTK logging functionality.
 """
 
+import time
 import logging
 import os
 import tempfile
@@ -200,6 +201,7 @@ class TestLoggingIntegration:
 
 def test_logging_level_configuration():
     """Test that different log levels work correctly."""
+
     with tempfile.TemporaryDirectory() as tmpdir:
         log_file = os.path.join(tmpdir, 'levels.log')
 
@@ -214,13 +216,22 @@ def test_logging_level_configuration():
         logger.warning('Warning message')
         logger.error('Error message')
 
-        with open(log_file, 'r') as f:
-            content = f.read()
+        # Ensure logs are flushed before reading (important for Windows)
+        for handler in logger.handlers[:]:
+            handler.flush()
+
+        with open(log_file, 'r', encoding='utf-8') as f:
+            content = f.read().replace('\r\n', '\n')  # Normalize line endings
 
         assert 'Debug message' in content
         assert 'Info message' in content
         assert 'Warning message' in content
         assert 'Error message' in content
+
+        # Properly close and remove all handlers to release the file on Windows
+        for handler in logger.handlers[:]:
+            handler.close()
+            logger.removeHandler(handler)
 
         # Clear log file
         os.remove(log_file)
@@ -236,13 +247,25 @@ def test_logging_level_configuration():
         logger.warning('Warning message 2')
         logger.error('Error message 2')
 
-        with open(log_file, 'r') as f:
-            content = f.read()
+        # Ensure logs are flushed before reading (important for Windows)
+        for handler in logger.handlers[:]:
+            handler.flush()
+
+        with open(log_file, 'r', encoding='utf-8') as f:
+            content = f.read().replace('\r\n', '\n')  # Normalize line endings
 
         assert 'Debug message 2' not in content
         assert 'Info message 2' not in content
         assert 'Warning message 2' in content
         assert 'Error message 2' in content
+
+        # Properly close and remove all handlers to release the file on Windows
+        for handler in logger.handlers[:]:
+            handler.close()
+            logger.removeHandler(handler)
+
+        # Clear log file
+        os.remove(log_file)
 
 
 def test_logging_does_not_break_existing_functionality():
