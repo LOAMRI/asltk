@@ -11,7 +11,7 @@ def test_apply_smoothing_to_maps_no_smoothing():
         'att': np.random.random((10, 10, 10)),
     }
     result = apply_smoothing_to_maps(maps)
-    
+
     # Should return identical maps
     assert set(result.keys()) == set(maps.keys())
     for key in maps.keys():
@@ -25,7 +25,7 @@ def test_apply_smoothing_to_maps_gaussian():
         'att': np.random.random((10, 10, 10)),
     }
     result = apply_smoothing_to_maps(maps, smoothing='gaussian')
-    
+
     # Should return different smoothed maps
     assert set(result.keys()) == set(maps.keys())
     for key in maps.keys():
@@ -41,8 +41,10 @@ def test_apply_smoothing_to_maps_median():
         'cbf': np.random.random((10, 10, 10)),
         'att': np.random.random((10, 10, 10)),
     }
-    result = apply_smoothing_to_maps(maps, smoothing='median', smoothing_params={'size': 3})
-    
+    result = apply_smoothing_to_maps(
+        maps, smoothing='median', smoothing_params={'size': 3}
+    )
+
     # Should return different smoothed maps
     assert set(result.keys()) == set(maps.keys())
     for key in maps.keys():
@@ -53,7 +55,7 @@ def test_apply_smoothing_to_maps_median():
 def test_apply_smoothing_to_maps_invalid_type():
     # Test invalid smoothing type
     maps = {'cbf': np.random.random((10, 10, 10))}
-    
+
     with pytest.raises(ValueError) as e:
         apply_smoothing_to_maps(maps, smoothing='invalid')
     assert 'Unsupported smoothing type: invalid' in str(e.value)
@@ -67,7 +69,7 @@ def test_apply_smoothing_to_maps_non_array_values():
         'number': 42,
     }
     result = apply_smoothing_to_maps(maps, smoothing='gaussian')
-    
+
     # Non-array values should be unchanged
     assert result['metadata'] == maps['metadata']
     assert result['number'] == maps['number']
@@ -78,9 +80,13 @@ def test_apply_smoothing_to_maps_non_array_values():
 def test_apply_smoothing_to_maps_custom_params():
     # Test custom smoothing parameters
     maps = {'cbf': np.random.random((10, 10, 10))}
-    
-    result1 = apply_smoothing_to_maps(maps, smoothing='gaussian', smoothing_params={'sigma': 1.0})
-    result2 = apply_smoothing_to_maps(maps, smoothing='gaussian', smoothing_params={'sigma': 2.0})
-    
+
+    result1 = apply_smoothing_to_maps(
+        maps, smoothing='gaussian', smoothing_params={'sigma': 1.0}
+    )
+    result2 = apply_smoothing_to_maps(
+        maps, smoothing='gaussian', smoothing_params={'sigma': 2.0}
+    )
+
     # Different parameters should produce different results
     assert not np.array_equal(result1['cbf'], result2['cbf'])

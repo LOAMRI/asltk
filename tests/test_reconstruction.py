@@ -552,12 +552,12 @@ def test_cbf_object_create_map_with_gaussian_smoothing():
     cbf = CBFMapping(asldata_te)
     out_no_smooth = cbf.create_map()
     out_smooth = cbf.create_map(smoothing='gaussian')
-    
+
     # Check that output has same keys and shapes
     assert set(out_no_smooth.keys()) == set(out_smooth.keys())
     for key in out_no_smooth.keys():
         assert out_no_smooth[key].shape == out_smooth[key].shape
-    
+
     # Check that smoothing changed the values (reduced noise)
     assert np.std(out_smooth['cbf']) <= np.std(out_no_smooth['cbf'])
     assert np.std(out_smooth['att']) <= np.std(out_no_smooth['att'])
@@ -567,12 +567,12 @@ def test_cbf_object_create_map_with_median_smoothing():
     cbf = CBFMapping(asldata_te)
     out_no_smooth = cbf.create_map()
     out_smooth = cbf.create_map(smoothing='median')
-    
+
     # Check that output has same keys and shapes
     assert set(out_no_smooth.keys()) == set(out_smooth.keys())
     for key in out_no_smooth.keys():
         assert out_no_smooth[key].shape == out_smooth[key].shape
-    
+
     # Check that smoothing changed the values (reduced noise)
     assert np.std(out_smooth['cbf']) <= np.std(out_no_smooth['cbf'])
     assert np.std(out_smooth['att']) <= np.std(out_no_smooth['att'])
@@ -581,11 +581,13 @@ def test_cbf_object_create_map_with_median_smoothing():
 def test_cbf_object_create_map_with_custom_smoothing_params():
     cbf = CBFMapping(asldata_te)
     out_default = cbf.create_map(smoothing='gaussian')
-    out_custom = cbf.create_map(smoothing='gaussian', smoothing_params={'sigma': 2.0})
-    
+    out_custom = cbf.create_map(
+        smoothing='gaussian', smoothing_params={'sigma': 2.0}
+    )
+
     # Check that different parameters produce different results
     assert not np.array_equal(out_default['cbf'], out_custom['cbf'])
-    
+
     # Custom higher sigma should produce more smoothing
     assert np.std(out_custom['cbf']) <= np.std(out_default['cbf'])
 
@@ -601,12 +603,12 @@ def test_multite_asl_object_create_map_with_gaussian_smoothing():
     mte = MultiTE_ASLMapping(asldata_te)
     out_no_smooth = mte.create_map()
     out_smooth = mte.create_map(smoothing='gaussian')
-    
+
     # Check that output has same keys and shapes
     assert set(out_no_smooth.keys()) == set(out_smooth.keys())
     for key in out_no_smooth.keys():
         assert out_no_smooth[key].shape == out_smooth[key].shape
-    
+
     # Check that smoothing changed the values for t1blgm map
     assert np.std(out_smooth['t1blgm']) <= np.std(out_no_smooth['t1blgm'])
 
@@ -614,12 +616,14 @@ def test_multite_asl_object_create_map_with_gaussian_smoothing():
 def test_multite_asl_object_create_map_with_median_smoothing():
     mte = MultiTE_ASLMapping(asldata_te)
     out_no_smooth = mte.create_map()
-    out_smooth = mte.create_map(smoothing='median', smoothing_params={'size': 5})
-    
+    out_smooth = mte.create_map(
+        smoothing='median', smoothing_params={'size': 5}
+    )
+
     # Check that output has same keys and shapes
     assert set(out_no_smooth.keys()) == set(out_smooth.keys())
     for key in out_no_smooth.keys():
         assert out_no_smooth[key].shape == out_smooth[key].shape
-    
+
     # Check that smoothing changed the values
     assert np.std(out_smooth['t1blgm']) <= np.std(out_no_smooth['t1blgm'])
