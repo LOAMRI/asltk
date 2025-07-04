@@ -12,6 +12,7 @@ from asltk.aux_methods import _check_mask_values
 from asltk.models.signal_dynamic import asl_model_multi_dw
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
+from asltk.reconstruction.smooth_utils import apply_smoothing_to_maps
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -198,6 +199,8 @@ class MultiDW_ASLMapping(MRIParameters):
         lb: list = [0.0, 0.0, 0.0, 0.0],
         ub: list = [np.inf, np.inf, np.inf, np.inf],
         par0: list = [0.5, 0.000005, 0.5, 0.000005],
+        smoothing=None,
+        smoothing_params=None,
     ):
         """Create multi-diffusion-weighted ASL maps for compartment analysis.
 
@@ -231,6 +234,12 @@ class MultiDW_ASLMapping(MRIParameters):
                 Defaults to [0.5, 0.000005, 0.5, 0.000005].
                 - A1, A2: Typical values 0.1-1.0 (relative amplitudes)
                 - D1, D2: Typical values 1e-6 to 1e-3 mm²/s
+            smoothing (str, optional): Type of spatial smoothing filter to apply.
+                Options: None (default, no smoothing), 'gaussian', 'median'.
+                Smoothing is applied to all output maps after reconstruction.
+            smoothing_params (dict, optional): Parameters for the smoothing filter.
+                For 'gaussian': {'sigma': float} (default: 1.0)
+                For 'median': {'size': int} (default: 3)
 
         Returns:
             dict: Dictionary containing diffusion-weighted ASL maps:
@@ -242,6 +251,7 @@ class MultiDW_ASLMapping(MRIParameters):
                 - 'A2': Signal amplitude for compartment 2 (numpy.ndarray)
                 - 'D2': Apparent diffusion coefficient for compartment 2 in mm²/s (numpy.ndarray)
                 - 'kw': Water exchange parameter (numpy.ndarray)
+                All maps are smoothed if smoothing is enabled.
 
         Examples:
             Basic multi-DW ASL analysis:
@@ -402,7 +412,8 @@ class MultiDW_ASLMapping(MRIParameters):
         # # Adjusting output image boundaries
         # self._kw = self._adjust_image_limits(self._kw, par0[0])
 
-        return {
+        # Create output maps dictionary
+        output_maps = {
             'cbf': self._cbf_map,
             'cbf_norm': self._cbf_map * (60 * 60 * 1000),
             'att': self._att_map,
@@ -412,6 +423,11 @@ class MultiDW_ASLMapping(MRIParameters):
             'd2': self._D2,
             'kw': self._kw,
         }
+
+        # Apply smoothing if requested
+        return apply_smoothing_to_maps(
+            output_maps, smoothing, smoothing_params
+        )
 
     def _create_x_data(self, ld, pld, dw):
         # array for the x values, assuming an arbitrary size based on the PLD

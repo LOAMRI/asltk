@@ -11,6 +11,7 @@ from asltk.aux_methods import _check_mask_values
 from asltk.logging_config import get_logger, log_data_info, log_processing_step
 from asltk.models.signal_dynamic import asl_model_buxton
 from asltk.mri_parameters import MRIParameters
+from asltk.reconstruction.smooth_utils import apply_smoothing_to_maps
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -168,6 +169,8 @@ class CBFMapping(MRIParameters):
         lb=[0.0, 0.0],
         par0=[1e-5, 1000],
         cores: int = cpu_count(),
+        smoothing=None,
+        smoothing_params=None,
     ):
         """Create the CBF and also ATT maps using the Buxton ASL model.
 
@@ -197,12 +200,19 @@ class CBFMapping(MRIParameters):
             cores (int, optional): Number of CPU threads to use for parallel processing.
                 Defaults to using all available threads. Use fewer cores to preserve
                 system resources.
+            smoothing (str, optional): Type of spatial smoothing filter to apply.
+                Options: None (default, no smoothing), 'gaussian', 'median'.
+                Smoothing is applied to all output maps after reconstruction.
+            smoothing_params (dict, optional): Parameters for the smoothing filter.
+                For 'gaussian': {'sigma': float} (default: 1.0)
+                For 'median': {'size': int} (default: 3)
 
         Returns:
             dict: A dictionary containing:
                 - 'cbf': Raw CBF map in model units (numpy.ndarray)
                 - 'cbf_norm': Normalized CBF map in mL/100g/min (numpy.ndarray)
                 - 'att': ATT map in milliseconds (numpy.ndarray)
+                All maps are smoothed if smoothing is enabled.
 
         Examples:  # doctest: +SKIP
             Basic CBF mapping with default parameters:
@@ -229,6 +239,22 @@ class CBFMapping(MRIParameters):
             ...     ub=[2.0, 3000.0],      # Higher CBF upper bound
             ...     lb=[0.1, 500.0],       # Reasonable lower bounds
             ...     par0=[0.5, 1200.0]     # Good initial guess for GM
+            ... ) # doctest: +SKIP
+
+            Apply spatial smoothing to reduce noise:
+            >>> # Gaussian smoothing with default sigma=1.0
+            >>> results_smooth = cbf_mapper.create_map(
+            ...     smoothing='gaussian'
+            ... ) # doctest: +SKIP
+            >>> # Custom smoothing parameters
+            >>> results_custom = cbf_mapper.create_map(
+            ...     smoothing='gaussian',
+            ...     smoothing_params={'sigma': 1.5}
+            ... ) # doctest: +SKIP
+            >>> # Median filtering for edge-preserving smoothing
+            >>> results_median = cbf_mapper.create_map(
+            ...     smoothing='median',
+            ...     smoothing_params={'size': 5}
             ... ) # doctest: +SKIP
 
             Memory-efficient processing with limited cores:
@@ -328,11 +354,16 @@ class CBFMapping(MRIParameters):
             f'ATT statistics - Mean: {np.mean(att_values):.4f}, Std: {np.std(att_values):.4f}'
         )
 
-        return {
+        output_maps = {
             'cbf': self._cbf_map,
             'cbf_norm': self._cbf_map * (60 * 60 * 1000),
             'att': self._att_map,
         }
+
+        # Apply smoothing if requested
+        return apply_smoothing_to_maps(
+            output_maps, smoothing, smoothing_params
+        )
 
 
 def _cbf_init_globals(
