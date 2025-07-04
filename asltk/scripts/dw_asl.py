@@ -8,6 +8,11 @@ import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
+from asltk.logging_config import (
+    configure_for_scripts,
+    get_logger,
+    log_processing_step,
+)
 from asltk.reconstruction import MultiDW_ASLMapping
 from asltk.utils import load_image, save_image
 
@@ -96,6 +101,10 @@ optional.add_argument(
 
 
 args = parser.parse_args()
+
+# Configure logging based on verbose flag
+configure_for_scripts(verbose=args.verbose)
+logger = get_logger('dw_asl_script')
 
 # Script check-up parameters
 def checkUpParameters():
