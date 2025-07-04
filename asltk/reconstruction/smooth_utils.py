@@ -3,7 +3,8 @@ Utility functions for applying smoothing to reconstruction maps.
 """
 
 import warnings
-from typing import Dict, Any, Optional, Union
+from typing import Any, Dict, Optional, Union
+
 import numpy as np
 
 from asltk.smooth import isotropic_gaussian, isotropic_median
@@ -12,14 +13,14 @@ from asltk.smooth import isotropic_gaussian, isotropic_median
 def apply_smoothing_to_maps(
     maps: Dict[str, np.ndarray],
     smoothing: Optional[str] = None,
-    smoothing_params: Optional[Dict[str, Any]] = None
+    smoothing_params: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, np.ndarray]:
     """Apply smoothing filter to all maps in the dictionary.
-    
+
     This function applies the specified smoothing filter to all map arrays
     in the input dictionary. It preserves the original structure and only
     modifies the numpy arrays.
-    
+
     Parameters
     ----------
     maps : dict
@@ -33,12 +34,12 @@ def apply_smoothing_to_maps(
         Parameters for the smoothing filter. Defaults depend on filter type:
         - For 'gaussian': {'sigma': 1.0}
         - For 'median': {'size': 3}
-        
+
     Returns
     -------
     dict
         Dictionary with the same keys but smoothed arrays.
-        
+
     Raises
     ------
     ValueError
@@ -46,7 +47,7 @@ def apply_smoothing_to_maps(
     """
     if smoothing is None:
         return maps
-    
+
     # Set default parameters
     if smoothing_params is None:
         if smoothing == 'gaussian':
@@ -55,16 +56,18 @@ def apply_smoothing_to_maps(
             smoothing_params = {'size': 3}
         else:
             smoothing_params = {}
-    
+
     # Select smoothing function
     if smoothing == 'gaussian':
         smooth_func = isotropic_gaussian
     elif smoothing == 'median':
         smooth_func = isotropic_median
     else:
-        raise ValueError(f"Unsupported smoothing type: {smoothing}. "
-                        "Supported types are: None, 'gaussian', 'median'")
-    
+        raise ValueError(
+            f'Unsupported smoothing type: {smoothing}. '
+            "Supported types are: None, 'gaussian', 'median'"
+        )
+
     # Apply smoothing to all maps
     smoothed_maps = {}
     for key, map_array in maps.items():
@@ -73,13 +76,13 @@ def apply_smoothing_to_maps(
                 smoothed_maps[key] = smooth_func(map_array, **smoothing_params)
             except Exception as e:
                 warnings.warn(
-                    f"Failed to apply {smoothing} smoothing to {key} map: {e}. "
-                    f"Using original map.",
-                    UserWarning
+                    f'Failed to apply {smoothing} smoothing to {key} map: {e}. '
+                    f'Using original map.',
+                    UserWarning,
                 )
                 smoothed_maps[key] = map_array
         else:
             # Non-array values are passed through unchanged
             smoothed_maps[key] = map_array
-            
+
     return smoothed_maps

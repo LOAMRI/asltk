@@ -126,5 +126,5 @@ def test_isotropic_median_even_size_warning():
     data = load_image(M0)
     with pytest.warns(UserWarning) as warning:
         smoothed = isotropic_median(data, size=4)
-    assert "size was even, using 3 instead" in str(warning[0].message)
+    assert 'size was even, using 3 instead' in str(warning[0].message)
     assert smoothed.shape == data.shape

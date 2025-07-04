@@ -423,9 +423,11 @@ class MultiDW_ASLMapping(MRIParameters):
             'd2': self._D2,
             'kw': self._kw,
         }
-        
+
         # Apply smoothing if requested
-        return apply_smoothing_to_maps(output_maps, smoothing, smoothing_params)
+        return apply_smoothing_to_maps(
+            output_maps, smoothing, smoothing_params
+        )
 
     def _create_x_data(self, ld, pld, dw):
         # array for the x values, assuming an arbitrary size based on the PLD

@@ -365,9 +365,11 @@ class MultiTE_ASLMapping(MRIParameters):
             'att': self._att_map,
             't1blgm': self._t1blgm_map,
         }
-        
+
         # Apply smoothing if requested
-        return apply_smoothing_to_maps(output_maps, smoothing, smoothing_params)
+        return apply_smoothing_to_maps(
+            output_maps, smoothing, smoothing_params
+        )
 
     def _adjust_image_limits(self, map, init_guess):
         img = sitk.GetImageFromArray(map)

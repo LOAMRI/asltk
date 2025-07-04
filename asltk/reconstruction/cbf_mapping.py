@@ -359,9 +359,11 @@ class CBFMapping(MRIParameters):
             'cbf_norm': self._cbf_map * (60 * 60 * 1000),
             'att': self._att_map,
         }
-        
+
         # Apply smoothing if requested
-        return apply_smoothing_to_maps(output_maps, smoothing, smoothing_params)
+        return apply_smoothing_to_maps(
+            output_maps, smoothing, smoothing_params
+        )
 
 
 def _cbf_init_globals(
