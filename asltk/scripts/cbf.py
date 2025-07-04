@@ -43,19 +43,21 @@ required.add_argument(
     default=os.path.expanduser('~'),
     help='The output folder that is the reference to save all the output images in the script. The images selected to be saved are given as tags in the script caller, e.g. the options --cbf_map and --att_map. By default, the TblGM map is placed in the output folder with the name tblgm_map.nii.gz',
 )
-required.add_argument(
+optional.add_argument(
     '--pld',
     type=str,
     nargs='+',
-    required=True,
-    help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers',
+    required=False,
+    default=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+    help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
-required.add_argument(
+optional.add_argument(
     '--ld',
     type=str,
     nargs='+',
-    required=True,
-    help='Labeling Duration trend (LD), arranged in a sequence of float numbers.',
+    required=False,
+    default=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+    help='Labeling Duration trend (LD), arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
 optional.add_argument(
     '--verbose',
