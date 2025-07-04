@@ -96,31 +96,26 @@ def asl_template_registration(
     m0_vol_corrected, trans_m0_mtx = __apply_array_normalization(
         tmp_vol_list, 0, orig_shape, norm_function, verbose
     )
-    # if asl_data('m0') is not None:
     new_asl.set_image(m0_vol_corrected[0], 'm0')
 
-    # Apply the transformation to the pcasl image
+    # Apply the normalization transformation to all pcasl volumes
+    pcasl_vols, _ = collect_data_volumes(asl_data('pcasl'))
+    normalized_pcasl_vols = []
     with Progress() as progress:
         task = progress.add_task(
-            '[green]Registering pcasl volumes to M0 space...',
-            total=len(total_vols),
+            '[green]Applying normalization to pcasl volumes...',
+            total=len(pcasl_vols),
         )
-        corrected_vols = []
-        for vol in total_vols:
-            corrected_vol = apply_transformation(
+        for vol in pcasl_vols:
+            norm_vol = apply_transformation(
                 moving_image=vol,
                 reference_image=atlas_img,
                 transforms=trans_m0_mtx,
             )
-            corrected_vols.append(corrected_vol)
+            normalized_pcasl_vols.append(norm_vol)
             progress.update(task, advance=1)
 
-    new_asl.set_image(corrected_vols, 'pcasl')
-
-    # # TODO ARRUMAR O COREGISTRO PARA APLICAR PRIMEIRO NO M0 E DPEOIS APLICAR A TRANSFORMADA PARA TODO ASL
-    # corrected_vols, trans_mtx = __apply_array_normalization(
-    #     total_vols, ref_vol, orig_shape, norm_function, verbose
-    # )
+    new_asl.set_image(normalized_pcasl_vols, 'pcasl')
 
     return new_asl, trans_m0_mtx
 
