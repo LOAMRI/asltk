@@ -12,6 +12,7 @@ from asltk.aux_methods import _check_mask_values
 from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
+from asltk.reconstruction.smooth_utils import apply_smoothing_to_maps
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -179,6 +180,8 @@ class MultiTE_ASLMapping(MRIParameters):
         lb: list = [0.0],
         par0: list = [400],
         cores=cpu_count(),
+        smoothing=None,
+        smoothing_params=None,
     ):
         """Create multi-TE ASL maps including T1 blood-gray matter exchange (T1blGM).
 
@@ -219,6 +222,12 @@ class MultiTE_ASLMapping(MRIParameters):
                 Defaults to [400]. Good starting values: 300-500 ms.
             cores (int, optional): Number of CPU threads for parallel processing.
                 Defaults to all available cores.
+            smoothing (str, optional): Type of spatial smoothing filter to apply.
+                Options: None (default, no smoothing), 'gaussian', 'median'.
+                Smoothing is applied to all output maps after reconstruction.
+            smoothing_params (dict, optional): Parameters for the smoothing filter.
+                For 'gaussian': {'sigma': float} (default: 1.0)
+                For 'median': {'size': int} (default: 3)
 
         Returns:
             dict: Dictionary containing:
@@ -226,6 +235,7 @@ class MultiTE_ASLMapping(MRIParameters):
                 - 'cbf_norm': Normalized CBF in mL/100g/min (numpy.ndarray)
                 - 'att': Arterial transit time in ms (numpy.ndarray)
                 - 't1blgm': T1 blood-gray matter exchange time in ms (numpy.ndarray)
+                All maps are smoothed if smoothing is enabled.
 
         Examples:
             Basic multi-TE ASL analysis:
@@ -254,6 +264,22 @@ class MultiTE_ASLMapping(MRIParameters):
             ...     ub=[600.0],        # Lower upper bound
             ...     lb=[50.0],         # Minimum realistic T1
             ...     par0=[300.0]       # Lower initial guess
+            ... ) # doctest: +SKIP
+
+            Apply spatial smoothing to improve SNR:
+            >>> # Gaussian smoothing with default sigma=1.0
+            >>> results_smooth = mte_mapper.create_map(
+            ...     smoothing='gaussian'
+            ... ) # doctest: +SKIP
+            >>> # Custom smoothing parameters
+            >>> results_custom = mte_mapper.create_map(
+            ...     smoothing='gaussian',
+            ...     smoothing_params={'sigma': 1.5}
+            ... ) # doctest: +SKIP
+            >>> # Median filtering for edge preservation
+            >>> results_median = mte_mapper.create_map(
+            ...     smoothing='median',
+            ...     smoothing_params={'size': 5}
             ... ) # doctest: +SKIP
 
         Raises:
@@ -332,12 +358,18 @@ class MultiTE_ASLMapping(MRIParameters):
         # Adjusting output image boundaries
         self._t1blgm_map = self._adjust_image_limits(self._t1blgm_map, par0[0])
 
-        return {
+        # Create output maps dictionary
+        output_maps = {
             'cbf': self._cbf_map,
             'cbf_norm': self._cbf_map * (60 * 60 * 1000),
             'att': self._att_map,
             't1blgm': self._t1blgm_map,
         }
+
+        # Apply smoothing if requested
+        return apply_smoothing_to_maps(
+            output_maps, smoothing, smoothing_params
+        )
 
     def _adjust_image_limits(self, map, init_guess):
         img = sitk.GetImageFromArray(map)
