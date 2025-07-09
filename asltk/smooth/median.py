@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 from scipy.ndimage import median_filter
 
-from asltk.utils import collect_data_volumes
+from asltk.utils.image_manipulation import collect_data_volumes
 
 
 def isotropic_median(data, size: int = 3):

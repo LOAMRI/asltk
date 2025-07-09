@@ -303,7 +303,7 @@ def test_load_image_from_bids_structure_returns_valid_array():
     modality = 'asl'
     suffix = None  # m0 is deleted, because it does not exist
 
-    img = utils.load_image(
+    img = load_image(
         full_path=bids_root,
         subject=subject,
         session=session,
