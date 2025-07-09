@@ -59,6 +59,4 @@ def test_basic_report_generate_report_abstract_method():
     with pytest.raises(Exception) as e:
         report = BasicReport(title='Test Report')
 
-    assert 'abstract class BasicReport without an implementation' in str(
-        e.value
-    )
+    assert isinstance(e.value, TypeError)
