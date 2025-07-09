@@ -78,7 +78,7 @@ def test_head_movement_correction_build_asldata_success():
 
     asldata, _ = head_movement_correction(pcasl_orig)
 
-    assert asldata.shape == pcasl_orig('pcasl').shape
+    assert asldata('pcasl').shape == pcasl_orig('pcasl').shape
 
 
 def test_head_movement_correction_error_input_is_not_ASLData_object():
@@ -107,5 +107,5 @@ def test_head_movement_correction_success():
         pcasl_orig, verbose=True
     )
 
-    assert pcasl_corrected.shape == pcasl_orig('pcasl').shape
+    assert pcasl_corrected('pcasl').shape == pcasl_orig('pcasl').shape
     assert any(not np.array_equal(mtx, np.eye(4)) for mtx in trans_mtxs)
