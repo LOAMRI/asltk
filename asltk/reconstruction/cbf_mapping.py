@@ -102,7 +102,7 @@ class CBFMapping(MRIParameters):
 
             Load and use an existing brain mask:
             >>> # Load pre-computed brain mask
-            >>> from asltk.utils import load_image
+            >>> from asltk.utils.io import load_image
             >>> brain_mask = load_image('./tests/files/m0_brain_mask.nii.gz')
             >>> cbf_mapper.set_brain_mask(brain_mask)
 

@@ -4,9 +4,9 @@ import warnings
 
 import numpy as np
 
+from asltk.logging_config import get_logger, log_data_info, log_function_call
 from asltk.utils.image_manipulation import collect_data_volumes
 from asltk.utils.io import load_image
-from asltk.logging_config import get_logger, log_data_info, log_function_call
 
 
 class ASLData:

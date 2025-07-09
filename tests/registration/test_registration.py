@@ -132,7 +132,7 @@ def test_space_normalization_raise_exception_if_template_image_not_a_valid_Brain
     with pytest.raises(Exception) as e:
         space_normalization(img_orig, template_image='invalid_image')
 
-    assert 'Template image invalid_image is not a valid' in str(e.value)
+    assert 'Atlas invalid_image not found' in str(e.value)
 
 
 def test_space_normalization_success_passing_template_image_as_BrainAtlas_option():

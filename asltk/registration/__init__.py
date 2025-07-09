@@ -2,20 +2,22 @@ import ants
 import numpy as np
 import SimpleITK as sitk
 
-from asltk.data.brain_atlas import BrainAtlas
-from asltk.utils.image_manipulation import check_and_fix_orientation
-from asltk.utils.io import load_image
 from asltk.asldata import ASLData
+from asltk.data.brain_atlas import BrainAtlas
 from asltk.logging_config import (
     get_logger,
     log_processing_step,
     log_warning_with_context,
 )
-from asltk.registration.rigid import rigid_body_registration
-from asltk.utils import collect_data_volumes
+from asltk.utils.image_manipulation import (
+    check_and_fix_orientation,
+    collect_data_volumes,
+)
+from asltk.utils.io import load_image
+
 
 # TODO Montar classe para fazer o coregistro de ASL
-class ASLRegistration():
+class ASLRegistration:
 
     # Pipeline
     # inputs: ASLData (com m0 e pcasl), BrainAtlas, resolution (1 or 2 mm)
@@ -25,10 +27,9 @@ class ASLRegistration():
     # com a transformação do m0, deixar salvo como parametro do objeto da classe
     # Ter metodos para aplicar transformação para o pcasl, ou mapas gerados pelo CBFMapping, MultiTE, etc.
 
-
     def __init__(self):
         pass
-    
+
 
 def space_normalization(
     moving_image: np.ndarray,
@@ -113,35 +114,36 @@ def space_normalization(
     ):
         raise TypeError(
             'moving_image must be a numpy array and template_image must be a BrainAtlas object, a string with the atlas name, or a numpy array.'
+        )
     logger = get_logger('registration')
-    logger.info('Starting head movement correction')
+    logger.info('Starting space normalization')
 
-    # Check if the input is a valid ASLData object.
-    if not isinstance(asl_data, ASLData):
-        error_msg = 'Input must be an ASLData object.'
-        logger.error(error_msg)
-        raise TypeError(error_msg)
+    # # Check if the input is a valid ASLData object.
+    # if not isinstance(asl_data, ASLData):
+    #     error_msg = 'Input must be an ASLData object.'
+    #     logger.error(error_msg)
+    #     raise TypeError(error_msg)
 
     # Collect all the volumes in the pcasl image
-    log_processing_step('Collecting data volumes')
-    total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
-    logger.info(f'Collected {len(total_vols)} volumes for registration')
+    # log_processing_step('Collecting data volumes')
+    # total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
+    # logger.info(f'Collected {len(total_vols)} volumes for registration')
 
-    # Check if the reference volume is a valid integer based on the ASLData number of volumes.
-    if not isinstance(ref_vol, int) or ref_vol >= len(total_vols):
-        error_msg = 'ref_vol must be an positive integer based on the total asl data volumes.'
-        logger.error(
-            f'{error_msg} ref_vol={ref_vol}, total_volumes={len(total_vols)}'
-        )
-        raise ValueError(error_msg)
+    # # Check if the reference volume is a valid integer based on the ASLData number of volumes.
+    # if not isinstance(ref_vol, int) or ref_vol >= len(total_vols):
+    #     error_msg = 'ref_vol must be an positive integer based on the total asl data volumes.'
+    #     logger.error(
+    #         f'{error_msg} ref_vol={ref_vol}, total_volumes={len(total_vols)}'
+    #     )
+    #     raise ValueError(error_msg)
 
-    if (
-        isinstance(template_image, str)
-        and template_image not in BrainAtlas().list_atlas()
-    ):
-        raise ValueError(
-            f'Template image {template_image} is not a valid BrainAtlas name.'
-        )
+    # if (
+    #     isinstance(template_image, str)
+    #     and template_image not in BrainAtlas().list_atlas()
+    # ):
+    #     raise ValueError(
+    #         f'Template image {template_image} is not a valid BrainAtlas name.'
+    #     )
 
     # Load template image first
     template_array = None
@@ -157,27 +159,27 @@ def space_normalization(
         raise TypeError(
             'template_image must be a BrainAtlas object, a string with the atlas name, or a numpy array.'
         )
-    # Apply the rigid body registration to each volume (considering the ref_vol)
-    log_processing_step(
-        'Applying rigid body registration',
-        f'using volume {ref_vol} as reference',
-    )
-    corrected_vols = []
-    trans_mtx = []
-    ref_volume = total_vols[ref_vol]
+    # # Apply the rigid body registration to each volume (considering the ref_vol)
+    # log_processing_step(
+    #     'Applying rigid body registration',
+    #     f'using volume {ref_vol} as reference',
+    # )
+    # corrected_vols = []
+    # trans_mtx = []
+    # ref_volume = total_vols[ref_vol]
 
-    for idx, vol in enumerate(total_vols):
-        logger.debug(f'Correcting volume {idx}')
-        if verbose:
-            print(f'Correcting volume {idx}...', end='')
-        try:
-            corrected_vol, trans_m = rigid_body_registration(vol, ref_volume)
-            logger.debug(f'Volume {idx} registration successful')
-        except Exception as e:
-            warning_msg = f'Volume movement no handle by: {e}. Assuming the original data.'
-            log_warning_with_context(warning_msg, f'volume {idx}')
-            warnings.warn(warning_msg)
-            corrected_vol, trans_m = vol, np.eye(4)
+    # for idx, vol in enumerate(total_vols):
+    #     logger.debug(f'Correcting volume {idx}')
+    #     if verbose:
+    #         print(f'Correcting volume {idx}...', end='')
+    #     try:
+    #         corrected_vol, trans_m = rigid_body_registration(vol, ref_volume)
+    #         logger.debug(f'Volume {idx} registration successful')
+    #     except Exception as e:
+    #         warning_msg = f'Volume movement no handle by: {e}. Assuming the original data.'
+    #         log_warning_with_context(warning_msg, f'volume {idx}')
+    #         warnings.warn(warning_msg)
+    #         corrected_vol, trans_m = vol, np.eye(4)
 
     # Check for orientation mismatch and fix if needed
     check_orientation = kwargs.get('check_orientation', True)
@@ -195,13 +197,13 @@ def space_normalization(
         )
         if verbose and orientation_transform:
             print(f'Applied orientation correction: {orientation_transform}')
-    # Rebuild the original ASLData object with the corrected volumes
-    log_processing_step('Rebuilding corrected volume data')
-    corrected_vols = np.stack(corrected_vols).reshape(orig_shape)
+    # # Rebuild the original ASLData object with the corrected volumes
+    # log_processing_step('Rebuilding corrected volume data')
+    # corrected_vols = np.stack(corrected_vols).reshape(orig_shape)
 
-    logger.info(
-        f'Head movement correction completed successfully for {len(total_vols)} volumes'
-    )
+    # logger.info(
+    #     f'Head movement correction completed successfully for {len(total_vols)} volumes'
+    # )
 
     # # Update the ASLData object with the corrected volumes
     # asl_data.set_image(corrected_vols, 'pcasl')
