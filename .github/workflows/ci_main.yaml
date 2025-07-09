@@ -1,4 +1,4 @@
-name: ASLtk Continuous Integration for Production Branch
+name: CI for Production Branch
 on: 
   push:
     branches: [ main ]
