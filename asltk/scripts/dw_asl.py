@@ -8,6 +8,11 @@ import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
+from asltk.logging_config import (
+    configure_for_scripts,
+    get_logger,
+    log_processing_step,
+)
 from asltk.reconstruction import MultiDW_ASLMapping
 from asltk.utils.io import load_image, save_image
 
@@ -57,26 +62,29 @@ optional.add_argument(
     required=False,
     help='The ATT map that is provided to skip this step in the MultiTE-ASL calculation. If ATT is not provided, than a ATT map is calculated at the runtime.',
 )
-required.add_argument(
+optional.add_argument(
     '--pld',
     type=str,
     nargs='+',
-    required=True,
-    help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers',
+    required=False,
+    default=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+    help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
-required.add_argument(
+optional.add_argument(
     '--ld',
     type=str,
     nargs='+',
-    required=True,
-    help='Labeling Duration trend (LD), arranged in a sequence of float numbers.',
+    required=False,
+    default=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+    help='Labeling Duration trend (LD), arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
-required.add_argument(
+optional.add_argument(
     '--dw',
     type=str,
     nargs='+',
-    required=True,
-    help='Diffusion b-values arranged in a sequence of float numbers.',
+    required=False,
+    default=[0, 50, 100, 250],
+    help='Diffusion b-values arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
 optional.add_argument(
     '--verbose',
@@ -93,6 +101,10 @@ optional.add_argument(
 
 
 args = parser.parse_args()
+
+# Configure logging based on verbose flag
+configure_for_scripts(verbose=args.verbose)
+logger = get_logger('dw_asl_script')
 
 # Script check-up parameters
 def checkUpParameters():
