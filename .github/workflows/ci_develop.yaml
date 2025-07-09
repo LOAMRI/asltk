@@ -1,4 +1,4 @@
-name: ASLtk Continuous Integration for Develop Branch
+name: CI for Develop Branch
 on: 
   push:
     branches: [ develop ]
