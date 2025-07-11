@@ -16,21 +16,6 @@ from asltk.utils.image_manipulation import (
 from asltk.utils.io import load_image
 
 
-# TODO Montar classe para fazer o coregistro de ASL
-class ASLRegistration:
-
-    # Pipeline
-    # inputs: ASLData (com m0 e pcasl), BrainAtlas, resolution (1 or 2 mm)
-    # Tomar m0 e comparar orientação com o template
-    # Se necessário, corrigir orientação do template para estar coerente com o m0 (salvar a transformação e aplicar para os labels)
-    # Realizar o registro do m0 no template
-    # com a transformação do m0, deixar salvo como parametro do objeto da classe
-    # Ter metodos para aplicar transformação para o pcasl, ou mapas gerados pelo CBFMapping, MultiTE, etc.
-
-    def __init__(self):
-        pass
-
-
 def space_normalization(
     moving_image: np.ndarray,
     template_image: BrainAtlas,
