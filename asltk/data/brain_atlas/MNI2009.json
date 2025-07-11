@@ -1,0 +1,19 @@
+{  
+        "atlas_name": "MNI Structural Atlas - 2009",
+        "dataset_url": "loamri/brain-atlas-mni2009",
+        "official_url": "https://www.bic.mni.mcgill.ca/ServicesAtlases/ICBM152NLin2009",
+        "description": "A number of unbiased non-linear averages of the MNI152 database have been generated that combines the attractions of both high-spatial resolution and signal-to-noise while not being subject to the vagaries of any single brain.",
+        "dataset_doi": "10.34740/kaggle/dsv/12189230",
+        "citation_doi": ["10.1016/j.neuroimage.2010.07.033", "10.1016/S1053-8119(09)70884-5", "10.1007/3-540-48714-X_16"],
+        "labels": {
+            "1": "Caudate",
+            "2": "Cerebellum",
+            "3": "Frontal Lobe",
+            "4": "Insula",
+            "5": "Occipital Lobe",
+            "6": "Parietal Lobe",
+            "7": "Putamen",
+            "8": "Temporal Lobe",
+            "9": "Thalamus"
+        }
+    }

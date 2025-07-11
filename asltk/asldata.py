@@ -1,10 +1,12 @@
+import copy
 import os
+import warnings
 
 import numpy as np
-import SimpleITK as sitk
 
 from asltk.logging_config import get_logger, log_data_info, log_function_call
-from asltk.utils import load_image
+from asltk.utils.image_manipulation import collect_data_volumes
+from asltk.utils.io import load_image
 
 
 class ASLData:
@@ -72,9 +74,12 @@ class ASLData:
                 log_data_info('ASL image', self._asl_image.shape, pcasl_path)
 
         if kwargs.get('m0') is not None:
+            avg_m0 = kwargs.get('average_m0', False)
             m0_path = kwargs.get('m0')
+            self._m0_image = load_image(m0_path, average_m0=avg_m0)
+            self._check_m0_dimension()
+
             logger.info(f'Loading M0 image from: {m0_path}')
-            self._m0_image = load_image(m0_path)
             if self._m0_image is not None:
                 log_data_info('M0 image', self._m0_image.shape, m0_path)
 
@@ -216,6 +221,30 @@ class ASLData:
         self._check_input_parameter(dw_values, 'DW')
         self._parameters['dw'] = dw_values
 
+    def copy(self):
+        """
+        Make a copy of the ASLData object.
+        This method creates a deep copy of the ASLData object, including all
+        its attributes and data. It is useful when you want to preserve the
+        original object while working with a modified version.
+
+        Note:
+            This method uses `copy.deepcopy` to ensure that all nested objects
+            are also copied, preventing any unintended side effects from
+            modifying the original object.
+
+        Examples:
+            >>> data = ASLData(pcasl='./tests/files/t1-mri.nrrd')
+            >>> data_copy = data.copy()
+            >>> type(data_copy)
+            <class 'asltk.asldata.ASLData'>
+
+
+        Returns:
+            ASLData: A new instance of ASLData that is a deep copy of the original object.
+        """
+        return copy.deepcopy(self)
+
     def __call__(self, spec: str):
         """Object caller to expose the image data.
 
@@ -234,6 +263,20 @@ class ASLData:
             return self._asl_image
         elif spec == 'm0':
             return self._m0_image
+
+    def __len__(self):
+        """Return the number of volumes in the ASL data.
+
+        This method returns the number of volumes in the ASL data based on
+        the pCASL image format.
+
+        Returns:
+            int: The number of volumes in the ASL data considering the `pcasl` data.
+        """
+        if self._asl_image is not None:
+            return len(collect_data_volumes(self._asl_image)[0])
+        else:
+            return 0
 
     def _check_input_parameter(self, values, param_type):
         for v in values:
@@ -255,4 +298,12 @@ class ASLData:
         else:
             logger.debug(
                 f'LD and PLD size validation passed: {len(ld)} elements each'
+            )
+
+    def _check_m0_dimension(self):
+        if len(self._m0_image.shape) > 3:
+            warnings.warn(
+                'M0 image has more than 3 dimensions. '
+                'This may cause issues in processing. '
+                'Consider averaging the M0 image across the first dimension.'
             )
