@@ -84,7 +84,6 @@ def asl_template_registration(
             template_mask=None,
             transform_type='Affine',
             check_orientation=True,
-            orientation_verbose=verbose,
         )
 
     # Create a new ASLData to allocate the normalized image
