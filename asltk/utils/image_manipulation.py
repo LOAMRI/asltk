@@ -1,8 +1,15 @@
+import os
 from typing import Dict, Optional
 
+import ants
 import numpy as np
 import SimpleITK as sitk
 from rich import print
+from scipy.ndimage import center_of_mass
+
+# Set SimpleITK to use half of available CPU cores (at least 1)
+num_cores = max(1, os.cpu_count() // 4 if os.cpu_count() else 1)
+sitk.ProcessObject_SetGlobalDefaultNumberOfThreads(num_cores)
 
 
 def collect_data_volumes(data: np.ndarray):
@@ -72,8 +79,12 @@ def orientation_check(
     fixed_norm = _normalize_image_intensity(fixed_image)
 
     # Resize if needed for comparison
+    # Resize the larger image to match the smaller one to minimize memory overhead
     if moving_norm.shape != fixed_norm.shape:
-        moving_norm = _resize_image_to_match(moving_norm, fixed_norm.shape)
+        if np.prod(moving_norm.shape) > np.prod(fixed_norm.shape):
+            moving_norm = _resize_image_to_match(moving_norm, fixed_norm.shape)
+        else:
+            fixed_norm = _resize_image_to_match(fixed_norm, moving_norm.shape)
 
     # Compute correlation
     correlation = _compute_normalized_correlation(moving_norm, fixed_norm)
@@ -170,7 +181,6 @@ def analyze_image_properties(image: np.ndarray) -> Dict[str, any]:
 
     # Center of mass
     try:
-        from scipy.ndimage import center_of_mass
 
         com = center_of_mass(image > np.mean(image))
     except ImportError:
@@ -355,35 +365,35 @@ def create_orientation_report(
 
     # Generate report
     report = f"""
-ORIENTATION ANALYSIS REPORT
-===========================
+    ORIENTATION ANALYSIS REPORT
+    ============================
 
-QUICK COMPATIBILITY CHECK:
-- Orientation Compatible: {quick_check['compatible']}
-- Correlation Score: {quick_check['correlation']:.4f}
-- Recommendation: {quick_check['recommendation']}
+    QUICK COMPATIBILITY CHECK:
+    - Orientation Compatible: {quick_check['compatible']}
+    - Correlation Score: {quick_check['correlation']:.4f}
+    - Recommendation: {quick_check['recommendation']}
 
-MOVING IMAGE PROPERTIES:
-- Shape: {moving_props['shape']}
-- Center of Mass: {moving_props['center_of_mass']}
-- Intensity Range: {moving_props['intensity_stats']['min']:.2f} - {moving_props['intensity_stats']['max']:.2f}
-- Mean Intensity: {moving_props['intensity_stats']['mean']:.2f}
+    MOVING IMAGE PROPERTIES:
+    - Shape: {moving_props['shape']}
+    - Center of Mass: {moving_props['center_of_mass']}
+    - Intensity Range: {moving_props['intensity_stats']['min']:.2f} - {moving_props['intensity_stats']['max']:.2f}
+    - Mean Intensity: {moving_props['intensity_stats']['mean']:.2f}
 
-FIXED IMAGE PROPERTIES:
-- Shape: {fixed_props['shape']}
-- Center of Mass: {fixed_props['center_of_mass']}
-- Intensity Range: {fixed_props['intensity_stats']['min']:.2f} - {fixed_props['intensity_stats']['max']:.2f}
-- Mean Intensity: {fixed_props['intensity_stats']['mean']:.2f}
+    FIXED IMAGE PROPERTIES:
+    - Shape: {fixed_props['shape']}
+    - Center of Mass: {fixed_props['center_of_mass']}
+    - Intensity Range: {fixed_props['intensity_stats']['min']:.2f} - {fixed_props['intensity_stats']['max']:.2f}
+    - Mean Intensity: {fixed_props['intensity_stats']['mean']:.2f}
 
-ORIENTATION CORRECTION APPLIED:
-- X-axis flip: {orientation_transform.get('flip_x', False)}
-- Y-axis flip: {orientation_transform.get('flip_y', False)}
-- Z-axis flip: {orientation_transform.get('flip_z', False)}
-- Axis transpose: {orientation_transform.get('transpose_axes', 'None')}
+    ORIENTATION CORRECTION APPLIED:
+    - X-axis flip: {orientation_transform.get('flip_x', False)}
+    - Y-axis flip: {orientation_transform.get('flip_y', False)}
+    - Z-axis flip: {orientation_transform.get('flip_z', False)}
+    - Axis transpose: {orientation_transform.get('transpose_axes', 'None')}
 
-RECOMMENDATIONS:
-{quick_check['recommendation']}
-    """.strip()
+    RECOMMENDATIONS:
+    {quick_check['recommendation']}
+        """.strip()
 
     if output_path:
         with open(output_path, 'w') as f:
@@ -409,6 +419,14 @@ def _analyze_anatomical_orientation(moving_image, fixed_image, verbose=False):
     moving_norm = _normalize_image_intensity(moving_image)
     fixed_norm = _normalize_image_intensity(fixed_image)
 
+    # Determine the smaller shape for comparison
+    moving_size = np.prod(moving_norm.shape)
+    fixed_size = np.prod(fixed_norm.shape)
+    if moving_size <= fixed_size:
+        ref_shape = moving_norm.shape
+    else:
+        ref_shape = fixed_norm.shape
+
     # Test different orientation combinations
     best_corr = -1
     best_transform = orientation_transform.copy()
@@ -426,14 +444,17 @@ def _analyze_anatomical_orientation(moving_image, fixed_image, verbose=False):
                 if flip_z:
                     test_img = np.flip(test_img, axis=0)  # Z axis
 
-                # Resize to match fixed image if needed
-                if test_img.shape != fixed_norm.shape:
-                    test_img = _resize_image_to_match(
-                        test_img, fixed_norm.shape
-                    )
+                # Resize to match reference shape if needed
+                if test_img.shape != ref_shape:
+                    test_img = _resize_image_to_match(test_img, ref_shape)
+
+                # Also resize fixed_norm if needed
+                ref_img = fixed_norm
+                if fixed_norm.shape != ref_shape:
+                    ref_img = _resize_image_to_match(fixed_norm, ref_shape)
 
                 # Compute correlation
-                corr = _compute_normalized_correlation(test_img, fixed_norm)
+                corr = _compute_normalized_correlation(test_img, ref_img)
 
                 if corr > best_corr:
                     best_corr = corr
@@ -462,10 +483,16 @@ def _analyze_anatomical_orientation(moving_image, fixed_image, verbose=False):
     for axes in axis_permutations[1:]:  # Skip original
         try:
             test_img = np.transpose(moving_norm, axes)
-            if test_img.shape != fixed_norm.shape:
-                test_img = _resize_image_to_match(test_img, fixed_norm.shape)
+            # Resize to match reference shape if needed
+            if test_img.shape != ref_shape:
+                test_img = _resize_image_to_match(test_img, ref_shape)
 
-            corr = _compute_normalized_correlation(test_img, fixed_norm)
+            # Also resize fixed_norm if needed
+            ref_img = fixed_norm
+            if fixed_norm.shape != ref_shape:
+                ref_img = _resize_image_to_match(fixed_norm, ref_shape)
+
+            corr = _compute_normalized_correlation(test_img, ref_img)
 
             if corr > best_corr:
                 best_corr = corr
@@ -532,29 +559,19 @@ def _normalize_image_intensity(image):
     return img
 
 
-def _resize_image_to_match(source_image, target_shape):
-    """Resize source image to match target shape using SimpleITK."""
-    # Convert to SimpleITK
-    source_sitk = sitk.GetImageFromArray(source_image)
+def _resize_image_to_match(source_image, resample_shape):
+    """Resize source image to match target shape using antsPy (ants)."""
 
-    # Calculate new spacing to match target shape
-    original_size = source_sitk.GetSize()
-    original_spacing = source_sitk.GetSpacing()
+    # Convert numpy array to ANTsImage (assume float32 for compatibility)
+    ants_img = ants.from_numpy(source_image.astype(np.float32))
 
-    new_spacing = [
-        original_spacing[i] * original_size[i] / target_shape[2 - i]
-        for i in range(3)
-    ]
+    # Resample to target shape
+    resampled_img = ants.resample_image(
+        ants_img, resample_shape, use_voxels=True, interp_type=0
+    )
 
-    # Create resampler
-    resampler = sitk.ResampleImageFilter()
-    resampler.SetSize([target_shape[2], target_shape[1], target_shape[0]])
-    resampler.SetOutputSpacing(new_spacing)
-    resampler.SetInterpolator(sitk.sitkLinear)
-
-    # Resample
-    resampled = resampler.Execute(source_sitk)
-    return sitk.GetArrayFromImage(resampled)
+    # Convert back to numpy array
+    return resampled_img.numpy()
 
 
 def _compute_normalized_correlation(img1, img2):
