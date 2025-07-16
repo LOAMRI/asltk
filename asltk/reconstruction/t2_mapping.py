@@ -63,22 +63,22 @@ class T2Scalar_ASLMapping(MRIParameters):
         binary_mask = (brain_mask == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
 
-    def get_t2_maps(self):
-        """Get the T2 maps storaged at the T2Scalar_ASLMapping object
+    def get_brain_mask(self):
+        """Get the brain mask image
 
         Returns:
-            (np.ndarray): The T2 maps that is storaged in the
+            (np.ndarray): The brain mask image
+        """
+        return self._brain_mask
+
+    def get_t2_map(self):
+        """Get the T2 map storaged at the T2Scalar_ASLMapping object
+
+        Returns:
+            (np.ndarray): The T2 map that is storaged in the
             T2Scalar_ASLMapping object
         """
-        return self._t2_maps
-
-    def get_mean_t2s(self):
-        """Get the mean T2 values calculated from the T2 maps
-
-        Returns:
-            (list): The mean T2 values for each PLD
-        """
-        return self._mean_t2s
+        return self._t2_map
 
     def create_map(
         self, cores=cpu_count(), smoothing=None, smoothing_params=None
