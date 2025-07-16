@@ -1,3 +1,4 @@
+from .t2_mapping import T2Scalar_ASLMapping
 from .cbf_mapping import CBFMapping
 from .multi_dw_mapping import MultiDW_ASLMapping
 from .multi_te_mapping import MultiTE_ASLMapping
