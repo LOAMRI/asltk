@@ -8,35 +8,71 @@ from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
-from asltk.models.signal_dynamic import asl_model_multi_te
+from asltk.models.signal_dynamic import asl_t2_scalar_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
 
 # Global variables to assist multi cpu threading
-cbf_map = None
-att_map = None
-brain_mask = None
-asl_data = None
-ld_arr = None
-pld_arr = None
-te_arr = None
-tblgm_map = None
-t2bl = None
-t2gm = None
+# brain_mask = None
+# asl_data = None
+# ld_arr = None
+# pld_arr = None
+# te_arr = None
+# tblgm_map = None
+# t2bl = None
+# t2gm = None
+
+
+def monoexp(TE, A, T2):
+    return A * np.exp(-TE / T2)
+
+
+def fit_voxel(signal, TEs):
+    if np.any(np.isnan(signal)) or np.max(signal) < 1:
+        return np.nan
+    try:
+        A0 = float(np.clip(np.max(signal), 1, 1e5))
+        T20 = 100
+        popt, _ = curve_fit(
+            monoexp,
+            TEs,
+            signal,
+            p0=(A0, T20),
+            bounds=([0, 5], [1e5, 200]),
+        )
+        return popt[1]
+    except Exception:
+        return np.nan
+
+
+def _t2scalar_process_slice(
+    i, x_axis, y_axis, z_axis, mask, data, TEs, pld_idx, t2_map_shared
+):  # pragma: no cover
+    # For slice i, fit T2 for each voxel at PLD index pld_idx
+    for j in range(y_axis):
+        for k in range(z_axis):
+            if mask[k, j, i]:
+                signal = data[k, j, i, pld_idx, :]
+                t2_value = fit_voxel(signal, TEs)
+                index = k * (y_axis * x_axis) + j * x_axis + i
+                t2_map_shared[index] = t2_value
+            else:
+                index = k * (y_axis * x_axis) + j * x_axis + i
+                t2_map_shared[index] = np.nan
 
 
 class T2Scalar_ASLMapping(MRIParameters):
     def __init__(self, asl_data: ASLData) -> None:
         super().__init__()
         self._asl_data = asl_data
-        if self._asl_data.get_te() is None:
-            raise ValueError(
-                'ASLData is incomplete. T2Scalar_ASLMapping need a list of TE values.'
-            )
+        self._te_values = self._asl_data.get_te()
+        self._pld_values = self._asl_data.get_pld()
+        if self._te_values is None or not self._pld_values:
+            raise ValueError('ASLData must provide TE and PLD values.')
 
         self._brain_mask = np.ones(self._asl_data('m0').shape)
-        self._pld_indexes = self._asl_data.get_pld() if self._asl_data.get_pld() is not None else []
-        self._t2_map = np.zeros(self._asl_data('m0').shape)
+        self._t2_maps = None  # Will be 4D: (Z, Y, X, N_PLDS)
+        self._mean_t2s = None
 
     def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
         """Defines whether a brain a mask is applied to the T2 scalar ASL
@@ -59,209 +95,92 @@ class T2Scalar_ASLMapping(MRIParameters):
         binary_mask = (brain_mask == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
 
-    def get_brain_mask(self):
-        """Get the brain mask image
+    def get_t2_maps(self):
+        """Get the T2 maps storaged at the T2Scalar_ASLMapping object
 
         Returns:
-            (np.ndarray): The brain mask image
-        """
-        return self._brain_mask
-
-    def get_t2_map(self):
-        """Get the T2 map storaged at the T2Scalar_ASLMapping object
-
-        Returns:
-            (np.ndarray): The T2 map that is storaged in the
+            (np.ndarray): The T2 maps that is storaged in the
             T2Scalar_ASLMapping object
         """
-        return self._t2_map
+        return self._t2_maps
+
+    def get_mean_t2s(self):
+        """Get the mean T2 values calculated from the T2 maps
+
+        Returns:
+            (list): The mean T2 values for each PLD
+        """
+        return self._mean_t2s
 
     def create_map(
-        self,
-        cores=cpu_count(),
-        smoothing=None,
-        smoothing_params=None,
+        self, cores=cpu_count(), smoothing=None, smoothing_params=None
     ):
+        """Creates the T2 maps using the ASL data and the provided brain mask
 
-        # basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
-        # if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
-        #     # If the CBF/ATT maps are zero (empty), then a new one is created
-        #     print(
-        #         '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
-        #     )
-        #     basic_maps = self._basic_maps.create_map()
-        #     self._cbf_map = basic_maps['cbf']
-        #     self._att_map = basic_maps['att']
+        Args:
+            cores (int, optional): Number of CPU cores for processing.
+            smoothing (str, optional): Smoothing type ('gaussian', 'median', or None).
+            smoothing_params (dict, optional): Smoothing parameters.
 
-        # global asl_data, brain_mask, cbf_map, att_map, t2bl, t2gm
-        # asl_data = self._asl_data
-        # brain_mask = self._brain_mask
-        # cbf_map = self._cbf_map
-        # att_map = self._att_map
-        # ld_arr = self._asl_data.get_ld()
-        # pld_arr = self._asl_data.get_pld()
-        # te_arr = self._asl_data.get_te()
-        # t2bl = self.T2bl
-        # t2gm = self.T2gm
+        Returns:
+            dict: Dictionary with T2 maps and mean T2 values.
+        """
+        # Data shape: (Z, Y, X, N_PLDS, N_TEs)
+        data = self._asl_data('pcasl')
+        mask = self._brain_mask
+        TEs = np.array(self._te_values)
+        PLDs = np.array(self._pld_values)
+        n_tes, n_plds, z_axis, y_axis, x_axis = data.shape
 
-        # x_axis = self._asl_data('m0').shape[2]   # height
-        # y_axis = self._asl_data('m0').shape[1]   # width
-        # z_axis = self._asl_data('m0').shape[0]   # depth
+        t2_maps_all = []
+        mean_t2s = []
 
-        # tblgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+        for pld_idx in range(n_plds):
+            t2_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+            with Pool(processes=cores) as pool:
+                with Progress() as progress:
+                    task = progress.add_task(
+                        f'T2 fitting (PLD {PLDs[pld_idx]} ms)...', total=x_axis
+                    )
+                    results = [
+                        pool.apply_async(
+                            _t2scalar_process_slice,
+                            args=(
+                                i,
+                                x_axis,
+                                y_axis,
+                                z_axis,
+                                mask,
+                                data,
+                                TEs,
+                                pld_idx,
+                                t2_map_shared,
+                            ),
+                            callback=lambda _: progress.update(
+                                task, advance=1
+                            ),
+                        )
+                        for i in range(x_axis)
+                    ]
+                    for result in results:
+                        result.wait()
+            t2_map = np.frombuffer(t2_map_shared).reshape(
+                z_axis, y_axis, x_axis
+            )
+            t2_maps_all.append(t2_map)
+            mean_t2s.append(np.nanmean(t2_map))
 
-        # with Pool(
-        #     processes=cores,
-        #     initializer=_multite_init_globals,
-        #     initargs=(
-        #         cbf_map,
-        #         att_map,
-        #         brain_mask,
-        #         asl_data,
-        #         ld_arr,
-        #         pld_arr,
-        #         te_arr,
-        #         tblgm_map_shared,
-        #         t2bl,
-        #         t2gm,
-        #     ),
-        # ) as pool:
-        #     with Progress() as progress:
-        #         task = progress.add_task(
-        #             'multiTE-ASL processing...', total=x_axis
-        #         )
-        #         results = [
-        #             pool.apply_async(
-        #                 _tblgm_multite_process_slice,
-        #                 args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
-        #                 callback=lambda _: progress.update(task, advance=1),
-        #             )
-        #             for i in range(x_axis)
-        #         ]
-        #         for result in results:
-        #             result.wait()
+        self._t2_maps = np.stack(
+            t2_maps_all, axis=-1
+        )  # shape: (Z, Y, X, N_PLDS)
+        self._mean_t2s = mean_t2s
 
-        # self._t1blgm_map = np.frombuffer(tblgm_map_shared).reshape(
-        #     z_axis, y_axis, x_axis
-        # )
-
-        # # Adjusting output image boundaries
-        # self._t1blgm_map = self._adjust_image_limits(self._t1blgm_map, par0[0])
-
-        # Create output maps dictionary
         output_maps = {
-            'cbf': self._cbf_map,
-            'cbf_norm': self._cbf_map * (60 * 60 * 1000),
-            'att': self._att_map,
-            't1blgm': self._t1blgm_map,
+            't2': self._t2_maps,
+            'mean_t2': self._mean_t2s,
         }
 
         # Apply smoothing if requested
         return _apply_smoothing_to_maps(
             output_maps, smoothing, smoothing_params
         )
-
-    def _adjust_image_limits(self, map, init_guess):
-        img = sitk.GetImageFromArray(map)
-        thr_filter = sitk.ThresholdImageFilter()
-        thr_filter.SetUpper(
-            4 * init_guess
-        )   # assuming upper to 4x the initial guess
-        thr_filter.SetLower(0.0)
-        img = thr_filter.Execute(img)
-
-        return sitk.GetArrayFromImage(img)
-
-
-def _multite_init_globals(
-    cbf_map_,
-    att_map_,
-    brain_mask_,
-    asl_data_,
-    ld_arr_,
-    pld_arr_,
-    te_arr_,
-    tblgm_map_,
-    t2bl_,
-    t2gm_,
-):   # pragma: no cover
-    # indirect call method by CBFMapping().create_map()
-    global cbf_map, att_map, brain_mask, asl_data, ld_arr, te_arr, pld_arr, tblgm_map, t2bl, t2gm
-    cbf_map = cbf_map_
-    att_map = att_map_
-    brain_mask = brain_mask_
-    asl_data = asl_data_
-    ld_arr = ld_arr_
-    pld_arr = pld_arr_
-    te_arr = te_arr_
-    tblgm_map = tblgm_map_
-    t2bl = t2bl_
-    t2gm = t2gm_
-
-
-def _tblgm_multite_process_slice(
-    i, x_axis, y_axis, z_axis, par0, lb, ub
-):   # pragma: no cover
-    # indirect call method by CBFMapping().create_map()
-    for j in range(y_axis):
-        for k in range(z_axis):
-            if brain_mask[k, j, i] != 0:
-                m0_px = asl_data('m0')[k, j, i]
-
-                def mod_2comp(Xdata, par1):
-                    return asl_model_multi_te(
-                        Xdata[:, 0],
-                        Xdata[:, 1],
-                        Xdata[:, 2],
-                        m0_px,
-                        cbf_map[k, j, i],
-                        att_map[k, j, i],
-                        par1,
-                        t2bl,
-                        t2gm,
-                    )
-
-                Ydata = (
-                    asl_data('pcasl')[:, :, k, j, i]
-                    .reshape(
-                        (
-                            len(ld_arr) * len(te_arr),
-                            1,
-                        )
-                    )
-                    .flatten()
-                )
-
-                # Calculate the processing index for the 3D space
-                index = k * (y_axis * x_axis) + j * x_axis + i
-
-                try:
-                    Xdata = _multite_create_x_data(
-                        ld_arr,
-                        pld_arr,
-                        te_arr,
-                    )
-                    par_fit, _ = curve_fit(
-                        mod_2comp,
-                        Xdata,
-                        Ydata,
-                        p0=par0,
-                        bounds=(lb, ub),
-                    )
-                    tblgm_map[index] = par_fit[0]
-                except RuntimeError:   # pragma: no cover
-                    tblgm_map[index] = 0.0
-
-
-def _multite_create_x_data(ld, pld, te):   # pragma: no cover
-    # array for the x values, assuming an arbitrary size based on the PLD
-    # and TE vector size
-    Xdata = np.zeros((len(pld) * len(te), 3))
-
-    count = 0
-    for i in range(len(pld)):
-        for j in range(len(te)):
-            Xdata[count] = [ld[i], pld[i], te[j]]
-            count += 1
-
-    return Xdata
