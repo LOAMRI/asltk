@@ -30,7 +30,7 @@ class ASLData:
         `dw_values` in the construction call
 
         Examples:
-            By default, the LD and PLD arrays are indicated (as empty lists)
+            By default, the LD and PLD arrays are empty lists.
 
             >>> data = ASLData()
             >>> data.get_ld()
@@ -38,21 +38,22 @@ class ASLData:
             >>> data.get_pld()
             []
 
-            >>> data = ASLData(te_values=[13.0,20.2,50.5,90.5,125.2])
+            >>> data = ASLData(te_values=[13.0, 20.2, 50.5, 90.5, 125.2])
             >>> data.get_te()
             [13.0, 20.2, 50.5, 90.5, 125.2]
 
-            >>> data = ASLData(dw_values=[13.0,20.2,50.5,90.5,125.2])
+            >>> data = ASLData(dw_values=[13.0, 20.2, 50.5, 90.5, 125.2])
             >>> data.get_dw()
             [13.0, 20.2, 50.5, 90.5, 125.2]
 
-        Other parameters: Set the ASL data parameters
+        Other parameters:
             pcasl (str, optional): The ASL data full path with filename. Defaults to ''.
             m0 (str, optional): The M0 data full path with filename. Defaults to ''.
             ld_values (list, optional): The LD values. Defaults to [].
             pld_values (list, optional): The PLD values. Defaults to [].
             te_values (list, optional): The TE values. Defaults to None.
             dw_values (list, optional): The DW values. Defaults to None.
+            average_m0 (bool, optional): If True, average the M0 image across the first dimension. This may be helpful for MRI acquisitions that collect an subset sample of M0 volumes and take the average of it. Defaults to False.
         """
         self._asl_image = None
         self._m0_image = None
