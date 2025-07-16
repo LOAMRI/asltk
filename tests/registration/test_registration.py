@@ -124,16 +124,38 @@ def test_rigid_body_registration_raise_exception_if_template_mask_not_numpy():
 
 
 def test_space_normalization_success():
-    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+    # pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+    # TODO Debug usando imagem inteira DEPOIS REMOVER
+    pcasl_orig = ASLData(
+        pcasl='/home/antonio/Imagens/loamri-samples/20240909/pcasl.nii.gz',
+        m0='/home/antonio/Imagens/loamri-samples/20240909/m0.nii.gz',
+        average_m0=True,
+    )
 
     # Use the ASLData object directly
     normalized_image, transform = space_normalization(
-        pcasl_orig('m0'), template_image='MNI2009'
+        pcasl_orig('m0'),
+        template_image='MNI2009',
+        transform_type='Affine',
+        verbose=True,
     )
 
     assert isinstance(normalized_image, np.ndarray)
     assert normalized_image.shape == (182, 218, 182)
     assert len(transform) == 2
+
+
+def test_space_normalization_success_transform_type_Affine():
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    # Use the ASLData object directly
+    normalized_image, transform = space_normalization(
+        pcasl_orig('m0'), template_image='MNI2009', transform_type='Affine'
+    )
+
+    assert isinstance(normalized_image, np.ndarray)
+    assert normalized_image.shape == (182, 218, 182)
+    assert len(transform) == 1
 
 
 def test_space_normalization_raise_exception_if_fixed_image_not_numpy():
