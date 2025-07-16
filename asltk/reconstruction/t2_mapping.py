@@ -8,7 +8,6 @@ from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
-from asltk.models.signal_dynamic import asl_t2_scalar_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
 
