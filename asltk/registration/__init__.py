@@ -4,15 +4,8 @@ import SimpleITK as sitk
 
 from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
-from asltk.logging_config import (
-    get_logger,
-    log_processing_step,
-    log_warning_with_context,
-)
-from asltk.utils.image_manipulation import (
-    check_and_fix_orientation,
-    collect_data_volumes,
-)
+from asltk.logging_config import get_logger
+from asltk.utils.image_manipulation import check_and_fix_orientation
 from asltk.utils.io import load_image
 
 
@@ -73,19 +66,17 @@ def space_normalization(
         a numpy array.
     moving_mask : np.ndarray, optional
         The moving mask in the same space as the moving image. If not provided,
-        the moving image will be used as the mask.
+        no mask is used.
     template_mask : np.ndarray, optional
         The template mask in the same space as the template image. If not provided,
-        the template image will be used as the mask.
+        no mask is used.
     transform_type : str, optional
         Type of transformation ('SyN', 'BSpline', etc.). Default is 'SyNBoldAff'.
     check_orientation : bool, optional
         Whether to automatically check and fix orientation mismatches between
         moving and template images. Default is True.
-    orientation_verbose : bool, optional
+    verbose : bool, optional
         Whether to print detailed orientation analysis. Default is False.
-    num_iterations : int, optional
-        Number of iterations for the registration. Default is 1000.
 
     Returns
     -------
@@ -100,37 +91,17 @@ def space_normalization(
         raise TypeError(
             'moving_image must be a numpy array and template_image must be a BrainAtlas object, a string with the atlas name, or a numpy array.'
         )
+
+    # Take optional parameters
+    check_orientation = kwargs.get('check_orientation', True)
+    verbose = kwargs.get('verbose', False)
+
     logger = get_logger('registration')
     logger.info('Starting space normalization')
 
-    # # Check if the input is a valid ASLData object.
-    # if not isinstance(asl_data, ASLData):
-    #     error_msg = 'Input must be an ASLData object.'
-    #     logger.error(error_msg)
-    #     raise TypeError(error_msg)
-
-    # Collect all the volumes in the pcasl image
-    # log_processing_step('Collecting data volumes')
-    # total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
-    # logger.info(f'Collected {len(total_vols)} volumes for registration')
-
-    # # Check if the reference volume is a valid integer based on the ASLData number of volumes.
-    # if not isinstance(ref_vol, int) or ref_vol >= len(total_vols):
-    #     error_msg = 'ref_vol must be an positive integer based on the total asl data volumes.'
-    #     logger.error(
-    #         f'{error_msg} ref_vol={ref_vol}, total_volumes={len(total_vols)}'
-    #     )
-    #     raise ValueError(error_msg)
-
-    # if (
-    #     isinstance(template_image, str)
-    #     and template_image not in BrainAtlas().list_atlas()
-    # ):
-    #     raise ValueError(
-    #         f'Template image {template_image} is not a valid BrainAtlas name.'
-    #     )
-
     # Load template image first
+    # TODO PROBLEMA PRINCIPAL: A leitura de imagens para numpy faz a perda da origen e spacing, para fazer o corregistro é preciso acertar a orientação da imagem com relação a origem (flip pela origem) para que ambas estejam na mesma orientação visual
+    # TODO Pensar em como será a utilização do corregistro para o ASLTK (assume que já está alinhado? ou tenta alinhar imagens check_orientation?)
     template_array = None
     if isinstance(template_image, BrainAtlas):
         template_file = template_image.get_atlas()['t1_data']
@@ -138,41 +109,23 @@ def space_normalization(
     elif isinstance(template_image, str):
         template_file = BrainAtlas(template_image).get_atlas()['t1_data']
         template_array = load_image(template_file)
+        # template_array = ants.image_read('/home/antonio/Imagens/loamri-samples/20240909/mni_2mm.nii.gz')
     elif isinstance(template_image, np.ndarray):
         template_array = template_image
     else:
         raise TypeError(
             'template_image must be a BrainAtlas object, a string with the atlas name, or a numpy array.'
         )
-    # # Apply the rigid body registration to each volume (considering the ref_vol)
-    # log_processing_step(
-    #     'Applying rigid body registration',
-    #     f'using volume {ref_vol} as reference',
-    # )
-    # corrected_vols = []
-    # trans_mtx = []
-    # ref_volume = total_vols[ref_vol]
 
-    # for idx, vol in enumerate(total_vols):
-    #     logger.debug(f'Correcting volume {idx}')
-    #     if verbose:
-    #         print(f'Correcting volume {idx}...', end='')
-    #     try:
-    #         corrected_vol, trans_m = rigid_body_registration(vol, ref_volume)
-    #         logger.debug(f'Volume {idx} registration successful')
-    #     except Exception as e:
-    #         warning_msg = f'Volume movement no handle by: {e}. Assuming the original data.'
-    #         log_warning_with_context(warning_msg, f'volume {idx}')
-    #         warnings.warn(warning_msg)
-    #         corrected_vol, trans_m = vol, np.eye(4)
-
-    # Check for orientation mismatch and fix if needed
-    check_orientation = kwargs.get('check_orientation', True)
-    verbose = kwargs.get('verbose', False)
+    if moving_image.ndim != 3 or template_array.ndim != 3:
+        raise ValueError(
+            'Both moving_image and template_image must be 3D arrays.'
+        )
 
     corrected_moving_image = moving_image
     orientation_transform = None
 
+    # TODO VERIICAR SE CHECK_ORIENTATION ESTA CERTO... USAR sitk.FlipImageFilter usando a Origen da image (Slicer da certo assim)
     if check_orientation:
         (
             corrected_moving_image,
@@ -182,18 +135,9 @@ def space_normalization(
         )
         if verbose and orientation_transform:
             print(f'Applied orientation correction: {orientation_transform}')
-    # # Rebuild the original ASLData object with the corrected volumes
-    # log_processing_step('Rebuilding corrected volume data')
-    # corrected_vols = np.stack(corrected_vols).reshape(orig_shape)
-
-    # logger.info(
-    #     f'Head movement correction completed successfully for {len(total_vols)} volumes'
-    # )
-
-    # # Update the ASLData object with the corrected volumes
-    # asl_data.set_image(corrected_vols, 'pcasl')
 
     # Convert to ANTs images
+
     moving = ants.from_numpy(corrected_moving_image)
     template = ants.from_numpy(template_array)
 
@@ -203,6 +147,7 @@ def space_normalization(
     if isinstance(template_mask, np.ndarray):
         template_mask = ants.from_numpy(template_mask)
 
+    # TODO Vericicar se ants.registration consegue colocar o TransformInit como Centro de Massa!'
     # Perform registration
     registration = ants.registration(
         fixed=template,
