@@ -78,19 +78,17 @@ def space_normalization(
         a numpy array.
     moving_mask : np.ndarray, optional
         The moving mask in the same space as the moving image. If not provided,
-        the moving image will be used as the mask.
+        no mask is used.
     template_mask : np.ndarray, optional
         The template mask in the same space as the template image. If not provided,
-        the template image will be used as the mask.
+        no mask is used.
     transform_type : str, optional
         Type of transformation ('SyN', 'BSpline', etc.). Default is 'SyNBoldAff'.
     check_orientation : bool, optional
         Whether to automatically check and fix orientation mismatches between
         moving and template images. Default is True.
-    orientation_verbose : bool, optional
+    verbose : bool, optional
         Whether to print detailed orientation analysis. Default is False.
-    num_iterations : int, optional
-        Number of iterations for the registration. Default is 1000.
 
     Returns
     -------
@@ -115,6 +113,8 @@ def space_normalization(
     #     )
 
     # Load template image first
+    # TODO PROBLEMA PRINCIPAL: A leitura de imagens para numpy faz a perda da origen e spacing, para fazer o corregistro é preciso acertar a orientação da imagem com relação a origem (flip pela origem) para que ambas estejam na mesma orientação visual
+    # TODO Pensar em como será a utilização do corregistro para o ASLTK (assume que já está alinhado? ou tenta alinhar imagens check_orientation?)
     template_array = None
     if isinstance(template_image, BrainAtlas):
         template_file = template_image.get_atlas()['t1_data']
@@ -122,6 +122,7 @@ def space_normalization(
     elif isinstance(template_image, str):
         template_file = BrainAtlas(template_image).get_atlas()['t1_data']
         template_array = load_image(template_file)
+        # template_array = ants.image_read('/home/antonio/Imagens/loamri-samples/20240909/mni_2mm.nii.gz')
     elif isinstance(template_image, np.ndarray):
         template_array = template_image
     else:
@@ -136,6 +137,7 @@ def space_normalization(
     corrected_moving_image = moving_image
     orientation_transform = None
 
+    # TODO VERIICAR SE CHECK_ORIENTATION ESTA CERTO... USAR sitk.FlipImageFilter usando a Origen da image (Slicer da certo assim)
     if check_orientation:
         (
             corrected_moving_image,
@@ -147,6 +149,7 @@ def space_normalization(
             print(f'Applied orientation correction: {orientation_transform}')
 
     # Convert to ANTs images
+
     moving = ants.from_numpy(corrected_moving_image)
     template = ants.from_numpy(template_array)
 
@@ -156,6 +159,7 @@ def space_normalization(
     if isinstance(template_mask, np.ndarray):
         template_mask = ants.from_numpy(template_mask)
 
+    # TODO Vericicar se ants.registration consegue colocar o TransformInit como Centro de Massa!'
     # Perform registration
     registration = ants.registration(
         fixed=template,
