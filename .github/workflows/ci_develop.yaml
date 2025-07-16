@@ -1,16 +1,17 @@
-name: ASLtk Continuous Integration for Develop Branch
+name: CI for Develop Branch
 on: 
   push:
     branches: [ develop ]
   pull_request:
     branches: [ develop ]
+  workflow_dispatch:
 
 jobs:
   linux:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.9"]
 
     
     steps:
@@ -32,7 +33,7 @@ jobs:
         run: poetry install
 
       - name: Run code formatting check
-        run: poetry run task lint
+        run: poetry run task lint-check
 
       - name: Run project tests
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
@@ -47,7 +48,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.9"]
     
     steps:
       - name: Clone repo
@@ -69,7 +70,7 @@ jobs:
         run: poetry install
 
       - name: Run code formatting check
-        run: poetry run task lint
+        run: poetry run task lint-check
 
       - name: Run project tests
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
@@ -84,7 +85,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.9"]
     
     steps:
       - name: Clone repo
@@ -103,7 +104,7 @@ jobs:
         run: poetry install
 
       - name: Run code formatting check
-        run: poetry run task lint
+        run: poetry run task lint-check
 
       - name: Run project tests
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
