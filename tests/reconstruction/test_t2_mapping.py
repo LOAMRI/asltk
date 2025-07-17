@@ -5,7 +5,6 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.reconstruction.t2_mapping import T2Scalar_ASLMapping
-from asltk.utils import load_image
 
 SEP = os.sep
 
@@ -59,6 +58,7 @@ def test_t2_scalar_mapping_success_construction_t2_map():
     assert len(out['mean_t2']) == len(
         asldata_te.get_pld()
     )  # One mean T2 per PLD
+    assert np.mean(out['t2']) > 0  # Ensure T2 values are positive
 
 
 # TODO Test for asl data that has more than PLD and TEs (for instance an asldata with dw included as well)
