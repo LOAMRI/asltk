@@ -7,10 +7,7 @@ from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
-<<<<<<< HEAD
 from asltk.logging_config import get_logger, log_processing_step
-=======
->>>>>>> ee02832 (Remove unused import of asl_t2_scalar_multi_te from t2_mapping.py)
 from asltk.mri_parameters import MRIParameters
 
 # Global variables for multiprocessing
