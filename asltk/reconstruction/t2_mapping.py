@@ -11,53 +11,32 @@ from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
 
-# Global variables to assist multi cpu threading
-# brain_mask = None
-# asl_data = None
-# ld_arr = None
-# pld_arr = None
-# te_arr = None
-# tblgm_map = None
-# t2bl = None
-# t2gm = None
+# Global variables for multiprocessing
+t2_map_shared = None
+brain_mask = None
+data = None
+TEs = None
 
 
-def monoexp(TE, A, T2):
-    return A * np.exp(-TE / T2)
+def _t2_init_globals(t2_map_, brain_mask_, data_, TEs_):
+    global t2_map_shared, brain_mask, data, TEs
+    t2_map_shared = t2_map_
+    brain_mask = brain_mask_
+    data = data_
+    TEs = TEs_
 
 
-def fit_voxel(signal, TEs):
-    if np.any(np.isnan(signal)) or np.max(signal) < 1:
-        return np.nan
-    try:
-        A0 = float(np.clip(np.max(signal), 1, 1e5))
-        T20 = 100
-        popt, _ = curve_fit(
-            monoexp,
-            TEs,
-            signal,
-            p0=(A0, T20),
-            bounds=([0, 5], [1e5, 200]),
-        )
-        return popt[1]
-    except Exception:
-        return np.nan
-
-
-def _t2scalar_process_slice(
-    i, x_axis, y_axis, z_axis, mask, data, TEs, pld_idx, t2_map_shared
-):  # pragma: no cover
-    # For slice i, fit T2 for each voxel at PLD index pld_idx
+def _t2_process_slice(i, x_axis, y_axis, z_axis, pld_idx):
     for j in range(y_axis):
         for k in range(z_axis):
-            if mask[k, j, i]:
-                signal = data[k, j, i, pld_idx, :]
-                t2_value = fit_voxel(signal, TEs)
+            if brain_mask[k, j, i]:
+                signal = data[:, pld_idx, k, j, i]
+                t2_value = _fit_voxel(signal, TEs)
                 index = k * (y_axis * x_axis) + j * x_axis + i
                 t2_map_shared[index] = t2_value
             else:
                 index = k * (y_axis * x_axis) + j * x_axis + i
-                t2_map_shared[index] = np.nan
+                t2_map_shared[index] = 0
 
 
 class T2Scalar_ASLMapping(MRIParameters):
@@ -114,17 +93,10 @@ class T2Scalar_ASLMapping(MRIParameters):
     def create_map(
         self, cores=cpu_count(), smoothing=None, smoothing_params=None
     ):
-        """Creates the T2 maps using the ASL data and the provided brain mask
-
-        Args:
-            cores (int, optional): Number of CPU cores for processing.
-            smoothing (str, optional): Smoothing type ('gaussian', 'median', or None).
-            smoothing_params (dict, optional): Smoothing parameters.
-
-        Returns:
-            dict: Dictionary with T2 maps and mean T2 values.
         """
-        # Data shape: (Z, Y, X, N_PLDS, N_TEs)
+        Creates the T2 maps using the ASL data and the provided brain mask
+        (Multiprocessing version, following CBFMapping strategy)
+        """
         data = self._asl_data('pcasl')
         mask = self._brain_mask
         TEs = np.array(self._te_values)
@@ -136,25 +108,19 @@ class T2Scalar_ASLMapping(MRIParameters):
 
         for pld_idx in range(n_plds):
             t2_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
-            with Pool(processes=cores) as pool:
+            with Pool(
+                processes=cores,
+                initializer=_t2_init_globals,
+                initargs=(t2_map_shared, mask, data, TEs),
+            ) as pool:
                 with Progress() as progress:
                     task = progress.add_task(
                         f'T2 fitting (PLD {PLDs[pld_idx]} ms)...', total=x_axis
                     )
                     results = [
                         pool.apply_async(
-                            _t2scalar_process_slice,
-                            args=(
-                                i,
-                                x_axis,
-                                y_axis,
-                                z_axis,
-                                mask,
-                                data,
-                                TEs,
-                                pld_idx,
-                                t2_map_shared,
-                            ),
+                            _t2_process_slice,
+                            args=(i, x_axis, y_axis, z_axis, pld_idx),
                             callback=lambda _: progress.update(
                                 task, advance=1
                             ),
@@ -163,15 +129,17 @@ class T2Scalar_ASLMapping(MRIParameters):
                     ]
                     for result in results:
                         result.wait()
+
             t2_map = np.frombuffer(t2_map_shared).reshape(
                 z_axis, y_axis, x_axis
             )
             t2_maps_all.append(t2_map)
             mean_t2s.append(np.nanmean(t2_map))
 
-        self._t2_maps = np.stack(
-            t2_maps_all, axis=-1
-        )  # shape: (Z, Y, X, N_PLDS)
+        t2_maps_stacked = np.stack(
+            t2_maps_all, axis=0
+        )  # shape: (N_PLDS, Z, Y, X)
+        self._t2_maps = t2_maps_stacked
         self._mean_t2s = mean_t2s
 
         output_maps = {
@@ -179,7 +147,39 @@ class T2Scalar_ASLMapping(MRIParameters):
             'mean_t2': self._mean_t2s,
         }
 
-        # Apply smoothing if requested
         return _apply_smoothing_to_maps(
             output_maps, smoothing, smoothing_params
         )
+
+
+def _fit_voxel(signal, TEs):
+    """
+    Fits a monoexponential decay model to the signal across TEs to estimate T2.
+
+    Args:
+        signal (np.ndarray): Signal intensities for different TEs.
+        TEs (np.ndarray): Echo times (ms).
+
+    Returns:
+        float: Estimated T2 value (ms), or 0 if fitting fails.
+    """
+    import numpy as np
+    from scipy.optimize import curve_fit
+
+    def monoexp(te, S0, T2):
+        return S0 * np.exp(-te / T2)
+
+    # Check for valid signal
+    if np.any(np.isnan(signal)) or np.max(signal) < 1:
+        return 0
+
+    try:
+        popt, _ = curve_fit(
+            monoexp, TEs, signal, p0=(np.max(signal), 80), bounds=(0, np.inf)
+        )
+        T2 = popt[1]
+        if T2 <= 0 or np.isnan(T2):
+            return 0
+        return T2
+    except Exception:
+        return 0
