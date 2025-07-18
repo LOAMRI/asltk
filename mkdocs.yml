@@ -53,6 +53,7 @@ nav:
   - 'scripts/cbf_script.md'
   - 'scripts/multi_te_script.md'
   - 'scripts/generate_sub_asl_image.md'
+  - 'scripts/t2_script.md'
   - 'contribute.md'
 
 plugins:
