@@ -66,3 +66,9 @@ post_test = "coverage html"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+asltk_cbf = "asltk.scripts.cbf:main"
+asltk_hadamard = "asltk.scripts.generate_subtracted_asl_image:main"
+asltk_t2_asl = "asltk.scripts.t2_maps:main"
+asltk_te_asl = "asltk.scripts.te_asl:main"
