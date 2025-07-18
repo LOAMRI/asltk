@@ -1,4 +1,4 @@
-# Generate Subtracted ASL Image Script
+# Generate Subtracted ASL Image Script (Hadamard acquisition)
 
 This documentation provides an overview of the `generate_subtracted_asl_image.py` script, which assists in reconstructing the ASL image already subtracted from control and tagged volumes. The script assumes that the ASL raw data was acquired using MRI imaging protocols based on [Hadamard matrix](https://en.wikipedia.org/wiki/Hadamard_matrix) acquisition.
 
@@ -11,7 +11,7 @@ The `generate_subtracted_asl_image.py` script processes ASL data to generate sub
 To run the script, use the following command:
 
 ```bash
-python -m asltk.scripts.generate_subtracted_asl_image datafolder [--matrix_order MATRIX_ORDER] [--dynamic_vols DYNAMIC_VOLS] [--pld PLD [PLD ...]] [--ld LD [LD ...]] [--output_folder [OUTPUT_FOLDER]] [--mask [MASK]] [--te TE [TE ...]] [--dw DW [DW ...]] [--file_fmt FILE_FMT] [--verbose] [-h]
+asltk_hadamard datafolder [--matrix_order MATRIX_ORDER] [--dynamic_vols DYNAMIC_VOLS] [--pld PLD [PLD ...]] [--ld LD [LD ...]] [--output_folder [OUTPUT_FOLDER]] [--mask [MASK]] [--te TE [TE ...]] [--dw DW [DW ...]] [--file_fmt FILE_FMT] [--verbose] [-h]
 ```
 
 ## General description

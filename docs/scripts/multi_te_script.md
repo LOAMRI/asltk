@@ -13,7 +13,7 @@ The script takes ASL raw data, an M0 image, and optional parameters such as a ma
 To run the script, use the following command:
 
 ```bash
-python -m asltk.scripts.te_asl pcasl m0 [mask] [out_folder] [--cbf [CBF]] [--att [ATT]] --pld PLD PLD ...] --ld LD [LD ...] --te TE [TE ...] [--file_fmt [FILE_FMT]] [--verbose] [-h] 
+asltk_te_asl pcasl m0 [mask] [out_folder] [--cbf [CBF]] [--att [ATT]] --pld PLD PLD ...] --ld LD [LD ...] --te TE [TE ...] [--file_fmt [FILE_FMT]] [--verbose] [-h] 
 ```
 
 ## General description
