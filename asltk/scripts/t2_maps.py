@@ -42,7 +42,7 @@ required.add_argument(
     type=str,
     nargs='?',
     default=os.path.expanduser('~'),
-    help='The output folder that is the reference to save all the output images in the script. The images selected to be saved are given as tags in the script caller, e.g. the options --cbf_map and --att_map. By default, the TblGM map is placed in the output folder with the name tblgm_map.nii.gz',
+    help='The output folder that is the reference to save all the output images in the script.',
 )
 optional.add_argument(
     '--pld',
