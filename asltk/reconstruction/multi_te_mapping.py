@@ -1,4 +1,3 @@
-import warnings
 from multiprocessing import Array, Pool, cpu_count
 
 import numpy as np
@@ -8,11 +7,10 @@ from rich.progress import Progress
 from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
-from asltk.aux_methods import _check_mask_values
+from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
-from asltk.reconstruction.smooth_utils import apply_smoothing_to_maps
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -367,7 +365,7 @@ class MultiTE_ASLMapping(MRIParameters):
         }
 
         # Apply smoothing if requested
-        return apply_smoothing_to_maps(
+        return _apply_smoothing_to_maps(
             output_maps, smoothing, smoothing_params
         )
 

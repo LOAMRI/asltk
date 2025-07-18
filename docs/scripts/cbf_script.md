@@ -11,7 +11,7 @@ The `cbf.py` script processes ASL data to generate CBF and ATT maps. The script 
 To run the script, use the following command:
 
 ```bash
-python -m asltk.scripts.cbf pcasl m0 [mask] [out_folder]  --pld PLD [PLD ...] --ld LD [LD ...] [--verbose] [--file_fmt [FILE_FMT]] [-h] [options]
+asltk_cbf pcasl m0 [mask] [out_folder]  --pld PLD [PLD ...] --ld LD [LD ...] [--verbose] [--file_fmt [FILE_FMT]] [-h] [options]
 ```
 
 ## General description
