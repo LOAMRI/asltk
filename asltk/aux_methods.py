@@ -71,6 +71,26 @@ def _apply_smoothing_to_maps(
     ValueError
         If smoothing type is not supported.
     """
+    # Check it the smoothing_params is ok
+    if smoothing_params is not None and not isinstance(smoothing_params, dict):
+        raise TypeError(
+            f'smoothing_params must be a dictionary. Type {type(smoothing_params)}'
+        )
+    if isinstance(smoothing_params, dict):
+        if smoothing_params.get('size') or smoothing_params.get('sigma'):
+            if smoothing_params.get('size') and not isinstance(
+                smoothing_params['size'], int
+            ):
+                raise TypeError(
+                    'Invalid smoothing parameter type. Size/Sigma must be an integer.'
+                )
+            if smoothing_params.get('sigma') and not isinstance(
+                smoothing_params['sigma'], float
+            ):
+                raise TypeError(
+                    'Invalid smoothing parameter type. Size/Sigma must be a float.'
+                )
+
     if smoothing is None:
         return maps
 
