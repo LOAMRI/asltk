@@ -18,6 +18,19 @@ TEs = None
 
 
 class T2Scalar_ASLMapping(MRIParameters):
+    """
+    Class for voxel-wise T2 mapping from multi-echo ASL data.
+
+    This class provides methods to calculate T2 relaxation maps from multi-echo ASL MRI data.
+    It supports brain masking, multiprocessing for fast computation, and optional smoothing.
+
+    Main methods:
+        - set_brain_mask: Set a binary mask to restrict T2 fitting to brain voxels.
+        - create_map: Compute T2 maps using multiprocessing (output shape: (N_PLDS, Z, Y, X)).
+        - get_t2_maps: Retrieve the computed T2 maps.
+        - get_mean_t2s: Retrieve mean T2 values per PLD.
+    """
+
     def __init__(self, asl_data: ASLData) -> None:
         super().__init__()
         self._asl_data = asl_data
@@ -33,27 +46,20 @@ class T2Scalar_ASLMapping(MRIParameters):
             raise ValueError('ASLData must not include DW values.')
 
         self._brain_mask = np.ones(self._asl_data('m0').shape)
-        self._t2_maps = None  # Will be 4D: (Z, Y, X, N_PLDS)
+        self._t2_maps = None  # Will be 4D: (N_PLDS, Z, Y, X)
         self._mean_t2s = None
 
     def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
-        """Defines whether a brain a mask is applied to the T2 scalar ASL
-        calculation
-
-        A image mask is simply an image that defines the voxels where the ASL
-        calculation should be made. Basically any integer value can be used as
-        proper label mask.
-
-        A most common approach is to use a binary image (zeros for background
-        and 1 for the brain tissues). Anyway, the default behavior of the
-        method can transform a integer-pixel values image to a binary mask with
-        the `label` parameter provided by the user
+        """
+        Set a brain mask to restrict T2 fitting to specific voxels.
 
         Args:
-            brain_mask (np.ndarray): The image representing the brain mask label (int, optional): The label value used to define the foreground tissue (brain). Defaults to 1.
+            brain_mask (np.ndarray): Binary or integer mask with the same shape as the M0 image. Nonzero values indicate voxels to include.
+            label (int, optional): The label value to use as foreground (default: 1).
+
+        The mask should be a 3D numpy array matching the spatial dimensions of the ASL data.
         """
         _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
-
         binary_mask = (brain_mask == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
 
@@ -78,8 +84,20 @@ class T2Scalar_ASLMapping(MRIParameters):
         self, cores=cpu_count(), smoothing=None, smoothing_params=None
     ):
         """
-        Creates the T2 maps using the ASL data and the provided brain mask
-        (Multiprocessing version, following CBFMapping strategy)
+        Compute T2 maps using multi-echo ASL data and a brain mask, with multiprocessing.
+
+        This method uses multiprocessing to accelerate voxel-wise T2 fitting. The output is a 4D array with shape (N_PLDS, Z, Y, X).
+
+        Warning:
+            For large datasets, memory usage can be significant due to parallel processing and storage of intermediate arrays.
+
+        Args:
+            cores (int, optional): Number of CPU cores for processing. Defaults to all available.
+            smoothing (str, optional): Smoothing type ('gaussian', 'median', or None).
+            smoothing_params (dict, optional): Smoothing parameters.
+
+        Returns:
+            dict: Dictionary with T2 maps ('t2', shape (N_PLDS, Z, Y, X)) and mean T2 values ('mean_t2').
         """
         logger = get_logger('t2_mapping')
         logger.info('Starting T2 map creation')
