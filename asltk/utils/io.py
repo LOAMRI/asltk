@@ -17,46 +17,31 @@ def load_image(
     suffix: str = None,
     **kwargs,
 ):
-    """Load an image file from a BIDS directory using the standard SimpleITK API.
+    """
+    Load an image file from a BIDS directory or file using the SimpleITK API.
 
-    The output format for object handler is a numpy array, collected from
-    the SimpleITK reading data method.
+    The output is always a numpy array, converted from the SimpleITK image object.
 
-    For more details about the image formats accepted, check the official
-    documentation at: https://simpleitk.org/
-
-    The ASLData class assumes as a caller method to expose the image array
-    directly to the user, hence calling the object instance will return the
-    image array directly.
+    Supported image formats include: .nii, .nii.gz, .nrrd, .mha, .tif, and other formats supported by SimpleITK.
 
     Note:
-        This method accepts a full path to a file or a BIDS directory. If the
-        BIDS file is provided, then the `subject`, `session`, `modality` and
-        `suffix` are used. Otherwise, the method will search for the
-        first image file found in the BIDS directory that can be an estimate
-        ASL image. If the file full path is provided, then the method will
-        load the image directly.
+        - The default values for `modality` and `suffix` are None. If not provided, the function will search for the first matching ASL image in the directory.
+        - If `full_path` is a file, it is loaded directly. If it is a directory, the function searches for a BIDS-compliant image using the provided parameters.
+        - If both a file and a BIDS directory are provided, the file takes precedence.
 
     Tip:
-        To be sure that the input BIDS structure is correct, use the
-        `bids-validator` tool to check the BIDS structure. See more details at:
-        https://bids-standard.github.io/bids-validator/. For more deteils about
-        ASL BIDS structure, check the official documentation at:
-        https://bids-specification.readthedocs.io/en/latest
+        To validate your BIDS structure, use the `bids-validator` tool: https://bids-standard.github.io/bids-validator/
+        For more details about ASL BIDS structure, see: https://bids-specification.readthedocs.io/en/latest
 
     Note:
-        The image file is assumed to be an ASL subtract image, that is an image
-        that has the subtraction of the control and label images. If the input
-        image is not in this format, then the user can use a set of helper
-        functions to create the ASL subtract image. See the `asltk.utils`
-        module for more details.
+        The image file is assumed to be an ASL subtract image (control-label). If not, use helper functions in `asltk.utils` to create one.
 
     Args:
-        full_path (str): Path to the BIDS directory
-        subject (str): Subject identifier
+        full_path (str): Path to the image file or BIDS directory.
+        subject (str, optional): Subject identifier. Defaults to None.
         session (str, optional): Session identifier. Defaults to None.
-        modality (str, optional): Modality folder name. Defaults to 'asl'.
-        suffix (str, optional): Suffix of the file to load. Defaults to 'T1w'.
+        modality (str, optional): Modality folder name. Defaults to None.
+        suffix (str, optional): Suffix of the file to load. Defaults to None.
 
     Examples:
         Load a single image file directly:
@@ -76,29 +61,18 @@ def load_image(
         >>> type(data)
         <class 'numpy.ndarray'>
 
-        In this form the input data is a BIDS directory. If all the BIDS
-        parameters are kept as `None`, then the method will search for the
-        first image that is an ASL image.
-
         Load specific BIDS data with detailed parameters:
         >>> data = load_image("./tests/files/bids-example/asl001", subject='Sub103', suffix='asl')
         >>> type(data)
         <class 'numpy.ndarray'>
 
-        Load with session information (note: this example assumes session exists):
-        >>> # data = load_image("./tests/files/bids-example/asl001",
-        >>> #                   subject='Sub103', session='01', suffix='asl')
-        >>> # type(data)
-        >>> # <class 'numpy.ndarray'>
-
-        Different file formats are supported:
-        >>> # Load NRRD format
+        # Load NRRD format
         >>> nrrd_data = load_image("./tests/files/t1-mri.nrrd")
         >>> type(nrrd_data)
         <class 'numpy.ndarray'>
 
     Returns:
-        (numpy.array): The loaded image
+        numpy.ndarray: The loaded image array.
     """
     _check_input_path(full_path)
     img = None
@@ -152,11 +126,14 @@ def save_image(
     subject: str = None,
     session: str = None,
 ):
-    """Save image to a file path.
+    """
+    Save an image to a file path using SimpleITK.
 
-    All the available image formats provided in the SimpleITK API can be
-    used here. Supported formats include: .nii, .nii.gz, .nrrd, .mha, .tif,
-    and other formats supported by SimpleITK.
+    All available image formats provided in the SimpleITK API can be used here. Supported formats include: .nii, .nii.gz, .nrrd, .mha, .tif, and others.
+
+    Note:
+        If the file extension is not recognized by SimpleITK, an error will be raised.
+        The input array should be 2D, 3D, or 4D. For 4D arrays, only the first volume may be saved unless handled explicitly.
 
     Args:
         img (np.ndarray): The image array to be saved. Can be 2D, 3D, or 4D.
@@ -189,6 +166,7 @@ def save_image(
 
     Raises:
         ValueError: If neither full_path nor (bids_root + subject) are provided.
+        RuntimeError: If the file extension is not recognized by SimpleITK.
     """
     if bids_root and subject:
         full_path = _make_bids_path(bids_root, subject, session)
@@ -211,16 +189,22 @@ def save_asl_data(
     session: str = None,
 ):
     """
-    Save ASL data to a pickle file.
+    Save ASL data to a pickle file using dill serialization.
 
     This method saves the ASL data to a pickle file using the dill library. All
-    the ASL data will be saved in a single file. After the file being saved, it
+    the ASL data will be saved in a single file. After the file is saved, it
     can be loaded using the `load_asl_data` method.
 
-    This method can be helpful when one wants to save the ASL data to a file
-    and share it with others or use it in another script. The entire ASLData
-    object will be loaded from the file, maintaining all the data and
-    parameters described in the `ASLData` class.
+    Note:
+        This method only accepts the ASLData object as input. If you want to
+        save an image, use the `save_image` method.
+        The file is serialized with dill, which supports more Python objects than standard pickle. However, files saved with dill may not be compatible with standard pickle, especially for custom classes.
+
+    Parameters:
+        asldata : ASLData
+            The ASL data to be saved. This can be any Python object that is serializable by dill.
+        fullpath : str
+            The full path where the pickle file will be saved. The filename must end with '.pkl'.
 
     Examples:
         >>> from asltk.asldata import ASLData
@@ -230,20 +214,8 @@ def save_asl_data(
         ...     temp_file_path = temp_file.name
         >>> save_asl_data(asldata, temp_file_path)
 
-
-    Note:
-        This method only accepts the ASLData object as input. If you want to
-        save an image, then use the `save_image` method.
-
-    Parameters:
-        asldata : ASLData
-            The ASL data to be saved. This can be any Python object that is serializable by dill.
-        fullpath : str
-            The full path where the pickle file will be saved. The filename must end with '.pkl'.
-
     Raises:
-    ValueError:
-        If the provided filename does not end with '.pkl'.
+        ValueError: If the provided filename does not end with '.pkl'.
     """
     if bids_root and subject:
         fullpath = _make_bids_path(
@@ -263,16 +235,19 @@ def save_asl_data(
 
 def load_asl_data(fullpath: str):
     """
-    Load ASL data from a specified file path to ASLData object previously save
-    on hard drive.
+    Load ASL data from a specified file path to an ASLData object previously saved on disk.
 
     This function uses the `dill` library to load and deserialize data from a
-    file. Therefore, the file must have been saved using the `save_asl_data`.
+    file. Therefore, the file must have been saved using the `save_asl_data` function.
 
-    This method can be helpful when one wants to save the ASL data to a file
-    and share it with others or use it in another script. The entire ASLData
-    object will be loaded from the file, maintaining all the data and
-    parameters described in the `ASLData` class.
+    Note:
+        The file must have been saved with dill. Files saved with dill may not be compatible with standard pickle, especially for custom classes.
+
+    Parameters:
+        fullpath (str): The full path to the file containing the serialized ASL data.
+
+    Returns:
+        ASLData: The deserialized ASL data object from the file.
 
     Examples:
         >>> from asltk.asldata import ASLData
@@ -286,12 +261,6 @@ def load_asl_data(fullpath: str):
         [1.8, 1.8, 1.8]
         >>> loaded_asldata('pcasl').shape
         (8, 7, 5, 35, 35)
-
-    Parameters:
-        fullpath (str): The full path to the file containing the serialized ASL data.
-
-    Returns:
-        ASLData: The deserialized ASL data object from the file.
     """
     _check_input_path(fullpath)
     return dill.load(open(fullpath, 'rb'))
