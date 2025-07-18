@@ -279,7 +279,6 @@ class CBFMapping(MRIParameters):
             error_msg = 'LD or PLD list of values must be provided.'
             logger.error(error_msg)
             raise ValueError(error_msg)
-        # TODO Testar se retirando esse if do LD PLD sizes, continua rodando... isso é erro do ASLData
 
         logger.info(f'Using {cores} CPU cores for parallel processing')
         log_processing_step('Initializing CBF mapping computation')
