@@ -1,15 +1,14 @@
 from multiprocessing import Array, Pool, cpu_count
 
 import numpy as np
-import SimpleITK as sitk
 from rich import print
 from rich.progress import Progress
 from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
+from asltk.logging_config import get_logger, log_processing_step
 from asltk.mri_parameters import MRIParameters
-from asltk.reconstruction import CBFMapping
 
 # Global variables for multiprocessing
 t2_map_shared = None
@@ -18,35 +17,20 @@ data = None
 TEs = None
 
 
-def _t2_init_globals(t2_map_, brain_mask_, data_, TEs_):
-    global t2_map_shared, brain_mask, data, TEs
-    t2_map_shared = t2_map_
-    brain_mask = brain_mask_
-    data = data_
-    TEs = TEs_
-
-
-def _t2_process_slice(i, x_axis, y_axis, z_axis, pld_idx):
-    for j in range(y_axis):
-        for k in range(z_axis):
-            if brain_mask[k, j, i]:
-                signal = data[:, pld_idx, k, j, i]
-                t2_value = _fit_voxel(signal, TEs)
-                index = k * (y_axis * x_axis) + j * x_axis + i
-                t2_map_shared[index] = t2_value
-            else:
-                index = k * (y_axis * x_axis) + j * x_axis + i
-                t2_map_shared[index] = 0
-
-
 class T2Scalar_ASLMapping(MRIParameters):
     def __init__(self, asl_data: ASLData) -> None:
         super().__init__()
         self._asl_data = asl_data
         self._te_values = self._asl_data.get_te()
         self._pld_values = self._asl_data.get_pld()
+
+        # Check if the ASLData has TE and PLD values
         if self._te_values is None or not self._pld_values:
             raise ValueError('ASLData must provide TE and PLD values.')
+
+        # Check if the ASLData has DW values (not allowed for T2 mapping)
+        if self._asl_data.get_dw() is not None:
+            raise ValueError('ASLData must not include DW values.')
 
         self._brain_mask = np.ones(self._asl_data('m0').shape)
         self._t2_maps = None  # Will be 4D: (Z, Y, X, N_PLDS)
@@ -97,6 +81,9 @@ class T2Scalar_ASLMapping(MRIParameters):
         Creates the T2 maps using the ASL data and the provided brain mask
         (Multiprocessing version, following CBFMapping strategy)
         """
+        logger = get_logger('t2_mapping')
+        logger.info('Starting T2 map creation')
+
         data = self._asl_data('pcasl')
         mask = self._brain_mask
         TEs = np.array(self._te_values)
@@ -107,7 +94,12 @@ class T2Scalar_ASLMapping(MRIParameters):
         mean_t2s = []
 
         for pld_idx in range(n_plds):
+            logger.info(f'Processing PLD index {pld_idx} ({PLDs[pld_idx]} ms)')
             t2_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+            log_processing_step(
+                'Running voxel-wise T2 fitting',
+                'this may take several minutes',
+            )
             with Pool(
                 processes=cores,
                 initializer=_t2_init_globals,
@@ -142,6 +134,11 @@ class T2Scalar_ASLMapping(MRIParameters):
         self._t2_maps = t2_maps_stacked
         self._mean_t2s = mean_t2s
 
+        logger.info('T2 mapping completed successfully')
+        logger.info(
+            f'T2 statistics - Mean: {np.mean(self._t2_maps):.4f}, Std: {np.std(self._t2_maps):.4f}'
+        )
+
         output_maps = {
             't2': self._t2_maps,
             'mean_t2': self._mean_t2s,
@@ -152,7 +149,7 @@ class T2Scalar_ASLMapping(MRIParameters):
         )
 
 
-def _fit_voxel(signal, TEs):
+def _fit_voxel(signal, TEs):  # pragma: no cover
     """
     Fits a monoexponential decay model to the signal across TEs to estimate T2.
 
@@ -163,8 +160,6 @@ def _fit_voxel(signal, TEs):
     Returns:
         float: Estimated T2 value (ms), or 0 if fitting fails.
     """
-    import numpy as np
-    from scipy.optimize import curve_fit
 
     def monoexp(te, S0, T2):
         return S0 * np.exp(-te / T2)
@@ -183,3 +178,24 @@ def _fit_voxel(signal, TEs):
         return T2
     except Exception:
         return 0
+
+
+def _t2_init_globals(t2_map_, brain_mask_, data_, TEs_):   # pragma: no cover
+    global t2_map_shared, brain_mask, data, TEs
+    t2_map_shared = t2_map_
+    brain_mask = brain_mask_
+    data = data_
+    TEs = TEs_
+
+
+def _t2_process_slice(i, x_axis, y_axis, z_axis, pld_idx):   # pragma: no cover
+    for j in range(y_axis):
+        for k in range(z_axis):
+            if brain_mask[k, j, i]:
+                signal = data[:, pld_idx, k, j, i]
+                t2_value = _fit_voxel(signal, TEs)
+                index = k * (y_axis * x_axis) + j * x_axis + i
+                t2_map_shared[index] = t2_value
+            else:
+                index = k * (y_axis * x_axis) + j * x_axis + i
+                t2_map_shared[index] = 0
