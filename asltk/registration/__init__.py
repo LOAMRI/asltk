@@ -15,6 +15,28 @@ from asltk.utils import collect_data_volumes
 def head_movement_correction(
     asl_data: ASLData, ref_vol: int = 0, verbose: bool = False
 ):
+    """
+    Correct head movement in ASL data.
+
+    This method applies rigid body registration to correct head movement in ASL data, which
+    is a basic preprocessing step to ensure accurate ASL signal quantification.
+
+    Note:
+        - The input ASLData must contain a valid pcasl image.
+        - The reference volume is used as the base for registration.
+
+    Args:
+        asl_data (ASLData): The ASL data to correct.
+        ref_vol (int, optional): The reference volume index. Defaults to 0.
+        verbose (bool, optional): Whether to print progress messages. Defaults to False.
+
+    Raises:
+        TypeError: If the input is not an ASLData object.
+        ValueError: If the reference volume is not a valid integer.
+
+    Returns:
+        tuple: The corrected ASL data and the transformation matrices.
+    """
     logger = get_logger('registration')
     logger.info('Starting head movement correction')
 
@@ -72,7 +94,15 @@ def head_movement_correction(
         f'Head movement correction completed successfully for {len(total_vols)} volumes'
     )
 
-    # # Update the ASLData object with the corrected volumes
-    # asl_data.set_image(corrected_vols, 'pcasl')
+    # Update the ASLData object with the corrected volumes
+    logger.info('Updating ASLData object with corrected volumes')
+    asl_corrected = ASLData(
+        pcasl=corrected_vols,
+        m0=asl_data('m0'),
+        ld_values=asl_data.get_ld(),
+        pld_values=asl_data.get_pld(),
+        te_values=asl_data.get_te() if asl_data.get_te() else None,
+        dw_values=asl_data.get_dw() if asl_data.get_dw() else None,
+    )
 
-    return corrected_vols, trans_mtx
+    return asl_corrected, trans_mtx
