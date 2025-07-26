@@ -71,11 +71,16 @@ class ASLData:
                 log_data_info('ASL image', self._asl_image.shape, pcasl_path)
 
         if kwargs.get('m0') is not None:
-            m0_path = kwargs.get('m0')
-            logger.info(f'Loading M0 image from: {m0_path}')
-            self._m0_image = load_image(m0_path)
-            if self._m0_image is not None:
-                log_data_info('M0 image', self._m0_image.shape, m0_path)
+            if isinstance(kwargs.get('m0'), str):
+                m0_path = kwargs.get('m0')
+                logger.info(f'Loading M0 image from: {m0_path}')
+                self._m0_image = load_image(m0_path)
+                if self._m0_image is not None:
+                    log_data_info('M0 image', self._m0_image.shape, m0_path)
+            elif isinstance(kwargs.get('m0'), np.ndarray):
+                self._m0_image = kwargs.get('m0')
+                logger.info('M0 image loaded as numpy array')
+                log_data_info('M0 image', self._m0_image.shape, 'numpy array')
 
         self._parameters['ld'] = (
             [] if kwargs.get('ld_values') is None else kwargs.get('ld_values')
