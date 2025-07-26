@@ -123,7 +123,6 @@ def test_create_object_with_pcasl_as_numpy_array():
 
     assert obj('pcasl').shape == array.shape
 
-
 def test_get_ld_show_empty_list_for_new_object():
     obj = asldata.ASLData()
     assert obj.get_ld() == []
