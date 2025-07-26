@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 import SimpleITK as sitk
 
+from asltk.utils import load_image
+
 from asltk import asldata
 
 SEP = os.sep
@@ -71,19 +73,16 @@ def test_create_object_with_different_image_formats():
     assert isinstance(obj, asldata.ASLData)
 
 
-def test_load_image_with_different_file_formats():
-    pass
-
-
-def test_load_image_asl_data_correct_array_shape():
-    pass
-
-
 def test_create_object_check_initial_parameters():
     obj = asldata.ASLData()
     assert obj.get_ld() == []
     assert obj.get_pld() == []
 
+def test_create_object_with_m0_as_numpy_array():
+    array = load_image(M0)
+    obj = asldata.ASLData(m0=array)
+
+    assert obj('m0').shape == array.shape
 
 def test_get_ld_show_empty_list_for_new_object():
     obj = asldata.ASLData()
