@@ -66,11 +66,16 @@ class ASLData:
         logger.info('Creating ASLData object')
 
         if kwargs.get('pcasl') is not None:
-            pcasl_path = kwargs.get('pcasl')
-            logger.info(f'Loading ASL image from: {pcasl_path}')
-            self._asl_image = load_image(pcasl_path)
-            if self._asl_image is not None:
-                log_data_info('ASL image', self._asl_image.shape, pcasl_path)
+            if isinstance(kwargs.get('pcasl'), str):
+                pcasl_path = kwargs.get('pcasl')
+                logger.info(f'Loading ASL image from: {pcasl_path}')
+                self._asl_image = load_image(pcasl_path)
+                if self._asl_image is not None:
+                    log_data_info('ASL image', self._asl_image.shape, pcasl_path)
+            elif isinstance(kwargs.get('pcasl'), np.ndarray):
+                self._asl_image = kwargs.get('pcasl')
+                logger.info('ASL image loaded as numpy array')
+                log_data_info('ASL image', self._asl_image.shape, 'numpy array')
 
         if kwargs.get('m0') is not None:
             if isinstance(kwargs.get('m0'), str):
