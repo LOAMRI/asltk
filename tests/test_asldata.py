@@ -99,6 +99,12 @@ def test_create_object_with_m0_as_numpy_array():
 
     assert obj('m0').shape == array.shape
 
+def test_create_object_with_pcasl_as_numpy_array():
+    array = load_image(PCASL_MTE)
+    obj = asldata.ASLData(pcasl=array)
+
+    assert obj('pcasl').shape == array.shape
+
 def test_get_ld_show_empty_list_for_new_object():
     obj = asldata.ASLData()
     assert obj.get_ld() == []
