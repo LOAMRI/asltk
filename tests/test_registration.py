@@ -77,9 +77,10 @@ def test_rigid_body_registration_output_registration_matrix_success():
 def test_head_movement_correction_build_asldata_success():
     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
 
-    asldata, _ = head_movement_correction(pcasl_orig)
+    asldata, trans_mtxs = head_movement_correction(pcasl_orig)
 
-    assert asldata.shape == pcasl_orig('pcasl').shape
+    assert asldata('pcasl').shape == pcasl_orig('pcasl').shape
+    assert any(not np.array_equal(mtx, np.eye(4)) for mtx in trans_mtxs)
 
 
 def test_head_movement_correction_error_input_is_not_ASLData_object():
@@ -100,13 +101,3 @@ def test_head_movement_correction_error_ref_vol_is_not_int():
         == 'ref_vol must be an positive integer based on the total asl data volumes.'
     )
 
-
-def test_head_movement_correction_success():
-    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
-
-    pcasl_corrected, trans_mtxs = head_movement_correction(
-        pcasl_orig, verbose=True
-    )
-
-    assert pcasl_corrected.shape == pcasl_orig('pcasl').shape
-    assert any(not np.array_equal(mtx, np.eye(4)) for mtx in trans_mtxs)
