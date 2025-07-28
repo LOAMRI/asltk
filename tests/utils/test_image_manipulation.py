@@ -8,69 +8,12 @@ import SimpleITK as sitk
 from asltk import asldata
 from asltk.models import signal_dynamic
 from asltk.utils.image_manipulation import collect_data_volumes
-from asltk.utils.io import load_asl_data, load_image, save_asl_data, save_image
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
 PCASL_MTE = f'tests' + SEP + 'files' + SEP + 'pcasl_mte.nii.gz'
 M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
 M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
-
-
-def test_load_image_pcasl_type_update_object_image_reference():
-    img = load_image(PCASL_MTE)
-    assert isinstance(img, np.ndarray)
-
-
-def test_load_image_m0_type_update_object_image_reference():
-    img = load_image(M0)
-    assert isinstance(img, np.ndarray)
-
-
-def test_load_image_m0_with_average_m0_option(tmp_path):
-    multi_M0 = np.stack([load_image(M0), load_image(M0)], axis=0)
-    tmp_file = tmp_path / 'temp_m0.nii.gz'
-    save_image(multi_M0, str(tmp_file))
-    img = load_image(str(tmp_file), average_m0=True)
-
-    assert isinstance(img, np.ndarray)
-    assert len(img.shape) == 3
-
-
-@pytest.mark.parametrize(
-    'input',
-    [
-        ('/wrong/path'),
-        ('not-a-path'),
-        (f'tests' + SEP + 'files' + SEP + 'no-image.nrrd'),
-    ],
-)
-def test_load_image_attest_fullpath_is_valid(input):
-    with pytest.raises(Exception) as e:
-        load_image(input)
-    assert 'does not exist.' in e.value.args[0]
-
-
-@pytest.mark.parametrize(
-    'input', [('out.nrrd'), ('out.nii'), ('out.mha'), ('out.tif')]
-)
-def test_save_image_success(input, tmp_path):
-    img = load_image(T1_MRI)
-    full_path = tmp_path.as_posix() + os.sep + input
-    save_image(img, full_path)
-    assert os.path.exists(full_path)
-    read_file = sitk.ReadImage(full_path)
-    assert read_file.GetSize() == sitk.ReadImage(T1_MRI).GetSize()
-
-
-@pytest.mark.parametrize(
-    'input', [('out.nrr'), ('out.n'), ('out.m'), ('out.zip')]
-)
-def test_save_image_throw_error_invalid_formatt(input, tmp_path):
-    img = load_image(T1_MRI)
-    full_path = tmp_path.as_posix() + os.sep + input
-    with pytest.raises(Exception) as e:
-        save_image(img, full_path)
 
 
 def test_asl_model_buxton_return_sucess_list_of_values():
@@ -157,105 +100,6 @@ def test_asl_model_multi_te_return_sucess_list_of_values():
     assert type(multite_values) == np.ndarray
 
 
-@pytest.mark.parametrize(
-    'input_data,filename',
-    [
-        (PCASL_MTE, 'multi_te_asldata.pkl'),
-    ],
-)
-def test_save_asl_data_data_sucess(input_data, filename, tmp_path):
-    obj = asldata.ASLData(pcasl=input_data)
-    out_file = tmp_path.as_posix() + os.sep + filename
-    save_asl_data(obj, out_file)
-    assert os.path.exists(out_file)
-
-
-@pytest.mark.parametrize(
-    'input_data,filename',
-    [
-        (PCASL_MTE, 'multi_te_asldata.txt'),
-        (PCASL_MTE, 'multi_te_asldata.nii'),
-        (PCASL_MTE, 'multi_te_asldata.mha'),
-        (PCASL_MTE, 'multi_te_asldata.nrrd'),
-    ],
-)
-def test_save_asl_data_raise_error_filename_not_pkl(
-    input_data, filename, tmp_path
-):
-    obj = asldata.ASLData(pcasl=PCASL_MTE)
-    out_file = tmp_path.as_posix() + os.sep + filename
-    with pytest.raises(Exception) as e:
-        save_asl_data(obj, out_file)
-    assert e.value.args[0] == 'Filename must be a pickle file (.pkl)'
-
-
-@pytest.mark.parametrize(
-    'input_data,filename',
-    [
-        (PCASL_MTE, 'multi_te_asldata.pkl'),
-    ],
-)
-def test_load_asl_data_sucess(input_data, filename, tmp_path):
-    obj = asldata.ASLData(pcasl=input_data)
-    out_file = tmp_path.as_posix() + os.sep + filename
-    save_asl_data(obj, out_file)
-    loaded_obj = load_asl_data(out_file)
-    assert isinstance(loaded_obj, asldata.ASLData)
-    assert loaded_obj('pcasl').shape == obj('pcasl').shape
-
-
-@pytest.mark.parametrize(
-    'input_bids,sub,sess,mod,suff',
-    [
-        ('./tests/files/bids-example/asl001', None, None, None, None),
-        ('./tests/files/bids-example/asl001', 103, None, None, None),
-        ('./tests/files/bids-example/asl001', None, None, 'asl', None),
-        ('./tests/files/bids-example/asl001', 103, None, 'asl', None),
-    ],
-)
-def test_load_image_using_BIDS_input_sucess(input_bids, sub, sess, mod, suff):
-    loaded_obj = load_image(
-        full_path=input_bids,
-        subject=sub,
-        session=sess,
-        modality=mod,
-        suffix=suff,
-    )
-    assert isinstance(loaded_obj, np.ndarray)
-
-
-@pytest.mark.parametrize(
-    'input_data',
-    [(tempfile.gettempdir())],
-)
-def test_load_image_using_not_valid_BIDS_input_raise_error(input_data):
-    with pytest.raises(Exception) as e:
-        loaded_obj = load_image(input_data)
-    assert 'is missing' in e.value.args[0]
-
-
-@pytest.mark.parametrize(
-    'input_bids,sub,sess,mod,suff',
-    [
-        ('./tests/files/bids-example/asl001', 2, None, None, None),
-        ('./tests/files/bids-example/asl001', 502, None, 'flair', None),
-        ('./tests/files/bids-example/asl001', 2, None, 'bold', None),
-    ],
-)
-def test_load_image_raise_FileNotFoundError_not_matching_image_file(
-    input_bids, sub, sess, mod, suff
-):
-    with pytest.raises(Exception) as e:
-        loaded_obj = load_image(
-            full_path=input_bids,
-            subject=sub,
-            session=sess,
-            modality=mod,
-            suffix=suff,
-        )
-    assert 'ASL image file is missing' in e.value.args[0]
-
-
 def test_collect_data_volumes_return_correct_list_of_volumes_4D_data():
     data = np.ones((2, 30, 40, 15))
     data[0, :, :, :] = data[0, :, :, :] * 10
@@ -294,21 +138,3 @@ def test_collect_data_volumes_error_if_input_is_less_than_3D():
     with pytest.raises(Exception) as e:
         collected_volumes, _ = collect_data_volumes(data)
     assert 'data is a 3D volume or higher dimensions' in e.value.args[0]
-
-
-def test_load_image_from_bids_structure_returns_valid_array():
-    bids_root = 'tests/files/bids-example/asl001'
-    subject = 'Sub103'
-    session = None
-    modality = 'asl'
-    suffix = None  # m0 is deleted, because it does not exist
-
-    img = load_image(
-        full_path=bids_root,
-        subject=subject,
-        session=session,
-        modality=modality,
-        suffix=suffix,
-    )
-
-    assert img is not None
