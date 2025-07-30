@@ -23,26 +23,59 @@ def calculate_snr(image: np.ndarray, roi: np.ndarray = None) -> float:
     if not isinstance(image, np.ndarray):
         raise ValueError('Input must be a numpy array.')
 
-    # TODO raise error roi higher than image OR different shape
-    if isinstance(roi, np.ndarray):
-        if any(r > i for r, i in zip(roi.shape, image.shape)):
-            raise ValueError(
-                'ROI must be smaller than or equal to image size in all dimensions.'
-            )
+    if roi is not None:
+        if not isinstance(roi, np.ndarray):
+            raise ValueError('ROI must be a numpy array.')
         if roi.shape != image.shape:
-            raise ValueError('ROI shape must be compatible to image shape.')
-    else:
-        raise ValueError('ROI must be a numpy array.')
+            raise ValueError('ROI shape must match image shape.')
 
-    mean_signal = np.mean(image)
-    noise = image - mean_signal
+        image_roi = image[roi > 0]
+        mean_signal = np.mean(image_roi)
+        noise = image_roi - mean_signal
+    else:
+        mean_signal = np.mean(image)
+        noise = image - mean_signal
 
     try:
         snr = mean_signal / np.std(noise)
     except ZeroDivisionError:
         snr = float('inf')  # If noise is zero, SNR is infinite
 
-    return float(abs(snr)) if snr is not np.nan else 0.0
+    return float(abs(snr)) if not np.isnan(snr) else 0.0
+
+
+def calculate_mean_intensity(
+    image: np.ndarray, roi: np.ndarray = None
+) -> float:
+    """
+    Calculate the mean intensity of a medical image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to analyze.
+
+    roi : np.ndarray, optional
+        Region of interest (ROI) mask. If provided, only the ROI will be considered.
+
+    Returns
+    -------
+    float
+        The mean intensity value of the image or ROI.
+    """
+    if not isinstance(image, np.ndarray):
+        raise ValueError('Input must be a numpy array.')
+
+    if roi is not None:
+        if not isinstance(roi, np.ndarray):
+            raise ValueError('ROI must be a numpy array.')
+        if roi.shape != image.shape:
+            raise ValueError('ROI shape must match image shape.')
+
+    # Compute mean intensity
+    if roi is not None:
+        return float(abs(np.mean(image[roi > 0])))  # Only consider ROI
+    return float(abs(np.mean(image)))
 
 
 def analyze_image_properties(image: np.ndarray) -> Dict[str, any]:
@@ -70,7 +103,7 @@ def analyze_image_properties(image: np.ndarray) -> Dict[str, any]:
     try:
 
         com = center_of_mass(image > np.mean(image))
-    except ImportError:
+    except ImportError:   # pragma: no cover
         # Fallback calculation without scipy
         coords = np.argwhere(image > np.mean(image))
         com = np.mean(coords, axis=0) if len(coords) > 0 else (0, 0, 0)
@@ -103,7 +136,9 @@ def analyze_image_properties(image: np.ndarray) -> Dict[str, any]:
     }
 
 
-def _compute_correlation_simple(img1: np.ndarray, img2: np.ndarray) -> float:
+def _compute_correlation_simple(
+    img1: np.ndarray, img2: np.ndarray
+) -> float:   # pragma: no cover
     """Simple correlation computation without external dependencies."""
     img1_flat = img1.flatten()
     img2_flat = img2.flatten()
