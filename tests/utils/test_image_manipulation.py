@@ -7,7 +7,11 @@ import SimpleITK as sitk
 
 from asltk import asldata
 from asltk.models import signal_dynamic
-from asltk.utils.image_manipulation import collect_data_volumes
+from asltk.utils.image_manipulation import (
+    collect_data_volumes,
+    select_reference_volume,
+)
+from asltk.utils.io import load_image
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -138,3 +142,26 @@ def test_collect_data_volumes_error_if_input_is_less_than_3D():
     with pytest.raises(Exception) as e:
         collected_volumes, _ = collect_data_volumes(data)
     assert 'data is a 3D volume or higher dimensions' in e.value.args[0]
+
+
+@pytest.mark.parametrize('method', ['snr', 'mean'])
+def test_select_reference_volume_returns_correct_volume_and_index_with_sample_images(
+    method,
+):
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    ref_volume, idx = select_reference_volume(asl, method=method)
+
+    assert ref_volume.shape == asl('pcasl')[0][0].shape
+    assert idx != 0
+
+
+@pytest.mark.parametrize(
+    'method', [('invalid_method'), (123), (['mean']), ({'method': 'snr'})]
+)
+def test_select_reference_volume_raise_error_invalid_method(method):
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    with pytest.raises(Exception) as e:
+        select_reference_volume(asl, method=method)
+    assert 'Invalid method' in e.value.args[0]
