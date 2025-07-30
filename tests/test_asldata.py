@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from asltk import asldata
-from asltk.utils import load_image
 from asltk.utils.io import load_image, save_image
 
 SEP = os.sep
