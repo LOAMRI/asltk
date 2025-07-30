@@ -305,7 +305,7 @@ def apply_transformation(
         reference_image: np.ndarray
             The reference image to which the transformed image will be aligned.
             If not provided, the original image will be used as the reference.
-        transformation_matrix: list
+        transforms: list
             The transformation matrix list.
 
     Returns:
@@ -321,9 +321,6 @@ def apply_transformation(
             'reference_image must be a numpy array or a BrainAtlas object.'
         )
     elif isinstance(reference_image, BrainAtlas):
-        # reference_image = ants.image_read(
-        #     reference_image.get_atlas()['t1_data']
-        # ).numpy()
         reference_image = load_image(reference_image.get_atlas()['t1_data'])
 
     if not isinstance(transforms, list):
