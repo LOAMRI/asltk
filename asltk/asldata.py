@@ -73,16 +73,23 @@ class ASLData:
                 logger.info(f'Loading ASL image from: {pcasl_path}')
                 self._asl_image = load_image(pcasl_path)
                 if self._asl_image is not None:
-                    log_data_info('ASL image', self._asl_image.shape, pcasl_path)
+                    log_data_info(
+                        'ASL image', self._asl_image.shape, pcasl_path
+                    )
             elif isinstance(kwargs.get('pcasl'), np.ndarray):
                 self._asl_image = kwargs.get('pcasl')
                 logger.info('ASL image loaded as numpy array')
-                log_data_info('ASL image', self._asl_image.shape, 'numpy array')
+                log_data_info(
+                    'ASL image', self._asl_image.shape, 'numpy array'
+                )
 
         if kwargs.get('m0') is not None:
             avg_m0 = kwargs.get('average_m0', False)
             self._m0_image = load_image(kwargs.get('m0'), average_m0=avg_m0)
             self._check_m0_dimension()
+
+        if kwargs.get('average_m0', False):
+            self._m0_image = np.mean(self._m0_image, axis=0)
 
         self._parameters['ld'] = (
             [] if kwargs.get('ld_values') is None else kwargs.get('ld_values')
@@ -149,6 +156,11 @@ class ASLData:
                 self._m0_image = image
             elif spec == 'pcasl':
                 self._asl_image = image
+        else:
+            raise ValueError(
+                f'Invalid image type or path: {image}. '
+                'Please provide a valid file path or a numpy array.'
+            )
 
     def get_ld(self):
         """Obtain the LD array values"""
