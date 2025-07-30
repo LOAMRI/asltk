@@ -3,10 +3,8 @@ import os
 import numpy as np
 import pytest
 
-from asltk.utils import load_image
-
 from asltk import asldata
-from asltk.utils import io
+from asltk.utils.io import load_image, save_image
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -25,10 +23,8 @@ def test_asldata_object_shows_warning_if_m0_has_more_than_3D_dimensions(
 ):
     tmp_file = tmp_path / 'temp_m0_4D.nii.gz'
     # Create a 4D M0 image
-    m0_4d = np.stack(
-        [io.load_image(M0), io.load_image(M0), io.load_image(M0)], axis=0
-    )
-    io.save_image(m0_4d, str(tmp_file))
+    m0_4d = np.stack([load_image(M0), load_image(M0), load_image(M0)], axis=0)
+    save_image(m0_4d, str(tmp_file))
     with pytest.warns(Warning) as record:
         obj = asldata.ASLData(m0=str(tmp_file))
     assert len(record) == 1
@@ -93,17 +89,20 @@ def test_create_object_check_initial_parameters():
     assert obj.get_ld() == []
     assert obj.get_pld() == []
 
+
 def test_create_object_with_m0_as_numpy_array():
     array = load_image(M0)
     obj = asldata.ASLData(m0=array)
 
     assert obj('m0').shape == array.shape
 
+
 def test_create_object_with_pcasl_as_numpy_array():
     array = load_image(PCASL_MTE)
     obj = asldata.ASLData(pcasl=array)
 
     assert obj('pcasl').shape == array.shape
+
 
 def test_get_ld_show_empty_list_for_new_object():
     obj = asldata.ASLData()
@@ -289,6 +288,25 @@ def test_set_image_sucess_pcasl():
     obj = asldata.ASLData()
     obj.set_image(M0, 'pcasl')
     assert isinstance(obj('pcasl'), np.ndarray)
+
+
+@pytest.mark.parametrize(
+    'input',
+    [
+        ('not_a_valid_image'),
+        (123),
+        (None),
+        ({'key': 'value'}),
+        (['not', 'a', 'valid', 'image']),
+    ],
+)
+def test_set_image_raises_error_if_input_is_not_a_valid_image(input):
+    obj = asldata.ASLData()
+    with pytest.raises(Exception) as e:
+        obj.set_image(input, 'pcasl')
+
+    assert 'Invalid image type or path' in e.value.args[0]
+    assert e.type == ValueError
 
 
 def test_asldata_copy_creates_deepcopy():
