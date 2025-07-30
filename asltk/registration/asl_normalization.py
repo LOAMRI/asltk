@@ -1,3 +1,4 @@
+import ants
 import numpy as np
 from rich.progress import Progress
 
@@ -8,7 +9,14 @@ from asltk.registration import (
     rigid_body_registration,
     space_normalization,
 )
-from asltk.utils.image_manipulation import collect_data_volumes
+from asltk.utils.image_manipulation import (
+    collect_data_volumes,
+    select_reference_volume,
+)
+from asltk.utils.image_statistics import (
+    calculate_mean_intensity,
+    calculate_snr,
+)
 from asltk.utils.io import load_image
 
 
@@ -93,7 +101,7 @@ def asl_template_registration(
     orig_shape = asl_data('m0').shape
 
     m0_vol_corrected, trans_m0_mtx = __apply_array_normalization(
-        tmp_vol_list, 0, orig_shape, norm_function, verbose
+        tmp_vol_list, 0, norm_function
     )
     new_asl.set_image(m0_vol_corrected[0], 'm0')
 
@@ -120,7 +128,11 @@ def asl_template_registration(
 
 
 def head_movement_correction(
-    asl_data: ASLData, ref_vol: int = 0, verbose: bool = False
+    asl_data: ASLData,
+    ref_vol: np.ndarray = None,
+    method: str = 'snr',
+    roi: np.ndarray = None,
+    verbose: bool = False,
 ):
     """
     Correct head movement in ASL data using rigid body registration.
@@ -138,9 +150,14 @@ def head_movement_correction(
     Args:
         asl_data: ASLData)
             The ASLData object containing the pcasl image to be corrected.
-        ref_vol: (int, optional)
-            The index of the reference volume to which all other volumes will be registered.
-            Defaults to 0.
+        ref_vol: (np.ndarray, optional)
+            The reference volume to which all other volumes will be registered.
+            If not defined, the `m0` volume will be used.
+            In case the `m0` volume is not available, the volume is defined by the method parameter.
+        method: (str, optional)
+            The method to select the reference volume. Options are 'snr' or 'mean'.
+            If 'snr', the volume with the highest SNR is selected.
+            If 'mean', the volume with the highest mean signal is selected.
         verbose: (bool, optional)
             If True, prints progress messages. Defaults to False.
 
@@ -158,48 +175,80 @@ def head_movement_correction(
         raise TypeError('Input must be an ASLData object.')
 
     # Collect all the volumes in the pcasl image
-    total_vols, orig_shape = collect_data_volumes(asl_data('pcasl'))
+    total_vols, _ = collect_data_volumes(asl_data('pcasl'))
+    trans_proportions = _collect_transformation_proportions(
+        total_vols, method, roi
+    )
 
-    # Check if the reference volume is a valid integer based on the ASLData number of volumes.
-    if not isinstance(ref_vol, int) or ref_vol >= len(total_vols):
+    # If ref_vol is not provided, use the m0 volume or the first pcasl volume
+    ref_volume = None
+    if ref_vol is None:
+        if asl_data('m0') is not None:
+            ref_volume = asl_data('m0')
+        elif total_vols:
+            vol_from_method, _ = select_reference_volume(
+                asl_data, ref_vol, method=method
+            )
+            ref_volume = vol_from_method
+        else:
+            raise ValueError(
+                'No valid reference volume provided. Please provide a valid m0 or ASLData volume.'
+            )
+    else:
+        ref_volume = ref_vol
+
+    # Check if the reference volume is a valid volume.
+    if (
+        not isinstance(ref_volume, np.ndarray)
+        or ref_volume.shape != total_vols[0].shape
+    ):
         raise ValueError(
-            'ref_vol must be an positive integer based on the total asl data volumes.'
+            'ref_vol must be a valid volume from the total asl data volumes.'
         )
 
     def norm_function(vol, ref_volume):
         return rigid_body_registration(vol, ref_volume)
 
     corrected_vols, trans_mtx = __apply_array_normalization(
-        total_vols, ref_vol, orig_shape, norm_function, verbose
+        total_vols, ref_volume, norm_function, trans_proportions
     )
 
     new_asl_data = asl_data.copy()
-    new_asl_data.set_image(corrected_vols, 'pcasl')
+    # Create the new ASLData object with the corrected volumes
+    corrected_vols_array = np.array(corrected_vols).reshape(
+        asl_data('pcasl').shape
+    )
+    new_asl_data.set_image(corrected_vols_array, 'pcasl')
 
     return new_asl_data, trans_mtx
 
 
+# TODO Provavel que tenha que separar esse metodo para o asl_template_registration... revisar depois
 def __apply_array_normalization(
-    total_vols, ref_vol, orig_shape, normalization_function, verbose=False
+    total_vols, ref_vol, normalization_function, trans_proportions
 ):
-    # Apply the rigid body registration to each volume (considering the ref_vol)
     corrected_vols = []
     trans_mtx = []
-    ref_volume = total_vols[ref_vol]
-
     with Progress() as progress:
         task = progress.add_task(
             '[green]Registering volumes...', total=len(total_vols)
         )
         for idx, vol in enumerate(total_vols):
             try:
-                corrected_vol, trans_m = normalization_function(
-                    vol, ref_volume
-                )
+                _, trans_m = normalization_function(vol, ref_vol)
+
+                # Adjust the transformation matrix
+                trans_path = trans_m[0]
+                t_matrix = ants.read_transform(trans_path)
+                params = t_matrix.parameters * trans_proportions[idx]
+                t_matrix.set_parameters(params)
+                ants.write_transform(t_matrix, trans_m[0])
+
+                corrected_vol = apply_transformation(vol, ref_vol, trans_m)
             except Exception as e:
                 raise RuntimeError(
                     f'[red on white]Error during registration of volume {idx}: {e}[/]'
-                ) from e
+                )
 
             corrected_vols.append(corrected_vol)
             trans_mtx.append(trans_m)
@@ -210,3 +259,37 @@ def __apply_array_normalization(
     # corrected_vols = np.stack(corrected_vols).reshape(orig_shape)
 
     return corrected_vols, trans_mtx
+
+
+def _collect_transformation_proportions(total_vols, method, roi):
+    """
+    Collect method values to be used for matrix transformation balancing.
+
+    Args:
+        total_vols (list): List of ASL volumes.
+        method (str): Method to use (in accordance to the `select_reference_volume`).
+        roi (np.ndarray): Region of interest mask.
+
+    Returns:
+        list: List of calculated values based on the method.
+    """
+    method_values = []
+    for vol in total_vols:
+        if method == 'snr':
+            value = calculate_snr(vol, roi=roi)
+        elif method == 'mean':
+            value = calculate_mean_intensity(vol, roi=roi)
+        else:
+            raise ValueError(f'Unknown method: {method}')
+        method_values.append(value)
+
+    min_val = np.min(method_values)
+    max_val = np.max(method_values)
+    if max_val == min_val:
+        trans_proportions = np.ones_like(method_values)
+    else:
+        trans_proportions = (np.array(method_values) - min_val) / (
+            max_val - min_val
+        )
+
+    return trans_proportions
