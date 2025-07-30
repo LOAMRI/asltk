@@ -3,8 +3,6 @@ import os
 import numpy as np
 import pytest
 
-from asltk.utils import load_image
-
 from asltk import asldata
 from asltk.utils.io import load_image, save_image
 
@@ -90,6 +88,7 @@ def test_create_object_check_initial_parameters():
     obj = asldata.ASLData()
     assert obj.get_ld() == []
     assert obj.get_pld() == []
+
 
 def test_create_object_with_m0_as_numpy_array():
     array = load_image(M0)
