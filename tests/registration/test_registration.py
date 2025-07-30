@@ -54,7 +54,7 @@ def test_head_movement_correction_error_ref_vol_is_not_int():
 
     assert (
         str(e.value)
-        == 'ref_vol must be an positive integer based on the total asl data volumes.'
+        == 'ref_vol must be a valid volume from the total asl data volumes.'
     )
 
 
@@ -66,6 +66,12 @@ def test_head_movement_correction_success():
     )
 
     assert pcasl_corrected('pcasl').shape == pcasl_orig('pcasl').shape
+    assert (
+        np.abs(
+            np.mean(np.subtract(pcasl_corrected('pcasl'), pcasl_orig('pcasl')))
+        )
+        != 0
+    )
     assert any(not np.array_equal(mtx, np.eye(4)) for mtx in trans_mtxs)
 
 
@@ -124,15 +130,8 @@ def test_rigid_body_registration_raise_exception_if_template_mask_not_numpy():
 
 
 def test_space_normalization_success():
-    # pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
-    # TODO Debug usando imagem inteira DEPOIS REMOVER
-    pcasl_orig = ASLData(
-        pcasl='/home/antonio/Imagens/loamri-samples/20240909/pcasl.nii.gz',
-        m0='/home/antonio/Imagens/loamri-samples/20240909/m0.nii.gz',
-        average_m0=True,
-    )
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
 
-    # Use the ASLData object directly
     normalized_image, transform = space_normalization(
         pcasl_orig('m0'),
         template_image='MNI2009',
@@ -142,7 +141,7 @@ def test_space_normalization_success():
 
     assert isinstance(normalized_image, np.ndarray)
     assert normalized_image.shape == (182, 218, 182)
-    assert len(transform) == 2
+    assert len(transform) == 1
 
 
 def test_space_normalization_success_transform_type_Affine():
