@@ -71,23 +71,38 @@ class ASLData:
                 logger.info(f'Loading ASL image from: {pcasl_path}')
                 self._asl_image = load_image(pcasl_path)
                 if self._asl_image is not None:
-                    log_data_info('ASL image', self._asl_image.shape, pcasl_path)
+                    log_data_info(
+                        'ASL image', self._asl_image.shape, pcasl_path
+                    )
             elif isinstance(kwargs.get('pcasl'), np.ndarray):
                 self._asl_image = kwargs.get('pcasl')
                 logger.info('ASL image loaded as numpy array')
-                log_data_info('ASL image', self._asl_image.shape, 'numpy array')
+                log_data_info(
+                    'ASL image', self._asl_image.shape, 'numpy array'
+                )
 
         if kwargs.get('m0') is not None:
             if isinstance(kwargs.get('m0'), str):
                 m0_path = kwargs.get('m0')
                 logger.info(f'Loading M0 image from: {m0_path}')
                 self._m0_image = load_image(m0_path)
+
+                # Check if M0 image is 4D and warn if so
+                if (
+                    self._m0_image is not None
+                    and len(self._m0_image.shape) > 3
+                ):
+                    warnings.warn('M0 image has more than 3 dimensions.')
+
                 if self._m0_image is not None:
                     log_data_info('M0 image', self._m0_image.shape, m0_path)
             elif isinstance(kwargs.get('m0'), np.ndarray):
                 self._m0_image = kwargs.get('m0')
                 logger.info('M0 image loaded as numpy array')
                 log_data_info('M0 image', self._m0_image.shape, 'numpy array')
+
+        if kwargs.get('average_m0', False):
+            self._m0_image = np.mean(self._m0_image, axis=0)
 
         self._parameters['ld'] = (
             [] if kwargs.get('ld_values') is None else kwargs.get('ld_values')
@@ -154,6 +169,11 @@ class ASLData:
                 self._m0_image = image
             elif spec == 'pcasl':
                 self._asl_image = image
+        else:
+            raise ValueError(
+                f'Invalid image type or path: {image}. '
+                'Please provide a valid file path or a numpy array.'
+            )
 
     def get_ld(self):
         """Obtain the LD array values"""
