@@ -1,11 +1,19 @@
 import os
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple, Union
 
 import ants
 import numpy as np
 import SimpleITK as sitk
 from rich import print
-from asltk.utils.image_statistics import analyze_image_properties
+
+from asltk.logging_config import get_logger
+from asltk.utils.image_statistics import (
+    analyze_image_properties,
+    calculate_mean_intensity,
+    calculate_snr,
+)
+
+logger = get_logger(__name__)
 
 # Set SimpleITK to use half of available CPU cores (at least 1)
 num_cores = max(1, os.cpu_count() // 4 if os.cpu_count() else 1)
@@ -314,6 +322,135 @@ def create_orientation_report(
         print(f'Report saved to: {output_path}')
 
     return report
+
+
+def select_reference_volume(
+    asl_data: Union['ASLData', list[np.ndarray]],
+    roi: np.ndarray = None,
+    method: str = 'snr',
+):
+    from asltk.asldata import ASLData  # <-- Add this import here
+
+    """
+    Select a reference volume from the ASL data based on a specified method.
+
+    Parameters
+    ----------
+    asl_data : ASLData
+        The ASL data object containing the image volumes.
+    roi : np.ndarray, optional
+        Region of interest mask to limit the analysis.
+    method : str
+        The method to use for selecting the reference volume. Options are:
+        - 'snr': Select the volume with the highest signal-to-noise ratio.
+        - 'mean': Select the volume with the highest mean signal intensity.
+
+    Returns
+    -------
+    tuple[np.ndarray, int]
+        A tuple informing the selected reference volume and its index in the ASL `pcasl` data.
+    """
+    if method not in ('snr', 'mean'):
+        raise ValueError(f'Invalid method: {method}')
+
+    if roi is not None:
+        if not isinstance(roi, np.ndarray):
+            raise TypeError('ROI must be a numpy array.')
+        if roi.ndim != 3:
+            raise ValueError('ROI must be a 3D array.')
+
+    if isinstance(asl_data, ASLData):
+        volumes, _ = collect_data_volumes(asl_data('pcasl'))
+    elif isinstance(asl_data, list) and all(
+        isinstance(vol, np.ndarray) for vol in asl_data
+    ):
+        volumes = asl_data
+    else:
+        raise TypeError(
+            'asl_data must be an ASLData object or a list of numpy arrays.'
+        )
+
+    if method == 'snr':
+        logger.info('Estimating maximum SNR from provided volumes...')
+        ref_volume, vol_idx = _estimate_max_snr(volumes, roi=roi)
+        logger.info(
+            f'Selected volume index: {vol_idx} with SNR: {calculate_snr(ref_volume):.2f}'
+        )
+
+    elif method == 'mean':
+        logger.info('Estimating maximum mean from provided volumes...')
+        ref_volume, vol_idx = _estimate_max_mean(volumes, roi=roi)
+        logger.info(
+            f'Selected volume index: {vol_idx} with mean: {ref_volume.mean():.2f}'
+        )
+    else:
+        raise ValueError(f'Unknown method: {method}')
+
+    return ref_volume, vol_idx
+
+
+def _estimate_max_snr(
+    volumes: List[np.ndarray], roi: np.ndarray = None
+) -> Tuple[np.ndarray, int]:   # pragma: no cover
+    """
+    Estimate the maximum SNR from a list of volumes.
+
+    Args:
+        volumes (List[np.ndarray]): A list of 3D numpy arrays representing the image volumes.
+
+    Raises:
+        TypeError: If any volume is not a numpy array.
+
+    Returns:
+        Tuple[np.ndarray, int]: The reference volume and its index.
+    """
+    max_snr_idx = 0
+    max_snr_value = 0
+    for idx, vol in enumerate(volumes):
+        if not isinstance(vol, np.ndarray):
+            logger.error(f'Volume at index {idx} is not a numpy array.')
+            raise TypeError('All volumes must be numpy arrays.')
+
+        snr_value = calculate_snr(vol, roi=roi)
+        if snr_value > max_snr_value:
+            max_snr_value = snr_value
+            max_snr_idx = idx
+
+    ref_volume = volumes[max_snr_idx]
+
+    return ref_volume, max_snr_idx
+
+
+def _estimate_max_mean(
+    volumes: List[np.ndarray], roi: np.ndarray = None
+) -> Tuple[np.ndarray, int]:
+    """
+    Estimate the maximum mean from a list of volumes.
+
+    Args:
+        volumes (List[np.ndarray]): A list of 3D numpy arrays representing the image volumes.
+
+    Raises:
+        TypeError: If any volume is not a numpy array.
+
+    Returns:
+        Tuple[np.ndarray, int]: The reference volume and its index.
+    """
+    max_mean_idx = 0
+    max_mean_value = 0
+    for idx, vol in enumerate(volumes):
+        if not isinstance(vol, np.ndarray):
+            logger.error(f'Volume at index {idx} is not a numpy array.')
+            raise TypeError('All volumes must be numpy arrays.')
+
+        mean_value = calculate_mean_intensity(vol, roi=roi)
+        if mean_value > max_mean_value:
+            max_mean_value = mean_value
+            max_mean_idx = idx
+
+    ref_volume = volumes[max_mean_idx]
+
+    return ref_volume, max_mean_idx
 
 
 def _analyze_anatomical_orientation(moving_image, fixed_image, verbose=False):
