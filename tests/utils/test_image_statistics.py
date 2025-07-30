@@ -5,6 +5,7 @@ import pytest
 
 from asltk.utils.image_statistics import (
     analyze_image_properties,
+    calculate_mean_intensity,
     calculate_snr,
 )
 from asltk.utils.io import load_image
@@ -52,6 +53,26 @@ def test_calculate_snr_returns_float(image_path):
     assert snr >= 0
 
 
+@pytest.mark.parametrize('image_path', [T1_MRI, PCASL_MTE, M0])
+def test_calculate_snr_returns_float_using_valid_roi(image_path):
+    """Test that calculate_snr returns a float for valid images."""
+    img = load_image(image_path)
+    roi = np.ones(img.shape, dtype=bool)  # Create a valid ROI
+    snr = calculate_snr(img, roi=roi)
+    assert isinstance(snr, float)
+    assert snr >= 0
+
+
+def test_calculate_snr_make_zero_division_with_same_image_input():
+    """Test that calculate_snr handles zero division with same image input."""
+    img = np.ones((10, 10, 10))  # Create a simple image
+    roi = np.ones(img.shape, dtype=bool)  # Create a valid ROI
+    snr = calculate_snr(img, roi=roi)
+
+    assert isinstance(snr, float)
+    assert snr == float('inf')  # SNR should be infinite for uniform image
+
+
 @pytest.mark.parametrize(
     'input', [np.zeros((10, 10)), np.ones((5, 5, 5)), np.full((3, 3), 7)]
 )
@@ -81,10 +102,7 @@ def test_calculate_snr_raise_error_roi_different_shape(image_path):
     with pytest.raises(ValueError) as error:
         calculate_snr(img, roi=roi)
 
-    assert (
-        'ROI must be smaller than or equal to image size in all dimensions'
-        in str(error.value)
-    )
+    assert 'ROI shape must match image shape' in str(error.value)
 
 
 @pytest.mark.parametrize('image_path', [T1_MRI, PCASL_MTE, M0])
@@ -96,3 +114,70 @@ def test_calculate_snr_raise_error_roi_not_numpy_array(image_path):
         calculate_snr(img, roi=roi)
 
     assert 'ROI must be a numpy array' in str(error.value)
+
+
+@pytest.mark.parametrize('image_path', [T1_MRI, PCASL_MTE, M0])
+def test_calculate_mean_intensity_returns_float(image_path):
+    """Test that calculate_mean_intensity returns a float for valid images."""
+    img = load_image(image_path)
+    mean_intensity = calculate_mean_intensity(img)
+    assert isinstance(mean_intensity, float)
+    assert mean_intensity >= 0
+
+
+@pytest.mark.parametrize('image_path', [T1_MRI, PCASL_MTE, M0])
+def test_calculate_mean_intensity_with_valid_roi(image_path):
+    """Test that calculate_mean_intensity returns a float for valid ROI."""
+    img = load_image(image_path)
+    roi = np.ones(img.shape, dtype=bool)
+    mean_intensity = calculate_mean_intensity(img, roi=roi)
+    assert isinstance(mean_intensity, float)
+    assert mean_intensity >= 0
+
+
+def test_calculate_mean_intensity_known_arrays():
+    """Test calculate_mean_intensity with known arrays."""
+    arr = np.ones((5, 5, 5))
+    mean_intensity = calculate_mean_intensity(arr)
+    assert mean_intensity == 1.0
+
+    arr = np.full((3, 3), 7)
+    mean_intensity = calculate_mean_intensity(arr)
+    assert mean_intensity == 7.0
+
+    arr = np.array([[1, 2], [3, 4]])
+    mean_intensity = calculate_mean_intensity(arr)
+    assert mean_intensity == 2.5
+
+
+def test_calculate_mean_intensity_with_roi_mask():
+    """Test calculate_mean_intensity with ROI mask."""
+    arr = np.array([[1, 2], [3, 4]])
+    roi = np.array([[0, 1], [1, 0]])
+    mean_intensity = calculate_mean_intensity(arr, roi=roi)
+    assert mean_intensity == 2.5  # mean of [2, 3]
+
+
+def test_calculate_mean_intensity_invalid_input():
+    """Test that calculate_mean_intensity raises an error for invalid input."""
+    with pytest.raises(ValueError) as error:
+        calculate_mean_intensity('invalid_input')
+    assert 'Input must be a numpy array' in str(error.value)
+
+
+def test_calculate_mean_intensity_roi_not_numpy_array():
+    """Test that calculate_mean_intensity raises an error for ROI not being a numpy array."""
+    arr = np.ones((5, 5))
+    roi = 'invalid_roi'
+    with pytest.raises(ValueError) as error:
+        calculate_mean_intensity(arr, roi=roi)
+    assert 'ROI must be a numpy array' in str(error.value)
+
+
+def test_calculate_mean_intensity_roi_shape_mismatch():
+    """Test that calculate_mean_intensity raises an error for ROI shape mismatch."""
+    arr = np.ones((5, 5))
+    roi = np.ones((4, 4), dtype=bool)
+    with pytest.raises(ValueError) as error:
+        calculate_mean_intensity(arr, roi=roi)
+    assert 'ROI shape must match image shape' in str(error.value)
