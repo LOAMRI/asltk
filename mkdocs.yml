@@ -44,6 +44,8 @@ nav:
   - 'getting_started.md'
   - 'examples/workflow_examples.md'
   - 'faq.md'
+  - 'api/data.md'
+  - 'api/reports.md'
   - 'api/asldata.md'
   - 'api/reconstruction.md'
   - 'api/utils.md'

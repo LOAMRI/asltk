@@ -6,7 +6,7 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import CBFMapping
-from asltk.utils import load_image
+from asltk.utils.io import load_image
 
 SEP = os.sep
 
@@ -117,7 +117,6 @@ def test_set_brain_mask_gives_binary_image_using_correct_label_value():
     assert np.min(cbf._brain_mask) == np.uint8(0)
 
 
-# def test_ TODO Teste se mask tem mesma dimensao que 3D asl
 def test_set_brain_mask_raise_error_if_image_dimension_is_different_from_3d_volume():
     cbf = CBFMapping(asldata_te)
     pcasl_3d_vol = load_image(PCASL_MTE)[0, 0, :, :, :]
