@@ -316,3 +316,11 @@ class ASLData:
                 'This may cause issues in processing. '
                 'Consider averaging the M0 image across the first dimension.'
             )
+
+    def _check_m0_dimension(self):
+        if len(self._m0_image.shape) > 3:
+            warnings.warn(
+                'M0 image has more than 3 dimensions. '
+                'This may cause issues in processing. '
+                'Consider averaging the M0 image across the first dimension.'
+            )
