@@ -13,7 +13,7 @@ from asltk.logging_config import (
     log_processing_step,
 )
 from asltk.reconstruction import MultiTE_ASLMapping
-from asltk.utils import load_image, save_image
+from asltk.utils.io import load_image, save_image
 
 parser = argparse.ArgumentParser(
     prog='Multi-TE ASL Mapping',

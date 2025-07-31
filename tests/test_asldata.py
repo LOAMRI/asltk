@@ -2,11 +2,9 @@ import os
 
 import numpy as np
 import pytest
-import SimpleITK as sitk
-
-from asltk.utils import load_image
 
 from asltk import asldata
+from asltk.utils.io import load_image, save_image
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -18,6 +16,19 @@ M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 def test_create_successfuly_asldata_object():
     obj = asldata.ASLData()
     assert isinstance(obj, asldata.ASLData)
+
+
+def test_asldata_object_shows_warning_if_m0_has_more_than_3D_dimensions(
+    tmp_path,
+):
+    tmp_file = tmp_path / 'temp_m0_4D.nii.gz'
+    # Create a 4D M0 image
+    m0_4d = np.stack([load_image(M0), load_image(M0), load_image(M0)], axis=0)
+    save_image(m0_4d, str(tmp_file))
+    with pytest.warns(Warning) as record:
+        obj = asldata.ASLData(m0=str(tmp_file))
+    assert len(record) == 1
+    assert 'M0 image has more than 3 dimensions.' in str(record[0].message)
 
 
 def test_create_successfuly_asldata_object_with_inputs():
@@ -78,17 +89,27 @@ def test_create_object_check_initial_parameters():
     assert obj.get_ld() == []
     assert obj.get_pld() == []
 
+
 def test_create_object_with_m0_as_numpy_array():
     array = load_image(M0)
     obj = asldata.ASLData(m0=array)
 
     assert obj('m0').shape == array.shape
 
+
+def test_create_object_with_m0_as_numpy_array():
+    array = load_image(M0)
+    obj = asldata.ASLData(m0=array)
+
+    assert obj('m0').shape == array.shape
+
+
 def test_create_object_with_pcasl_as_numpy_array():
     array = load_image(PCASL_MTE)
     obj = asldata.ASLData(pcasl=array)
 
     assert obj('pcasl').shape == array.shape
+
 
 def test_get_ld_show_empty_list_for_new_object():
     obj = asldata.ASLData()
@@ -274,3 +295,53 @@ def test_set_image_sucess_pcasl():
     obj = asldata.ASLData()
     obj.set_image(M0, 'pcasl')
     assert isinstance(obj('pcasl'), np.ndarray)
+
+
+@pytest.mark.parametrize(
+    'input',
+    [
+        ('not_a_valid_image'),
+        (123),
+        (None),
+        ({'key': 'value'}),
+        (['not', 'a', 'valid', 'image']),
+    ],
+)
+def test_set_image_raises_error_if_input_is_not_a_valid_image(input):
+    obj = asldata.ASLData()
+    with pytest.raises(Exception) as e:
+        obj.set_image(input, 'pcasl')
+
+    assert 'Invalid image type or path' in e.value.args[0]
+    assert e.type == ValueError
+
+
+def test_asldata_copy_creates_deepcopy():
+    obj = asldata.ASLData(
+        pcasl=PCASL_MTE,
+        ld_values=[1, 2, 3],
+        pld_values=[1, 2, 3],
+        te_values=[10, 20, 30],
+        dw_values=[100, 200, 300],
+    )
+    obj_copy = obj.copy()
+    assert isinstance(obj_copy, asldata.ASLData)
+    assert obj is not obj_copy
+    assert obj.get_ld() == obj_copy.get_ld()
+    assert obj.get_pld() == obj_copy.get_pld()
+    assert obj.get_te() == obj_copy.get_te()
+    assert obj.get_dw() == obj_copy.get_dw()
+    # Mutate original, copy should not change
+    obj.set_ld([9, 8, 7])
+    assert obj.get_ld() != obj_copy.get_ld()
+
+
+def test_asldata_len_returns_zero_for_no_image():
+    obj = asldata.ASLData()
+    assert len(obj) == 0
+
+
+def test_asldata_len_returns_total_volumes():
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    assert len(asl) == 56

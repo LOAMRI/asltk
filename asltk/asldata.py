@@ -1,9 +1,12 @@
+import copy
 import os
+import warnings
 
 import numpy as np
 
-from asltk.logging_config import get_logger, log_data_info
-from asltk.utils import load_image
+from asltk.logging_config import get_logger, log_data_info, log_function_call
+from asltk.utils.image_manipulation import collect_data_volumes
+from asltk.utils.io import load_image
 
 
 class ASLData:
@@ -13,21 +16,19 @@ class ASLData:
     ):
         """ASLData constructor
 
-        The basic data need to represent a ASL data is the full path to load
-        the image file, the Labeling Duration (LD) array and the Post-labeling
-        Delay (PLD) array. Is none of those information is passed, a null
-        ASLData object is created, which can be further been fed using the
-        get/set methods.
+        The basic data needed to represent ASL data are:
+        - The full path to load the image file
+        - The Labeling Duration (LD) array
+        - The Post-labeling Delay (PLD) array
 
-        The constructor is generic for classic ASL data and also for multi-TE
-        and Diffusion-Weighted (DW) ASL protocols. There is a specfic get/set
-        method for TE/DW data. If TE/DW is not provided, then it is assumed as
-        type `None` for those data properties. In order to informs the TE or DW
-        values in the object instance, you can use the tags `te_values` or
-        `dw_values` in the construction call
+        If none of these are provided, a null ASLData object is created, which can be further populated using the get/set methods.
+
+        The constructor supports classic ASL data, multi-TE, and Diffusion-Weighted (DW) ASL protocols.
+        There are specific get/set methods for TE/DW data. If TE/DW is not provided, those properties are set to `None`.
+        To provide TE or DW values, use the `te_values` or `dw_values` keyword arguments.
 
         Examples:
-            By default, the LD and PLD arrays are indicated (as empty lists)
+            By default, the LD and PLD arrays are empty lists.
 
             >>> data = ASLData()
             >>> data.get_ld()
@@ -35,21 +36,22 @@ class ASLData:
             >>> data.get_pld()
             []
 
-            >>> data = ASLData(te_values=[13.0,20.2,50.5,90.5,125.2])
+            >>> data = ASLData(te_values=[13.0, 20.2, 50.5, 90.5, 125.2])
             >>> data.get_te()
             [13.0, 20.2, 50.5, 90.5, 125.2]
 
-            >>> data = ASLData(dw_values=[13.0,20.2,50.5,90.5,125.2])
+            >>> data = ASLData(dw_values=[13.0, 20.2, 50.5, 90.5, 125.2])
             >>> data.get_dw()
             [13.0, 20.2, 50.5, 90.5, 125.2]
 
-        Other parameters: Set the ASL data parameters
+        Other parameters:
             pcasl (str, optional): The ASL data full path with filename. Defaults to ''.
             m0 (str, optional): The M0 data full path with filename. Defaults to ''.
             ld_values (list, optional): The LD values. Defaults to [].
             pld_values (list, optional): The PLD values. Defaults to [].
             te_values (list, optional): The TE values. Defaults to None.
             dw_values (list, optional): The DW values. Defaults to None.
+            average_m0 (bool, optional): If True, average the M0 image across the first dimension. This may be helpful for MRI acquisitions that collect an subset sample of M0 volumes and take the average of it. Defaults to False.
         """
         self._asl_image = None
         self._m0_image = None
@@ -69,23 +71,38 @@ class ASLData:
                 logger.info(f'Loading ASL image from: {pcasl_path}')
                 self._asl_image = load_image(pcasl_path)
                 if self._asl_image is not None:
-                    log_data_info('ASL image', self._asl_image.shape, pcasl_path)
+                    log_data_info(
+                        'ASL image', self._asl_image.shape, pcasl_path
+                    )
             elif isinstance(kwargs.get('pcasl'), np.ndarray):
                 self._asl_image = kwargs.get('pcasl')
                 logger.info('ASL image loaded as numpy array')
-                log_data_info('ASL image', self._asl_image.shape, 'numpy array')
+                log_data_info(
+                    'ASL image', self._asl_image.shape, 'numpy array'
+                )
 
         if kwargs.get('m0') is not None:
             if isinstance(kwargs.get('m0'), str):
                 m0_path = kwargs.get('m0')
                 logger.info(f'Loading M0 image from: {m0_path}')
                 self._m0_image = load_image(m0_path)
+
+                # Check if M0 image is 4D and warn if so
+                if (
+                    self._m0_image is not None
+                    and len(self._m0_image.shape) > 3
+                ):
+                    warnings.warn('M0 image has more than 3 dimensions.')
+
                 if self._m0_image is not None:
                     log_data_info('M0 image', self._m0_image.shape, m0_path)
             elif isinstance(kwargs.get('m0'), np.ndarray):
                 self._m0_image = kwargs.get('m0')
                 logger.info('M0 image loaded as numpy array')
                 log_data_info('M0 image', self._m0_image.shape, 'numpy array')
+
+        if kwargs.get('average_m0', False):
+            self._m0_image = np.mean(self._m0_image, axis=0)
 
         self._parameters['ld'] = (
             [] if kwargs.get('ld_values') is None else kwargs.get('ld_values')
@@ -152,6 +169,11 @@ class ASLData:
                 self._m0_image = image
             elif spec == 'pcasl':
                 self._asl_image = image
+        else:
+            raise ValueError(
+                f'Invalid image type or path: {image}. '
+                'Please provide a valid file path or a numpy array.'
+            )
 
     def get_ld(self):
         """Obtain the LD array values"""
@@ -225,6 +247,30 @@ class ASLData:
         self._check_input_parameter(dw_values, 'DW')
         self._parameters['dw'] = dw_values
 
+    def copy(self):
+        """
+        Make a copy of the ASLData object.
+        This method creates a deep copy of the ASLData object, including all
+        its attributes and data. It is useful when you want to preserve the
+        original object while working with a modified version.
+
+        Note:
+            This method uses `copy.deepcopy` to ensure that all nested objects
+            are also copied, preventing any unintended side effects from
+            modifying the original object.
+
+        Examples:
+            >>> data = ASLData(pcasl='./tests/files/t1-mri.nrrd')
+            >>> data_copy = data.copy()
+            >>> type(data_copy)
+            <class 'asltk.asldata.ASLData'>
+
+
+        Returns:
+            ASLData: A new instance of ASLData that is a deep copy of the original object.
+        """
+        return copy.deepcopy(self)
+
     def __call__(self, spec: str):
         """Object caller to expose the image data.
 
@@ -243,6 +289,20 @@ class ASLData:
             return self._asl_image
         elif spec == 'm0':
             return self._m0_image
+
+    def __len__(self):
+        """Return the number of volumes in the ASL data.
+
+        This method returns the number of volumes in the ASL data based on
+        the pCASL image format.
+
+        Returns:
+            int: The number of volumes in the ASL data considering the `pcasl` data.
+        """
+        if self._asl_image is not None:
+            return len(collect_data_volumes(self._asl_image)[0])
+        else:
+            return 0
 
     def _check_input_parameter(self, values, param_type):
         for v in values:
@@ -264,4 +324,12 @@ class ASLData:
         else:
             logger.debug(
                 f'LD and PLD size validation passed: {len(ld)} elements each'
+            )
+
+    def _check_m0_dimension(self):
+        if len(self._m0_image.shape) > 3:
+            warnings.warn(
+                'M0 image has more than 3 dimensions. '
+                'This may cause issues in processing. '
+                'Consider averaging the M0 image across the first dimension.'
             )

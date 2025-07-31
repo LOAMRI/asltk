@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import CBFMapping
-from asltk.utils import load_image, save_image
+from asltk.utils.io import load_image, save_image
 
 parser = argparse.ArgumentParser(
     prog='CBF/ATT Mapping',

@@ -7,7 +7,7 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import CBFMapping, MultiTE_ASLMapping
-from asltk.utils import load_image
+from asltk.utils.io import load_image
 
 SEP = os.sep
 

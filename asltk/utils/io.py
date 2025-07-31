@@ -9,59 +9,13 @@ from bids import BIDSLayout
 from asltk import AVAILABLE_IMAGE_FORMATS, BIDS_IMAGE_FORMATS
 
 
-def _check_input_path(full_path: str):
-    if not os.path.exists(full_path):
-        raise FileNotFoundError(f'The file {full_path} does not exist.')
-
-
-def _get_file_from_folder_layout(
-    full_path: str,
-    subject: str = None,
-    session: str = None,
-    modality: str = None,
-    suffix: str = None,
-):
-    selected_file = None
-    layout = BIDSLayout(full_path)
-    if all(param is None for param in [subject, session, modality, suffix]):
-        for root, _, files in os.walk(full_path):
-            for file in files:
-                if '_asl' in file and file.endswith(BIDS_IMAGE_FORMATS):
-                    selected_file = os.path.join(root, file)
-    else:
-        layout_files = layout.files.keys()
-        matching_files = []
-        for f in layout_files:
-            search_pattern = ''
-            if subject:
-                search_pattern = f'*sub-*{subject}*'
-            if session:
-                search_pattern += search_pattern + f'*ses-*{session}'
-            if modality:
-                search_pattern += search_pattern + f'*{modality}*'
-            if suffix:
-                search_pattern += search_pattern + f'*{suffix}*'
-
-            if fnmatch.fnmatch(f, search_pattern) and f.endswith(
-                BIDS_IMAGE_FORMATS
-            ):
-                matching_files.append(f)
-
-        if not matching_files:
-            raise FileNotFoundError(
-                f'ASL image file is missing for subject {subject} in directory {full_path}'
-            )
-        selected_file = matching_files[0]
-
-    return selected_file
-
-
 def load_image(
     full_path: str,
     subject: str = None,
     session: str = None,
     modality: str = None,
     suffix: str = None,
+    **kwargs,
 ):
     """
     Load an image file from a BIDS directory or file using the SimpleITK API.
@@ -121,19 +75,25 @@ def load_image(
         numpy.ndarray: The loaded image array.
     """
     _check_input_path(full_path)
+    img = None
 
     if full_path.endswith(AVAILABLE_IMAGE_FORMATS):
         # If the full path is a file, then load the image directly
-        img = sitk.ReadImage(full_path)
-        return sitk.GetArrayFromImage(img)
+        img = sitk.GetArrayFromImage(sitk.ReadImage(full_path))
+    else:
+        # If the full path is a directory, then use BIDSLayout to find the file
+        selected_file = _get_file_from_folder_layout(
+            full_path, subject, session, modality, suffix
+        )
+        img = sitk.GetArrayFromImage(sitk.ReadImage(selected_file))
 
-    # Check if the full path is a directory using BIDS structure
-    selected_file = _get_file_from_folder_layout(
-        full_path, subject, session, modality, suffix
-    )
+    # Check if there are additional parameters
+    if kwargs.get('average_m0', False):
+        # If average_m0 is True, then average the M0 image
+        if img.ndim > 3:
+            img = np.mean(img, axis=0)
 
-    img = sitk.ReadImage(selected_file)
-    return sitk.GetArrayFromImage(img)
+    return img
 
 
 def _make_bids_path(
@@ -306,85 +266,48 @@ def load_asl_data(fullpath: str):
     return dill.load(open(fullpath, 'rb'))
 
 
-def collect_data_volumes(data: np.ndarray):
-    """
-    Collect the data volumes from a higher dimension array.
+def _check_input_path(full_path: str):
+    if not os.path.exists(full_path):
+        raise FileNotFoundError(f'The file {full_path} does not exist.')
 
-    This method is used to collect the data volumes from a higher dimension
-    array. The method works with 4D or 5D arrays, where the volumes are
-    separated along the higher dimensions. The method will collect the volumes
-    and return a list of 3D arrays.
 
-    Note:
-        If the input is already 3D, the function returns a list with a single volume (the input itself).
-        For 4D or 5D arrays with singleton dimensions, the output list will contain all possible 3D volumes, even if some are identical or empty.
+def _get_file_from_folder_layout(
+    full_path: str,
+    subject: str = None,
+    session: str = None,
+    modality: str = None,
+    suffix: str = None,
+):
+    selected_file = None
+    layout = BIDSLayout(full_path)
+    if all(param is None for param in [subject, session, modality, suffix]):
+        for root, _, files in os.walk(full_path):
+            for file in files:
+                if '_asl' in file and file.endswith(BIDS_IMAGE_FORMATS):
+                    selected_file = os.path.join(root, file)
+    else:
+        layout_files = layout.files.keys()
+        matching_files = []
+        for f in layout_files:
+            search_pattern = ''
+            if subject:
+                search_pattern = f'*sub-*{subject}*'
+            if session:
+                search_pattern += search_pattern + f'*ses-*{session}'
+            if modality:
+                search_pattern += search_pattern + f'*{modality}*'
+            if suffix:
+                search_pattern += search_pattern + f'*{suffix}*'
 
-    The method is useful when you want to:
-    - Apply filters to each volume separately
-    - Process multi-echo or multi-b-value ASL data
-    - Separate time series data into individual volumes
-    - Prepare data for volume-wise analysis
+            if fnmatch.fnmatch(f, search_pattern) and f.endswith(
+                BIDS_IMAGE_FORMATS
+            ):
+                matching_files.append(f)
 
-    Args:
-        data (np.ndarray): The data to be separated. Must be at least 3D.
+        if not matching_files:
+            raise FileNotFoundError(
+                f'ASL image file is missing for subject {subject} in directory {full_path}'
+            )
+        selected_file = matching_files[0]
 
-    Returns:
-        tuple: A tuple containing:
-            - list: A list of 3D arrays, each one representing a volume.
-            - tuple: The original shape of the data.
-
-    Examples:
-        Separate 4D ASL data into individual volumes:
-        >>> from asltk.asldata import ASLData
-        >>> asl_data = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz')
-        >>> pcasl_4d = asl_data('pcasl')
-        >>> volumes, original_shape = collect_data_volumes(pcasl_4d)
-        >>> len(volumes)  # Number of volumes
-        56
-        >>> volumes[0].shape  # Shape of each volume
-        (5, 35, 35)
-        >>> original_shape  # Original 5D shape
-        (8, 7, 5, 35, 35)
-
-        Process each volume separately:
-        >>> volumes, shape = collect_data_volumes(pcasl_4d)
-        >>> # Apply processing to first volume
-        >>> processed_vol = volumes[0] * 1.5  # Example processing
-        >>> processed_vol.shape
-        (5, 35, 35)
-
-        Work with 3D data (single volume):
-        >>> import numpy as np
-        >>> single_vol = np.random.rand(10, 20, 30)
-        >>> volumes, shape = collect_data_volumes(single_vol)
-        >>> len(volumes)
-        1
-        >>> volumes[0].shape
-        (10, 20, 30)
-
-        Edge case: 4D with singleton dimension
-        >>> arr = np.random.rand(1, 10, 20, 30)
-        >>> vols, shape = collect_data_volumes(arr)
-        >>> len(vols)
-        1
-        >>> vols[0].shape
-        (10, 20, 30)
-
-    Raises:
-        TypeError: If data is not a numpy array.
-        ValueError: If data has less than 3 dimensions.
-    """
-    if not isinstance(data, np.ndarray):
-        raise TypeError('data is not a numpy array.')
-
-    if data.ndim < 3:
-        raise ValueError('data is a 3D volume or higher dimensions')
-
-    volumes = []
-    # Calculate the number of volumes by multiplying all dimensions except the last three
-    num_volumes = int(np.prod(data.shape[:-3]))
-    reshaped_data = data.reshape((int(num_volumes),) + data.shape[-3:])
-    for i in range(num_volumes):
-        volumes.append(reshaped_data[i])
-
-    return volumes, data.shape
+    return selected_file
