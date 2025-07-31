@@ -45,3 +45,20 @@ Thank you all the special people that invested their time and knowledge to impro
 We appreciate if one or more of the following references can be added in your projects due to the usage of `asltk` outcomes.
 
 * Paper 1
+
+## Quick Assistance
+
+Need help with basic ASL data processing?
+
+Check out our new guide:  
+[QUICK ASSISTANCE](docs/quick_assistance.md)
+
+It includes ready-to-use code for:
+- Loading/saving ASL images
+- Changing PLD/LD parameters
+- Creating CBF maps
+- Generating T1-BLG mappings
+- Logging and debugging
+
+Perfect for beginners or quick reference during prototyping.
+
