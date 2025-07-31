@@ -245,9 +245,9 @@ def check_and_fix_orientation(
         print(f'Original correlation: {original_corr:.4f}')
         print(f'Corrected correlation: {corrected_corr:.4f}')
         if corrected_corr > original_corr:
-            print('✓ Orientation correction improved alignment')
+            print('Orientation correction improved alignment')
         else:
-            print('⚠ Orientation correction may not have improved alignment')
+            print('Orientation correction may not have improved alignment')
 
     return corrected_moving, orientation_transform
 
@@ -329,7 +329,7 @@ def select_reference_volume(
     roi: np.ndarray = None,
     method: str = 'snr',
 ):
-    from asltk.asldata import ASLData  # <-- Add this import here
+    from asltk.asldata import ASLData
 
     """
     Select a reference volume from the ASL data based on a specified method.
