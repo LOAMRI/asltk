@@ -42,7 +42,7 @@ blue = "^0.9.1"
 isort = "^5.13.2"
 taskipy = "^1.13.0"
 pytest-mock = "^3.14.1"
-
+bump2version = "^1.0.1"
 
 [tool.poetry.group.doc.dependencies]
 mkdocs-material = "^9.5.34"
@@ -53,6 +53,16 @@ pymdown-extensions = "^10.11.2"
 [tool.pytest.ini_options]
 pythonpath = "."
 addopts = "--doctest-modules"
+
+[tool.bumpversion]
+current_version = "0.6.0"
+commit = true
+tag = true
+tag_name = v{new_version}
+
+[tool.bumpversion.file."pyproject.toml"]
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
 
 [tool.isort]
 profile = "black"
