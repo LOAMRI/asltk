@@ -345,3 +345,38 @@ def test_asldata_len_returns_total_volumes():
     asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
 
     assert len(asl) == 56
+
+@pytest.mark.parametrize(
+    'input_ld,input_pld,input_te',
+    [
+        ([100.0, 150.0], [200.0, 300.0], [10.0, 20.0]),
+        ([100.0, 150.0, 200.0], [200.0, 300.0, 400.0], [10.0, 20.0, 30.0]),
+        ([100.0, 150.0], [200.0, 300.0], [10.0, 20.0, 30.0]),
+    ]
+)
+def test_asldata_input_ld_pld_te_as_lists(input_ld, input_pld, input_te):
+    asl_data = asldata.ASLData(
+        pcasl=PCASL_MTE,
+        m0=M0,
+        ld_values=input_ld,
+        pld_values=input_pld,
+        te_values=input_te
+    )
+    assert asl_data.get_ld() == input_ld
+    assert asl_data.get_pld() == input_pld
+    assert asl_data.get_te() == input_te
+
+def test_asldata_input_ld_pld_te_as_parameters():
+    ld_values=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+    pld_values=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+    te_values=[13.56, 67.82, 122.08, 176.33, 230.59, 284.84, 339.100, 393.36],
+    asl_data = asldata.ASLData(
+        pcasl=PCASL_MTE,
+        m0=M0,
+        ld_values=ld_values,
+        pld_values=pld_values,
+        te_values=te_values
+    )
+    assert asl_data.get_ld() == ld_values
+    assert asl_data.get_pld() == pld_values
+    assert asl_data.get_te() == te_values
