@@ -4,6 +4,24 @@ import numpy as np
 
 
 def _check_mask_values(mask, label, ref_shape):
+    """Validate mask array for brain mask processing.
+
+    This function performs comprehensive validation of brain mask data to ensure
+    it meets the requirements for ASL processing. It checks data type, binary
+    format compliance, label presence, and dimensional compatibility.
+
+    Args:
+        mask (np.ndarray): The brain mask image to validate.
+        label (int or float): The label value to search for in the mask.
+        ref_shape (tuple): The reference shape that the mask should match.
+
+    Raises:
+        TypeError: If mask is not a numpy array or dimensions don't match.
+        ValueError: If the specified label value is not found in the mask.
+
+    Warnings:
+        UserWarning: If mask contains more than 2 unique values (not strictly binary).
+    """
     # Check wheter mask input is an numpy array
     if not isinstance(mask, np.ndarray):
         raise TypeError(f'mask is not an numpy array. Type {type(mask)}')

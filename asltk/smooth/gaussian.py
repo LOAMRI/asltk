@@ -9,7 +9,7 @@ from asltk.utils import collect_data_volumes
 def isotropic_gaussian(data, sigma: float = 1.0):
     """Smooth the data using a isotropic Gaussian kernel.
 
-    This method assumes that the same kernal size will be applied over all the
+    This method assumes that the same kernel size will be applied over all the
     volume dimension. The method uses the `SimpleITK` library to apply the
     smoothing.
 
@@ -21,7 +21,7 @@ def isotropic_gaussian(data, sigma: float = 1.0):
     Important:
         The kernel size, given by the sigma value, is referred to number of
         voxels considered to apply the smoothing. Therefore, when the voxel
-        resolution is low (tipically for ASL data is around 3-4 mm), the sigma
+        resolution is low (typically for ASL data is around 3-4 mm), the sigma
         value should be around 0.5-2, depending on the desired smoothing effect.
 
     Parameters

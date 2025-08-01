@@ -13,16 +13,16 @@ class ASLData:
     ):
         """ASLData constructor
 
-        The basic data need to represent a ASL data is the full path to load
+        The basic data needed to represent ASL data is the full path to load
         the image file, the Labeling Duration (LD) array and the Post-labeling
-        Delay (PLD) array. Is none of those information is passed, a null
-        ASLData object is created, which can be further been fed using the
+        Delay (PLD) array. If none of this information is passed, a null
+        ASLData object is created, which can be further fed using the
         get/set methods.
 
         The constructor is generic for classic ASL data and also for multi-TE
-        and Diffusion-Weighted (DW) ASL protocols. There is a specfic get/set
+        and Diffusion-Weighted (DW) ASL protocols. There is a specific get/set
         method for TE/DW data. If TE/DW is not provided, then it is assumed as
-        type `None` for those data properties. In order to informs the TE or DW
+        type `None` for those data properties. In order to specify the TE or DW
         values in the object instance, you can use the tags `te_values` or
         `dw_values` in the construction call
 
@@ -83,9 +83,9 @@ class ASLData:
             self._parameters['dw'] = kwargs.get('dw_values')
 
     def set_image(self, image, spec: str):
-        """Insert a image necessary to define de ASL data processing.
+        """Insert an image necessary to define the ASL data processing.
 
-        The `spec` parameters specifies what is the type of image to be used in
+        The `spec` parameter specifies what is the type of image to be used in
         ASL processing step. Choose one of the options: `m0` for the M0 volume,
         `pcasl` for the pCASL data.
 

@@ -10,6 +10,14 @@ from asltk import AVAILABLE_IMAGE_FORMATS, BIDS_IMAGE_FORMATS
 
 
 def _check_input_path(full_path: str):
+    """Validate that the provided path exists.
+
+    Args:
+        full_path (str): The file or directory path to validate.
+
+    Raises:
+        FileNotFoundError: If the specified path does not exist.
+    """
     if not os.path.exists(full_path):
         raise FileNotFoundError(f'The file {full_path} does not exist.')
 
@@ -21,6 +29,25 @@ def _get_file_from_folder_layout(
     modality: str = None,
     suffix: str = None,
 ):
+    """Find and return the appropriate file from a BIDS directory structure.
+
+    This function searches for files in a BIDS-compliant directory structure
+    based on the provided parameters. If no parameters are specified, it looks
+    for the first ASL file found.
+
+    Args:
+        full_path (str): Path to the BIDS root directory.
+        subject (str, optional): Subject identifier to search for.
+        session (str, optional): Session identifier to search for.
+        modality (str, optional): Modality to search for.
+        suffix (str, optional): File suffix to search for.
+
+    Returns:
+        str: Path to the selected file that matches the criteria.
+
+    Raises:
+        FileNotFoundError: If no matching ASL image file is found.
+    """
     selected_file = None
     layout = BIDSLayout(full_path)
     if all(param is None for param in [subject, session, modality, suffix]):
@@ -165,6 +192,24 @@ def load_image(
 def _make_bids_path(
     bids_root, subject, session=None, suffix='asl', extension='.nii.gz'
 ):
+    """Generate a BIDS-compliant file path for saving data.
+
+    This function creates a file path that follows the BIDS (Brain Imaging Data
+    Structure) naming convention and directory structure.
+
+    Args:
+        bids_root (str): Root directory for the BIDS dataset.
+        subject (str): Subject identifier.
+        session (str, optional): Session identifier. Defaults to None.
+        suffix (str, optional): File suffix. Defaults to 'asl'.
+        extension (str, optional): File extension. Defaults to '.nii.gz'.
+
+    Returns:
+        str: Complete BIDS-compliant file path.
+
+    Note:
+        This function creates the necessary directories if they don't exist.
+    """
     subj_dir = f'sub-{subject}'
     ses_dir = f'ses-{session}' if session else None
     modality_dir = 'asl'

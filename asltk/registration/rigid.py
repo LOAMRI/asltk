@@ -24,6 +24,8 @@ def rigid_body_registration(
         fixed_image (np.ndarray): The fixed image as the reference space.
         moving_image (np.ndarray): The moving image to be registered.
         interpolator (sitk.Interpolator, optional): The interpolation method used in the registration process. Defaults to sitk.sitkLinear.
+        iterations (int, optional): Maximum number of optimization iterations. Defaults to 5000.
+        converge_min (float, optional): Minimum convergence value to stop optimization. Defaults to 1e-8.
 
     Raises:
         Exception: fixed_image and moving_image must be a numpy array.
