@@ -25,6 +25,12 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
+      - name: Set up Kaggle API credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+      
       - name: Install Poetry
         run: pip install poetry
 
@@ -62,6 +68,12 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
+      - name: Set up Kaggle API credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
       - name: Install Poetry
         run: pip install poetry
 
@@ -90,11 +102,19 @@ jobs:
       - name: Clone repo
         uses: actions/checkout@v4.2.0
 
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'  
+          python-version: ${{ matrix.python-version }}  
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Set up Kaggle API credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
 
       - name: Install Poetry
         run: pip install poetry
