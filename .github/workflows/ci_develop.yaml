@@ -73,7 +73,7 @@ jobs:
         run: |
           if (-not (Test-Path "$env:USERPROFILE\.kaggle")) { New-Item -Path "$env:USERPROFILE\.kaggle" -ItemType Directory }
           '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' | Out-File -FilePath "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding ascii
-          icacls "$env:USERPROFILE\.kaggle\kaggle.json" /grant:r "$env:USERNAME:RW" /inheritance:r
+          icacls "$env:USERPROFILE\.kaggle\kaggle.json" /grant:r "$env:USERNAME:(R,W)" /inheritance:r
         shell: pwsh
 
       - name: Install Poetry
