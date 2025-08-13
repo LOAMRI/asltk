@@ -71,9 +71,10 @@ jobs:
 
       - name: Set up Kaggle API credentials
         run: |
-          mkdir -p ~/.kaggle
-          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
-          chmod 600 ~/.kaggle/kaggle.json
+          if (-not (Test-Path "$env:USERPROFILE\.kaggle")) { New-Item -Path "$env:USERPROFILE\.kaggle" -ItemType Directory }
+          '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' | Out-File -FilePath "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding ascii
+          icacls "$env:USERPROFILE\.kaggle\kaggle.json" /grant:r "$env:USERNAME:(R,W)" /inheritance:r
+        shell: pwsh
 
       - name: Install Poetry
         run: pip install poetry
