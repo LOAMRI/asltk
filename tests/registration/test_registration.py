@@ -133,13 +133,7 @@ def test_rigid_body_registration_raise_exception_if_template_mask_not_numpy():
 
 
 def test_space_normalization_success():
-    # pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
-    # TODO Debug usando imagem inteira DEPOIS REMOVER
-    pcasl_orig = ASLData(
-        pcasl='/home/antonio/Imagens/loamri-samples/20240909/pcasl.nii.gz',
-        m0='/home/antonio/Imagens/loamri-samples/20240909/m0.nii.gz',
-        average_m0=True,
-    )
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
 
     normalized_image, transform = space_normalization(
         pcasl_orig('m0'),
