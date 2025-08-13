@@ -1,0 +1,57 @@
+name: Release & Publish to PyPI
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      bump_type:
+        description: "Version bump type (patch, minor, major)"
+        required: true
+        default: "patch"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate bump_type input
+        run: |
+          if [[ ! "${{ github.event.inputs.bump_type }}" =~ ^(patch|minor|major)$ ]]; then
+            echo "Invalid bump_type: ${{ github.event.inputs.bump_type }}. Must be one of: patch, minor, major."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install bumpversion
+        run: pip install bump2version
+
+      - name: Install project dependencies
+        run: poetry install
+
+      - name: Bump version
+        run: |
+          bump2version ${{ github.event.inputs.bump_type }}
+
+      - name: Push version bump and tags to repo
+        run: |
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git push
+            git push --tags
+
+      - name: Build package
+        run: poetry build
+
+      - name: Publish to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        run: poetry publish

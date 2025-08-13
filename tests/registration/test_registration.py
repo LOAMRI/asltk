@@ -160,6 +160,19 @@ def test_space_normalization_success_transform_type_Affine():
     assert len(transform) == 1
 
 
+def test_space_normalization_success_transform_type_Affine():
+    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    # Use the ASLData object directly
+    normalized_image, transform = space_normalization(
+        pcasl_orig('m0'), template_image='MNI2009', transform_type='Affine'
+    )
+
+    assert isinstance(normalized_image, np.ndarray)
+    assert normalized_image.shape == (182, 218, 182)
+    assert len(transform) == 1
+
+
 def test_space_normalization_raise_exception_if_fixed_image_not_numpy():
     with pytest.raises(Exception) as e:
         space_normalization('invalid_image', template_image='MNI2009')
