@@ -26,6 +26,12 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
+      - name: Set up Kaggle API credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
       - name: Install Poetry
         run: pip install poetry
 
@@ -63,6 +69,21 @@ jobs:
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
 
+      - name: Set up Kaggle API credentials
+        run: |
+          # Create directory if it doesn't exist
+          New-Item -Path "$env:USERPROFILE\.kaggle" -ItemType Directory -Force
+          
+          # Create credentials JSON file
+          $credentials = @{
+              username = "${{ secrets.KAGGLE_USERNAME }}"
+              key = "${{ secrets.KAGGLE_KEY }}"
+          }
+          
+          # Convert to JSON and save
+          $credentials | ConvertTo-Json -Compress | Set-Content -Path "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding ASCII
+        shell: pwsh
+
       - name: Install Poetry
         run: pip install poetry
 
@@ -91,11 +112,19 @@ jobs:
       - name: Clone repo
         uses: actions/checkout@v4.2.0
 
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'  
+          python-version: ${{ matrix.python-version }} 
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Set up Kaggle API credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
 
       - name: Install Poetry
         run: pip install poetry
