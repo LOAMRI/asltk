@@ -20,8 +20,10 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout code
+      - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          ref: main  # Ensure we are on the main branch
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -44,4 +44,4 @@ Thank you all the special people that invested their time and knowledge to impro
 
 We appreciate if one or more of the following references can be added in your projects due to the usage of `asltk` outcomes.
 
-* Paper 1
+* Senra Filho, A.C.; Paschoal, A. M. "Open-Source Multi-Echo (TE) MRI Tool for Arterial Spin Labelling Imaging Protocols". ISMRM Brazilian Chapter, 2025.
