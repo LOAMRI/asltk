@@ -111,7 +111,7 @@ def test_get_atlas_url_raise_error_when_atlas_name_does_not_exist():
         'HA2003',
         'JHA2005',
         'LGPHCC2022',
-        'AAT2022'
+        'AAT2022',
     ],
 )
 def test_brain_atlas_creation_with_various_names(atlas_name):

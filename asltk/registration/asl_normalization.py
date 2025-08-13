@@ -4,8 +4,6 @@ from rich.progress import Progress
 
 from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
-from asltk.asldata import ASLData
-from asltk.data.brain_atlas import BrainAtlas
 from asltk.registration import (
     apply_transformation,
     rigid_body_registration,

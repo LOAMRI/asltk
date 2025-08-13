@@ -8,6 +8,7 @@ from asltk.logging_config import get_logger
 from asltk.utils.image_manipulation import check_and_fix_orientation
 from asltk.utils.io import load_image
 
+
 # TODO Montar classe para fazer o coregistro de ASL
 class ASLRegistration:
 
