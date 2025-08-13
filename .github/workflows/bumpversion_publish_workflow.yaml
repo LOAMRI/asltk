@@ -13,6 +13,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Validate bump_type input
+        run: |
+          if [[ ! "${{ github.event.inputs.bump_type }}" =~ ^(patch|minor|major)$ ]]; then
+            echo "Invalid bump_type: ${{ github.event.inputs.bump_type }}. Must be one of: patch, minor, major."
+            exit 1
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
