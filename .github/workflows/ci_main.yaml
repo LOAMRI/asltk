@@ -70,9 +70,17 @@ jobs:
 
       - name: Set up Kaggle API credentials
         run: |
-          if (-not (Test-Path "$env:USERPROFILE\.kaggle")) { New-Item -Path "$env:USERPROFILE\.kaggle" -ItemType Directory }
-          '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' | Out-File -FilePath "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding ascii
-          icacls "$env:USERPROFILE\.kaggle\kaggle.json" /grant:r "$env:USERNAME:(R,W)" /inheritance:r
+          # Create directory if it doesn't exist
+          New-Item -Path "$env:USERPROFILE\.kaggle" -ItemType Directory -Force
+          
+          # Create credentials JSON file
+          $credentials = @{
+              username = "${{ secrets.KAGGLE_USERNAME }}"
+              key = "${{ secrets.KAGGLE_KEY }}"
+          }
+          
+          # Convert to JSON and save
+          $credentials | ConvertTo-Json -Compress | Set-Content -Path "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding ASCII
         shell: pwsh
 
       - name: Install Poetry
