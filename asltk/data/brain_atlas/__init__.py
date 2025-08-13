@@ -22,6 +22,7 @@ class BrainAtlas:
             atlas_name (str, optional):  The name of the atlas to be used. Defaults to 'MNI2009'.
         """
         self._chosen_atlas = None
+        self._resolution = '2mm'  # Default resolution
         self.set_atlas(atlas_name)
 
     def set_atlas(self, atlas_name: str):
@@ -145,6 +146,9 @@ class BrainAtlas:
         Returns:
             str: The filename of the T1-weighted image data.
         """
+
+        # TODO colocar a busca com padrão T1_resolution
+        # TODO corrigir para todos os templates mostrarem esse padrão
         t1_file = next((f for f in os.listdir(path) if '_t1' in f), None)
         if t1_file is None:
             raise ValueError(
@@ -161,6 +165,8 @@ class BrainAtlas:
         Returns:
             str: The filename of the label file.
         """
+        # TODO colocar a busca com padrão label_resolution
+        # TODO corrigir para todos os templates mostrarem esse padrão
         label_file = next((f for f in os.listdir(path) if '_label' in f), None)
         if label_file is None:
             raise ValueError(
