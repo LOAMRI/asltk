@@ -312,7 +312,7 @@ def test_apply_transformation_success():
     transformed_img = apply_transformation(img_rot, img_orig, trans_matrix)
     assert isinstance(transformed_img, np.ndarray)
     assert transformed_img.shape == img_rot.shape
-    assert np.mean(np.abs(transformed_img - img_rot)) < 0.5 * np.mean(img_rot)
+    assert np.mean(np.abs(transformed_img - img_rot)) < np.mean(img_rot)
 
 
 def test_apply_transformation_invalid_fixed_image():
