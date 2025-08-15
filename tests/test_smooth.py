@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from asltk.smooth.gaussian import isotropic_gaussian
+from asltk.smooth.median import isotropic_median
 from asltk.utils.io import load_image
 
 SEP = os.sep

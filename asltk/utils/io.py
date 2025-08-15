@@ -44,18 +44,31 @@ def load_image(
         suffix (str, optional): Suffix of the file to load. Defaults to None.
 
     Examples:
+        Load a single image file directly:
+        >>> data = load_image("./tests/files/pcasl_mte.nii.gz")
+        >>> type(data)
+        <class 'numpy.ndarray'>
+        >>> data.shape  # Example: 5D ASL data
+        (8, 7, 5, 35, 35)
+
+        Load M0 reference image:
+        >>> m0_data = load_image("./tests/files/m0.nii.gz")
+        >>> m0_data.shape  # Example: 3D reference image
+        (5, 35, 35)
+
+        Load from BIDS directory (automatic detection):
         >>> data = load_image("./tests/files/bids-example/asl001")
         >>> type(data)
         <class 'numpy.ndarray'>
 
-        In this form the input data is a BIDS directory. It all the BIDS
-        parameters are kept as `None`, then the method will search for the
-        first image that is an ASL image.
-
-        One can choose to load a determined BIDS data using more deatail, such
-        as the subject, session, modality and suffix:
-        >>> data = load_image("./tests/files/bids-example/asl001", subject='103', suffix='asl')
+        Load specific BIDS data with detailed parameters:
+        >>> data = load_image("./tests/files/bids-example/asl001", subject='Sub103', suffix='asl')
         >>> type(data)
+        <class 'numpy.ndarray'>
+
+        # Load NRRD format
+        >>> nrrd_data = load_image("./tests/files/t1-mri.nrrd")
+        >>> type(nrrd_data)
         <class 'numpy.ndarray'>
 
     Returns:
@@ -83,20 +96,98 @@ def load_image(
     return img
 
 
-def save_image(img: np.ndarray, full_path: str):
-    """Save image to a file path.
+def _make_bids_path(
+    bids_root, subject, session=None, suffix='asl', extension='.nii.gz'
+):
+    subj_dir = f'sub-{subject}'
+    ses_dir = f'ses-{session}' if session else None
+    modality_dir = 'asl'
 
-    All the available image formats provided in the SimpleITK API can be
-    used here.
+    if ses_dir:
+        out_dir = os.path.join(bids_root, subj_dir, ses_dir, modality_dir)
+    else:
+        out_dir = os.path.join(bids_root, subj_dir, modality_dir)
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    filename = f'sub-{subject}'
+    if session:
+        filename += f'_ses-{session}'
+    filename += f'_{suffix}{extension}'
+
+    return os.path.join(out_dir, filename)
+
+
+def save_image(
+    img: np.ndarray,
+    full_path: str = None,
+    *,
+    bids_root: str = None,
+    subject: str = None,
+    session: str = None,
+):
+    """
+    Save an image to a file path using SimpleITK.
+
+    All available image formats provided in the SimpleITK API can be used here. Supported formats include: .nii, .nii.gz, .nrrd, .mha, .tif, and others.
+
+    Note:
+        If the file extension is not recognized by SimpleITK, an error will be raised.
+        The input array should be 2D, 3D, or 4D. For 4D arrays, only the first volume may be saved unless handled explicitly.
 
     Args:
+        img (np.ndarray): The image array to be saved. Can be 2D, 3D, or 4D.
         full_path (str): Full absolute path with image file name provided.
+        bids_root (str): Optional BIDS root directory to save in BIDS structure.
+        subject (str): Subject ID for BIDS saving.
+        session (str): Optional session ID for BIDS saving.
+
+    Examples:
+        Save an image using a direct file path:
+        >>> import tempfile
+        >>> import numpy as np
+        >>> img = np.random.rand(10, 10, 10)
+        >>> with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
+        ...     save_image(img, f.name)
+
+        Save an image using BIDS structure:
+        >>> import tempfile
+        >>> img = np.random.rand(10, 10, 10)
+        >>> with tempfile.TemporaryDirectory() as temp_dir:
+        ...     save_image(img, bids_root=temp_dir, subject='001', session='01')
+
+        Save processed ASL results:
+        >>> from asltk.asldata import ASLData
+        >>> asl_data = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz')
+        >>> processed_img = asl_data('pcasl')[0]  # Get first volume
+        >>> import tempfile
+        >>> with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
+        ...     save_image(processed_img, f.name)
+
+    Raises:
+        ValueError: If neither full_path nor (bids_root + subject) are provided.
+        RuntimeError: If the file extension is not recognized by SimpleITK.
     """
+    if bids_root and subject:
+        full_path = _make_bids_path(bids_root, subject, session)
+
+    if not full_path:
+        raise ValueError(
+            'Either full_path or bids_root + subject must be provided.'
+        )
+
     sitk_img = sitk.GetImageFromArray(img)
     sitk.WriteImage(sitk_img, full_path)
 
 
-def save_asl_data(asldata, fullpath: str):
+def save_asl_data(
+    asldata,
+    fullpath: str = None,
+    *,
+    bids_root: str = None,
+    subject: str = None,
+    session: str = None,
+):
     """
     Save ASL data to a pickle file using dill serialization.
 
@@ -126,6 +217,16 @@ def save_asl_data(asldata, fullpath: str):
     Raises:
         ValueError: If the provided filename does not end with '.pkl'.
     """
+    if bids_root and subject:
+        fullpath = _make_bids_path(
+            bids_root, subject, session, suffix='asl', extension='.pkl'
+        )
+
+    if not fullpath:
+        raise ValueError(
+            'Either fullpath or bids_root + subject must be provided.'
+        )
+
     if not fullpath.endswith('.pkl'):
         raise ValueError('Filename must be a pickle file (.pkl)')
 

@@ -16,18 +16,16 @@ class ASLData:
     ):
         """ASLData constructor
 
-        The basic data needed to represent ASL data is the full path to load
-        the image file, the Labeling Duration (LD) array and the Post-labeling
-        Delay (PLD) array. If none of this information is passed, a null
-        ASLData object is created, which can be further fed using the
-        get/set methods.
+        The basic data needed to represent ASL data are:
+        - The full path to load the image file
+        - The Labeling Duration (LD) array
+        - The Post-labeling Delay (PLD) array
 
-        The constructor is generic for classic ASL data and also for multi-TE
-        and Diffusion-Weighted (DW) ASL protocols. There is a specific get/set
-        method for TE/DW data. If TE/DW is not provided, then it is assumed as
-        type `None` for those data properties. In order to specify the TE or DW
-        values in the object instance, you can use the tags `te_values` or
-        `dw_values` in the construction call
+        If none of these are provided, a null ASLData object is created, which can be further populated using the get/set methods.
+
+        The constructor supports classic ASL data, multi-TE, and Diffusion-Weighted (DW) ASL protocols.
+        There are specific get/set methods for TE/DW data. If TE/DW is not provided, those properties are set to `None`.
+        To provide TE or DW values, use the `te_values` or `dw_values` keyword arguments.
 
         Examples:
             By default, the LD and PLD arrays are empty lists.
@@ -84,9 +82,24 @@ class ASLData:
                 )
 
         if kwargs.get('m0') is not None:
-            avg_m0 = kwargs.get('average_m0', False)
-            self._m0_image = load_image(kwargs.get('m0'), average_m0=avg_m0)
-            self._check_m0_dimension()
+            if isinstance(kwargs.get('m0'), str):
+                m0_path = kwargs.get('m0')
+                logger.info(f'Loading M0 image from: {m0_path}')
+                self._m0_image = load_image(m0_path)
+
+                # Check if M0 image is 4D and warn if so
+                if (
+                    self._m0_image is not None
+                    and len(self._m0_image.shape) > 3
+                ):
+                    warnings.warn('M0 image has more than 3 dimensions.')
+
+                if self._m0_image is not None:
+                    log_data_info('M0 image', self._m0_image.shape, m0_path)
+            elif isinstance(kwargs.get('m0'), np.ndarray):
+                self._m0_image = kwargs.get('m0')
+                logger.info('M0 image loaded as numpy array')
+                log_data_info('M0 image', self._m0_image.shape, 'numpy array')
 
         if kwargs.get('average_m0', False):
             self._m0_image = np.mean(self._m0_image, axis=0)
@@ -305,8 +318,20 @@ class ASLData:
     def _check_ld_pld_sizes(self, ld, pld):
         logger = get_logger('asldata')
         if len(ld) != len(pld):
-            raise ValueError(
-                f'LD and PLD must have the same array size. LD size is {len(ld)} and PLD size is {len(pld)}'
+            error_msg = f'LD and PLD must have the same array size. LD size is {len(ld)} and PLD size is {len(pld)}'
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        else:
+            logger.debug(
+                f'LD and PLD size validation passed: {len(ld)} elements each'
+            )
+
+    def _check_m0_dimension(self):
+        if len(self._m0_image.shape) > 3:
+            warnings.warn(
+                'M0 image has more than 3 dimensions. '
+                'This may cause issues in processing. '
+                'Consider averaging the M0 image across the first dimension.'
             )
 
     def _check_m0_dimension(self):

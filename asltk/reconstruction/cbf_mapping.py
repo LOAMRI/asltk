@@ -351,7 +351,7 @@ class CBFMapping(MRIParameters):
             f'ATT statistics - Mean: {np.mean(att_values):.4f}, Std: {np.std(att_values):.4f}'
         )
 
-        return {
+        output_maps = {
             'cbf': self._cbf_map,
             'cbf_norm': self._cbf_map * (60 * 60 * 1000),
             'att': self._att_map,

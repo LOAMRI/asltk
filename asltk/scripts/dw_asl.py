@@ -8,6 +8,11 @@ import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
+from asltk.logging_config import (
+    configure_for_scripts,
+    get_logger,
+    log_processing_step,
+)
 from asltk.reconstruction import MultiDW_ASLMapping
 from asltk.utils.io import load_image, save_image
 

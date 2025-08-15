@@ -2,23 +2,11 @@ import ants
 import numpy as np
 import SimpleITK as sitk
 
+from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
+from asltk.logging_config import get_logger
 from asltk.utils.image_manipulation import check_and_fix_orientation
 from asltk.utils.io import load_image
-
-# TODO Montar classe para fazer o coregistro de ASL
-class ASLRegistration:
-
-    # Pipeline
-    # inputs: ASLData (com m0 e pcasl), BrainAtlas, resolution (1 or 2 mm)
-    # Tomar m0 e comparar orientação com o template
-    # Se necessário, corrigir orientação do template para estar coerente com o m0 (salvar a transformação e aplicar para os labels)
-    # Realizar o registro do m0 no template
-    # com a transformação do m0, deixar salvo como parametro do objeto da classe
-    # Ter metodos para aplicar transformação para o pcasl, ou mapas gerados pelo CBFMapping, MultiTE, etc.
-
-    def __init__(self):
-        pass
 
 
 # TODO Montar classe para fazer o coregistro de ASL
@@ -119,13 +107,12 @@ def space_normalization(
             'moving_image must be a numpy array and template_image must be a BrainAtlas object, a string with the atlas name, or a numpy array.'
         )
 
-    # if (
-    #     isinstance(template_image, str)
-    #     and template_image not in BrainAtlas().list_atlas()
-    # ):
-    #     raise ValueError(
-    #         f'Template image {template_image} is not a valid BrainAtlas name.'
-    #     )
+    # Take optional parameters
+    check_orientation = kwargs.get('check_orientation', True)
+    verbose = kwargs.get('verbose', False)
+
+    logger = get_logger('registration')
+    logger.info('Starting space normalization')
 
     # Load template image first
     # TODO PROBLEMA PRINCIPAL: A leitura de imagens para numpy faz a perda da origen e spacing, para fazer o corregistro é preciso acertar a orientação da imagem com relação a origem (flip pela origem) para que ambas estejam na mesma orientação visual
@@ -145,9 +132,10 @@ def space_normalization(
             'template_image must be a BrainAtlas object, a string with the atlas name, or a numpy array.'
         )
 
-    # Check for orientation mismatch and fix if needed
-    check_orientation = kwargs.get('check_orientation', True)
-    verbose = kwargs.get('verbose', False)
+    if moving_image.ndim != 3 or template_array.ndim != 3:
+        raise ValueError(
+            'Both moving_image and template_image must be 3D arrays.'
+        )
 
     corrected_moving_image = moving_image
     orientation_transform = None

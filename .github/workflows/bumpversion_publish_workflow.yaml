@@ -20,8 +20,10 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout code
+      - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          ref: main  # Ensure we are on the main branch
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,16 +39,19 @@ jobs:
       - name: Install project dependencies
         run: poetry install
 
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Bump version
         run: |
           bump2version ${{ github.event.inputs.bump_type }}
 
       - name: Push version bump and tags to repo
         run: |
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git push
-            git push --tags
+          git push
+          git push --tags
 
       - name: Build package
         run: poetry build
