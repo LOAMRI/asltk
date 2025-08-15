@@ -134,9 +134,9 @@ class ASLData:
         logger.debug('ASLData object created successfully')
 
     def set_image(self, image, spec: str):
-        """Insert a image necessary to define de ASL data processing.
+        """Insert an image necessary to define the ASL data processing.
 
-        The `spec` parameters specifies what is the type of image to be used in
+        The `spec` parameter specifies what is the type of image to be used in
         ASL processing step. Choose one of the options: `m0` for the M0 volume,
         `pcasl` for the pCASL data.
 
@@ -324,6 +324,22 @@ class ASLData:
         else:
             logger.debug(
                 f'LD and PLD size validation passed: {len(ld)} elements each'
+            )
+
+    def _check_m0_dimension(self):
+        if len(self._m0_image.shape) > 3:
+            warnings.warn(
+                'M0 image has more than 3 dimensions. '
+                'This may cause issues in processing. '
+                'Consider averaging the M0 image across the first dimension.'
+            )
+
+    def _check_m0_dimension(self):
+        if len(self._m0_image.shape) > 3:
+            warnings.warn(
+                'M0 image has more than 3 dimensions. '
+                'This may cause issues in processing. '
+                'Consider averaging the M0 image across the first dimension.'
             )
 
     def _check_m0_dimension(self):

@@ -18,8 +18,8 @@ def asl_model_buxton(
     It is assumed that the LD and PLD values are coherent with the ASl Buxton
     model, i.e. the both has the same array size.
 
-    The calculations is given assuming a voxel value. Hence, all the `tau`,
-    `w`, `cbf` and `att` values must representas a voxel in the image.
+    The calculations are given assuming a voxel value. Hence, all the `tau`,
+    `w`, `cbf` and `att` values must represent a voxel in the image.
 
     Note:
         The CBF value is the original scale, without assuming the normalized
@@ -323,6 +323,34 @@ def asl_model_multi_te(
 def asl_model_multi_dw(
     b_values: list, A1: list, D1: float, A2: list, D2: float
 ):
+    """Multi Diffusion-Weighted (DW) ASL model for diffusion parameter calculation.
+
+    This function calculates the multi-compartment diffusion signal for ASL data
+    with multiple diffusion weighting (b-values). It models the signal decay
+    using a bi-exponential model with two diffusion compartments.
+
+    The model equation used is:
+    S(b) = A1 * exp(-b * D1) + A2 * exp(-b * D2)
+
+    where:
+    - S(b) is the signal at b-value b
+    - A1, A2 are the amplitudes for each compartment
+    - D1, D2 are the diffusion coefficients for each compartment
+
+    Args:
+        b_values (list): List of diffusion b-values (s/mm²).
+        A1 (list): Amplitude values for the first diffusion compartment.
+        D1 (float): Diffusion coefficient for the first compartment (mm²/s).
+        A2 (list): Amplitude values for the second diffusion compartment.
+        D2 (float): Diffusion coefficient for the second compartment (mm²/s).
+
+    Returns:
+        numpy.ndarray: Array of calculated magnetization values for each b-value.
+
+    Note:
+        In case of numerical overflow or runtime errors during computation,
+        the affected values are set to 0.0 to maintain array integrity.
+    """
     mag_total = np.zeros(len(b_values))
 
     for i in range(0, len(b_values)):
