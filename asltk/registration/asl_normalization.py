@@ -17,7 +17,7 @@ from asltk.utils.image_statistics import (
     calculate_mean_intensity,
     calculate_snr,
 )
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 
 def asl_template_registration(
@@ -82,7 +82,7 @@ def asl_template_registration(
 
     atlas = BrainAtlas(atlas_name)
     # atlas_img = ants.image_read(atlas.get_atlas()['t1_data']).numpy()
-    atlas_img = load_image(atlas.get_atlas()['t1_data'])
+    atlas_img = ImageIO(atlas.get_atlas()['t1_data']).get_as_numpy()
 
     def norm_function(vol, _):
         return space_normalization(
@@ -189,7 +189,7 @@ def asl_template_registration(
 
     atlas = BrainAtlas(atlas_name)
     # atlas_img = ants.image_read(atlas.get_atlas()['t1_data']).numpy()
-    atlas_img = load_image(atlas.get_atlas()['t1_data'])
+    atlas_img = ImageIO(atlas.get_atlas()['t1_data']).get_as_numpy()
 
     def norm_function(vol, _):
         return space_normalization(

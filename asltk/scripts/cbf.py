@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import CBFMapping
-from asltk.utils.io import load_image, save_image
+from asltk.utils.io import ImageIO
 
 parser = argparse.ArgumentParser(
     prog='CBF/ATT Mapping',
@@ -107,12 +107,12 @@ def checkUpParameters():
     return is_ok
 
 
-asl_img = load_image(args.pcasl)
-m0_img = load_image(args.m0)
+asl_img = ImageIO(args.pcasl).get_as_numpy()
+m0_img = ImageIO(args.m0).get_as_numpy()
 
 mask_img = np.ones(asl_img[0, 0, :, :, :].shape)
 if args.mask != '':
-    mask_img = load_image(args.mask)
+    mask_img = ImageIO(args.mask).get_as_numpy()
 
 
 try:
@@ -150,7 +150,7 @@ maps = recon.create_map()
 save_path = args.out_folder + os.path.sep + 'cbf_map.' + args.file_fmt
 if args.verbose:
     print('Saving CBF map - Path: ' + save_path)
-save_image(maps['cbf'], save_path)
+ImageIO(image_array=maps['cbf']).save_image(save_path)
 
 save_path = (
     args.out_folder + os.path.sep + 'cbf_map_normalized.' + args.file_fmt

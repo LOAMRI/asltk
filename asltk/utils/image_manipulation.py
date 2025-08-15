@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import ants
 import numpy as np
 import SimpleITK as sitk
+from asltk.utils.io import ImageIO
 from rich import print
 
 from asltk.logging_config import get_logger
@@ -20,7 +21,7 @@ num_cores = max(1, os.cpu_count() // 4 if os.cpu_count() else 1)
 sitk.ProcessObject_SetGlobalDefaultNumberOfThreads(num_cores)
 
 
-def collect_data_volumes(data: np.ndarray):
+def collect_data_volumes(data: ImageIO):
     """Collect the data volumes from a higher dimension array.
 
     This method is used to collect the data volumes from a higher dimension
@@ -39,8 +40,10 @@ def collect_data_volumes(data: np.ndarray):
         list: A list of 3D arrays, each one representing a volume.
         tuple: The original shape of the data.
     """
-    if not isinstance(data, np.ndarray):
-        raise TypeError('data is not a numpy array.')
+    if not isinstance(data, ImageIO):
+        raise TypeError('data is not an ImageIO object.')
+    
+    data = data.get_as_numpy()
 
     if data.ndim < 3:
         raise ValueError('data is a 3D volume or higher dimensions')

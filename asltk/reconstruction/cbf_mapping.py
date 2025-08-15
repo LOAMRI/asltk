@@ -11,6 +11,8 @@ from asltk.logging_config import get_logger, log_processing_step
 from asltk.models.signal_dynamic import asl_model_buxton
 from asltk.mri_parameters import MRIParameters
 
+from asltk.utils.io import ImageIO
+
 # Global variables to assist multi cpu threading
 cbf_map = None
 att_map = None
@@ -55,11 +57,11 @@ class CBFMapping(MRIParameters):
                 'ASLData is incomplete. CBFMapping need pcasl and m0 images.'
             )
 
-        self._brain_mask = np.ones(self._asl_data('m0').shape)
-        self._cbf_map = np.zeros(self._asl_data('m0').shape)
-        self._att_map = np.zeros(self._asl_data('m0').shape)
+        self._brain_mask = np.ones(self._asl_data('m0').get_as_numpy().shape)
+        self._cbf_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._att_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
 
-    def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
+    def set_brain_mask(self, brain_mask: ImageIO, label: int = 1):
         """Defines a brain mask to limit CBF mapping calculations to specific regions.
 
         A brain mask significantly improves processing speed by limiting calculations
@@ -100,8 +102,8 @@ class CBFMapping(MRIParameters):
 
             Load and use an existing brain mask:
             >>> # Load pre-computed brain mask
-            >>> from asltk.utils.io import load_image
-            >>> brain_mask = load_image('./tests/files/m0_brain_mask.nii.gz')
+            >>> from asltk.utils.io import ImageIO
+            >>> brain_mask = ImageIO('./tests/files/m0_brain_mask.nii.gz').get_as_numpy()
             >>> cbf_mapper.set_brain_mask(brain_mask)
 
             Use multi-label mask (select specific region):
@@ -123,9 +125,16 @@ class CBFMapping(MRIParameters):
         logger = get_logger('cbf_mapping')
         logger.info(f'Setting brain mask with label {label}')
 
-        _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
+        if not isinstance(brain_mask, ImageIO):
+            raise ValueError(
+                f'mask is not an ImageIO object. Type {type(brain_mask)}'
+            )
 
-        binary_mask = (brain_mask == label).astype(np.uint8) * label
+        brain_mask_array = brain_mask.get_as_numpy()
+
+        _check_mask_values(brain_mask, label, self._asl_data('m0').get_as_numpy().shape)
+
+        binary_mask = (brain_mask_array == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
 
         mask_volume = np.sum(binary_mask > 0)
@@ -290,9 +299,9 @@ class CBFMapping(MRIParameters):
         BuxtonX = [self._asl_data.get_ld(), self._asl_data.get_pld()]
 
         x_axis, y_axis, z_axis = (
-            self._asl_data('m0').shape[2],
-            self._asl_data('m0').shape[1],
-            self._asl_data('m0').shape[0],
+            self._asl_data('m0').get_as_numpy().shape[2],
+            self._asl_data('m0').get_as_numpy().shape[1],
+            self._asl_data('m0').get_as_numpy().shape[0],
         )
 
         logger.info(
@@ -351,10 +360,20 @@ class CBFMapping(MRIParameters):
             f'ATT statistics - Mean: {np.mean(att_values):.4f}, Std: {np.std(att_values):.4f}'
         )
 
+        # Prepare output maps
+        cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_image.update_image_data(self._cbf_map)
+
+        cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_norm_image.update_image_data(self._cbf_map * (60 * 60 * 1000))
+
+        att_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        att_map_image.update_image_data(self._att_map)
+
         output_maps = {
-            'cbf': self._cbf_map,
-            'cbf_norm': self._cbf_map * (60 * 60 * 1000),
-            'att': self._att_map,
+            'cbf': cbf_map_image,
+            'cbf_norm': cbf_map_norm_image,
+            'att': att_map_image,
         }
 
         # Apply smoothing if requested
@@ -381,14 +400,14 @@ def _cbf_process_slice(
     for j in range(y_axis):
         for k in range(z_axis):
             if brain_mask[k, j, i] != 0:
-                m0_px = asl_data('m0')[k, j, i]
+                m0_px = asl_data('m0').get_as_numpy()[k, j, i]
 
                 def mod_buxton(Xdata, par1, par2):
                     return asl_model_buxton(
                         Xdata[0], Xdata[1], m0_px, par1, par2
                     )
 
-                Ydata = asl_data('pcasl')[0, :, k, j, i]
+                Ydata = asl_data('pcasl').get_as_numpy()[0, :, k, j, i]
 
                 # Calculate the processing index for the 3D space
                 index = k * (y_axis * x_axis) + j * x_axis + i

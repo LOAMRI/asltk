@@ -7,7 +7,7 @@ import SimpleITK as sitk
 
 from asltk import asldata
 from asltk.models import signal_dynamic
-from asltk.utils.io import load_asl_data, load_image, save_asl_data, save_image
+from asltk.utils.io import load_asl_data, ImageIO, save_asl_data
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -17,23 +17,23 @@ M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 
 
 def test_load_image_pcasl_type_update_object_image_reference():
-    img = load_image(PCASL_MTE)
-    assert isinstance(img, np.ndarray)
+    img = ImageIO(PCASL_MTE)
+    assert isinstance(img, ImageIO)
 
 
 def test_load_image_m0_type_update_object_image_reference():
-    img = load_image(M0)
-    assert isinstance(img, np.ndarray)
+    img = ImageIO(M0)
+    assert isinstance(img, ImageIO)
 
 
 def test_load_image_m0_with_average_m0_option(tmp_path):
-    multi_M0 = np.stack([load_image(M0), load_image(M0)], axis=0)
+    multi_M0 = ImageIO(image_array=np.stack([ImageIO(M0).get_as_numpy(), ImageIO(M0).get_as_numpy()], axis=0))
     tmp_file = tmp_path / 'temp_m0.nii.gz'
-    save_image(multi_M0, str(tmp_file))
-    img = load_image(str(tmp_file), average_m0=True)
+    multi_M0.save_image(str(tmp_file))
+    img = ImageIO(str(tmp_file), average_m0=True)
 
-    assert isinstance(img, np.ndarray)
-    assert len(img.shape) == 3
+    assert isinstance(img, ImageIO)
+    assert len(img.get_as_numpy().shape) == 3
 
 
 @pytest.mark.parametrize(
@@ -46,7 +46,7 @@ def test_load_image_m0_with_average_m0_option(tmp_path):
 )
 def test_load_image_attest_fullpath_is_valid(input):
     with pytest.raises(Exception) as e:
-        load_image(input)
+        ImageIO(input)
     assert 'does not exist.' in e.value.args[0]
 
 
@@ -54,9 +54,9 @@ def test_load_image_attest_fullpath_is_valid(input):
     'input', [('out.nrrd'), ('out.nii'), ('out.mha'), ('out.tif')]
 )
 def test_save_image_success(input, tmp_path):
-    img = load_image(T1_MRI)
+    img = ImageIO(T1_MRI)
     full_path = tmp_path.as_posix() + os.sep + input
-    save_image(img, full_path)
+    img.save_image(full_path)
     assert os.path.exists(full_path)
     read_file = sitk.ReadImage(full_path)
     assert read_file.GetSize() == sitk.ReadImage(T1_MRI).GetSize()
@@ -66,10 +66,10 @@ def test_save_image_success(input, tmp_path):
     'input', [('out.nrr'), ('out.n'), ('out.m'), ('out.zip')]
 )
 def test_save_image_throw_error_invalid_formatt(input, tmp_path):
-    img = load_image(T1_MRI)
+    img = ImageIO(T1_MRI)
     full_path = tmp_path.as_posix() + os.sep + input
     with pytest.raises(Exception) as e:
-        save_image(img, full_path)
+        img.save_image(full_path)
 
 
 def test_asl_model_buxton_return_sucess_list_of_values():
@@ -213,7 +213,7 @@ def test_load_asl_data_sucess(input_data, filename, tmp_path):
     ],
 )
 def test_load_image_using_BIDS_input_sucess(input_bids, sub, sess, mod, suff):
-    loaded_obj = load_image(
+    loaded_obj = ImageIO(
         full_path=input_bids,
         subject=sub,
         session=sess,
@@ -229,7 +229,7 @@ def test_load_image_using_BIDS_input_sucess(input_bids, sub, sess, mod, suff):
 )
 def test_load_image_using_not_valid_BIDS_input_raise_error(input_data):
     with pytest.raises(Exception) as e:
-        loaded_obj = load_image(input_data)
+        loaded_obj = ImageIO(input_data)
     assert 'is missing' in e.value.args[0]
 
 
@@ -245,7 +245,7 @@ def test_load_image_raise_FileNotFoundError_not_matching_image_file(
     input_bids, sub, sess, mod, suff
 ):
     with pytest.raises(Exception) as e:
-        loaded_obj = load_image(
+        loaded_obj = ImageIO(
             full_path=input_bids,
             subject=sub,
             session=sess,
@@ -262,7 +262,7 @@ def test_load_image_from_bids_structure_returns_valid_array():
     modality = 'asl'
     suffix = None  # m0 is deleted, because it does not exist
 
-    img = load_image(
+    img = ImageIO(
         full_path=bids_root,
         subject=subject,
         session=session,

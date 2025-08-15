@@ -132,6 +132,23 @@ def test_rigid_body_registration_raise_exception_if_template_mask_not_numpy():
 def test_space_normalization_success():
     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
 
+    # TODO Debug using SimpleITK directly
+    # import SimpleITK as sitk
+    # import ants
+    # from ants.utils.sitk_to_ants import from_sitk, to_sitk
+
+    # m0_img = sitk.ReadImage("/home/antonio/Imagens/loamri-samples/20240909/m0_3d.nii.gz")
+    # mni_img = sitk.ReadImage("/home/antonio/fsl/data/standard/MNI152_T1_1mm.nii.gz")
+
+    # out = ants.registration(
+    #     fixed=ants.from_sitk(mni_img),
+    #     moving=ants.from_sitk(m0_img),
+    #     type_of_transform='SyN',
+    #     verbose=True,
+    # )
+
+    # sitk.WriteImage( ants.to_sitk(out['warpedmovout']), "/home/antonio/Imagens/loamri-samples/20240909/m0_3d_warped.nii.gz")
+
     normalized_image, transform = space_normalization(
         pcasl_orig('m0'),
         template_image='MNI2009',

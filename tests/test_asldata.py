@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from asltk import asldata
-from asltk.utils.io import load_image, save_image
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -23,8 +23,15 @@ def test_asldata_object_shows_warning_if_m0_has_more_than_3D_dimensions(
 ):
     tmp_file = tmp_path / 'temp_m0_4D.nii.gz'
     # Create a 4D M0 image
-    m0_4d = np.stack([load_image(M0), load_image(M0), load_image(M0)], axis=0)
-    save_image(m0_4d, str(tmp_file))
+    m0_4d = np.stack(
+        [
+            ImageIO(M0).get_as_numpy(),
+            ImageIO(M0).get_as_numpy(),
+            ImageIO(M0).get_as_numpy(),
+        ],
+        axis=0,
+    )
+    ImageIO(image_array=m0_4d).save_image(str(tmp_file))
     with pytest.warns(Warning) as record:
         obj = asldata.ASLData(m0=str(tmp_file))
     assert len(record) == 1
@@ -91,38 +98,38 @@ def test_create_object_check_initial_parameters():
 
 
 def test_create_object_with_m0_as_numpy_array():
-    array = load_image(M0)
+    array = ImageIO(M0).get_as_numpy()
     obj = asldata.ASLData(m0=array)
 
-    assert obj('m0').shape == array.shape
+    assert obj('m0').get_as_numpy().shape == array.shape
 
 
 def test_create_object_with_m0_as_numpy_array():
-    array = load_image(M0)
+    array = ImageIO(M0).get_as_numpy()
     obj = asldata.ASLData(m0=array)
 
-    assert obj('m0').shape == array.shape
+    assert obj('m0').get_as_numpy().shape == array.shape
 
 
 def test_create_object_with_m0_as_numpy_array():
-    array = load_image(M0)
+    array = ImageIO(M0).get_as_numpy()
     obj = asldata.ASLData(m0=array)
 
-    assert obj('m0').shape == array.shape
+    assert obj('m0').get_as_numpy().shape == array.shape
 
 
 def test_create_object_with_m0_as_numpy_array():
-    array = load_image(M0)
+    array = ImageIO(M0).get_as_numpy()
     obj = asldata.ASLData(m0=array)
 
-    assert obj('m0').shape == array.shape
+    assert obj('m0').get_as_numpy().shape == array.shape
 
 
 def test_create_object_with_pcasl_as_numpy_array():
-    array = load_image(PCASL_MTE)
+    array = ImageIO(PCASL_MTE).get_as_numpy()
     obj = asldata.ASLData(pcasl=array)
 
-    assert obj('pcasl').shape == array.shape
+    assert obj('pcasl').get_as_numpy().shape == array.shape
 
 
 def test_get_ld_show_empty_list_for_new_object():

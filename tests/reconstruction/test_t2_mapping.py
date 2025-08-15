@@ -5,6 +5,7 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.reconstruction.t2_mapping import T2Scalar_ASLMapping
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 
@@ -52,13 +53,13 @@ def test_t2_scalar_mapping_success_construction_t2_map():
 
     out = t2_mapping.create_map()
 
-    assert isinstance(out['t2'], np.ndarray)
-    assert out['t2'].ndim == 4  # Expecting a 4D array
+    assert isinstance(out['t2'], ImageIO)
+    assert out['t2'].get_as_numpy().ndim == 4  # Expecting a 4D array
     assert out['mean_t2'] is not None
     assert len(out['mean_t2']) == len(
         asldata_te.get_pld()
     )  # One mean T2 per PLD
-    assert np.mean(out['t2']) > 0  # Ensure T2 values are positive
+    assert np.mean(out['t2'].get_as_numpy()) > 0  # Ensure T2 values are positive
 
 
 def test_t2_scalar_mapping_raise_error_with_dw_in_asldata():
@@ -87,8 +88,8 @@ def test_t2_scalar_mapping_get_t2_maps_and_mean_t2s_before_and_after_create_map(
     t2_maps = t2_mapping.get_t2_maps()
     mean_t2s = t2_mapping.get_mean_t2s()
 
-    assert isinstance(t2_maps, np.ndarray)
-    assert t2_maps.ndim == 4  # (N_PLDS, Z, Y, X)
+    assert isinstance(t2_maps, ImageIO)
+    assert t2_maps.get_as_numpy().ndim == 4  # (N_PLDS, Z, Y, X)
     assert isinstance(mean_t2s, list)
     assert len(mean_t2s) == len(asldata_te.get_pld())
     assert all(

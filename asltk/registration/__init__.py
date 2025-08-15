@@ -6,7 +6,7 @@ from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
 from asltk.logging_config import get_logger
 from asltk.utils.image_manipulation import check_and_fix_orientation
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 
 # TODO Montar classe para fazer o coregistro de ASL
@@ -117,13 +117,14 @@ def space_normalization(
     # Load template image first
     # TODO PROBLEMA PRINCIPAL: A leitura de imagens para numpy faz a perda da origen e spacing, para fazer o corregistro é preciso acertar a orientação da imagem com relação a origem (flip pela origem) para que ambas estejam na mesma orientação visual
     # TODO Pensar em como será a utilização do corregistro para o ASLTK (assume que já está alinhado? ou tenta alinhar imagens check_orientation?)
+    # TODO Terminar de corrigir metodo com o ImageIO (ja com o spaceing, origning acertado)
     template_array = None
     if isinstance(template_image, BrainAtlas):
         template_file = template_image.get_atlas()['t1_data']
-        template_array = load_image(template_file)
+        template_array = ImageIO(template_file).get_as_numpy()
     elif isinstance(template_image, str):
         template_file = BrainAtlas(template_image).get_atlas()['t1_data']
-        template_array = load_image(template_file)
+        template_array = ImageIO(template_file).get_as_numpy()
         # template_array = ants.image_read('/home/antonio/Imagens/loamri-samples/20240909/mni_2mm.nii.gz')
     elif isinstance(template_image, np.ndarray):
         template_array = template_image
@@ -336,7 +337,7 @@ def apply_transformation(
             'reference_image must be a numpy array or a BrainAtlas object.'
         )
     elif isinstance(reference_image, BrainAtlas):
-        reference_image = load_image(reference_image.get_atlas()['t1_data'])
+        reference_image = ImageIO(reference_image.get_atlas()['t1_data'])
 
     if not isinstance(transforms, list):
         raise TypeError(
@@ -344,7 +345,7 @@ def apply_transformation(
         )
 
     corr_image = ants.apply_transforms(
-        fixed=ants.from_numpy(reference_image),
+        fixed=ants.from_numpy(reference_image.get_as_numpy()),
         moving=ants.from_numpy(moving_image),
         transformlist=transforms,
     )
