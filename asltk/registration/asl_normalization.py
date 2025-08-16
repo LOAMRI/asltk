@@ -237,9 +237,9 @@ def asl_template_registration(
 
 def head_movement_correction(
     asl_data: ASLData,
-    ref_vol: np.ndarray = None,
+    ref_vol: ImageIO = None,
     method: str = 'snr',
-    roi: np.ndarray = None,
+    roi: ImageIO = None,
     verbose: bool = False,
 ):
     """
@@ -307,8 +307,8 @@ def head_movement_correction(
 
     # Check if the reference volume is a valid volume.
     if (
-        not isinstance(ref_volume, np.ndarray)
-        or ref_volume.shape != total_vols[0].shape
+        not isinstance(ref_volume, ImageIO)
+        or ref_volume.get_as_numpy().shape != total_vols[0].shape
     ):
         raise ValueError(
             'ref_vol must be a valid volume from the total asl data volumes.'
@@ -324,9 +324,9 @@ def head_movement_correction(
     new_asl_data = asl_data.copy()
     # Create the new ASLData object with the corrected volumes
     corrected_vols_array = np.array(corrected_vols).reshape(
-        asl_data('pcasl').shape
+        asl_data('pcasl').get_as_numpy().shape
     )
-    new_asl_data.set_image(corrected_vols_array, 'pcasl')
+    new_asl_data.set_image(ImageIO(image_array=corrected_vols_array), 'pcasl')
 
     return new_asl_data, trans_mtx
 
@@ -384,9 +384,13 @@ def _collect_transformation_proportions(total_vols, method, roi):
     method_values = []
     for vol in total_vols:
         if method == 'snr':
-            value = calculate_snr(vol, roi=roi)
+            value = calculate_snr(
+                ImageIO(image_array=vol), roi=ImageIO(image_array=roi)
+            )
         elif method == 'mean':
-            value = calculate_mean_intensity(vol, roi=roi)
+            value = calculate_mean_intensity(
+                ImageIO(image_array=vol), roi=ImageIO(image_array=roi)
+            )
         else:
             raise ValueError(f'Unknown method: {method}')
         method_values.append(value)

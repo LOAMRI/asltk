@@ -12,7 +12,7 @@ from asltk.registration import (
     space_normalization,
 )
 from asltk.registration.asl_normalization import head_movement_correction
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 M0_ORIG = (
@@ -36,7 +36,10 @@ def test_head_movement_correction_build_asldata_success():
 
     asldata, _ = head_movement_correction(pcasl_orig)
 
-    assert asldata('pcasl').shape == pcasl_orig('pcasl').shape
+    assert (
+        asldata('pcasl').get_as_numpy().shape
+        == pcasl_orig('pcasl').get_as_numpy().shape
+    )
 
 
 def test_head_movement_correction_error_input_is_not_ASLData_object():
@@ -76,19 +79,21 @@ def test_head_movement_correction_success():
 
 
 def test_rigid_body_registration_run_sucess():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     resampled_image, _ = rigid_body_registration(img_orig, img_rot)
 
-    assert np.mean(np.subtract(img_orig, resampled_image)) < np.mean(img_orig)
+    assert np.mean(
+        np.subtract(img_orig.get_as_numpy(), resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 @pytest.mark.parametrize(
     'img_rot', [('invalid_image'), ([1, 2, 3]), (['a', 1, 5.23])]
 )
 def test_rigid_body_registration_error_fixed_image_is_not_numpy_array(img_rot):
-    img_orig = load_image(M0_ORIG)
+    img_orig = ImageIO(M0_ORIG)
 
     with pytest.raises(Exception) as e:
         rigid_body_registration(img_orig, img_rot)
