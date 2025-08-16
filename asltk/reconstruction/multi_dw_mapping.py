@@ -149,9 +149,13 @@ class MultiDW_ASLMapping(MRIParameters):
                 'Use ImageIO to load or create the mask.'
             )
 
-        _check_mask_values(brain_mask, label, self._asl_data('m0').get_as_numpy().shape)
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
 
-        binary_mask = (brain_mask.get_as_numpy() == label).astype(np.uint8) * label
+        binary_mask = (brain_mask.get_as_numpy() == label).astype(
+            np.uint8
+        ) * label
         self._brain_mask = binary_mask
 
     def get_brain_mask(self):
@@ -307,8 +311,12 @@ class MultiDW_ASLMapping(MRIParameters):
                 '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
             )   # pragma: no cover
             basic_maps = self._basic_maps.create_map()   # pragma: no cover
-            self._cbf_map = basic_maps['cbf'].get_as_numpy()   # pragma: no cover
-            self._att_map = basic_maps['att'].get_as_numpy()   # pragma: no cover
+            self._cbf_map = basic_maps[
+                'cbf'
+            ].get_as_numpy()   # pragma: no cover
+            self._att_map = basic_maps[
+                'att'
+            ].get_as_numpy()   # pragma: no cover
 
         x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # height
         y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
@@ -332,7 +340,8 @@ class MultiDW_ASLMapping(MRIParameters):
 
                         # M(t,b)/M(t,0)
                         Ydata = (
-                            self._asl_data('pcasl').get_as_numpy()[:, :, k, j, i]
+                            self._asl_data('pcasl')
+                            .get_as_numpy()[:, :, k, j, i]
                             .reshape(
                                 (
                                     len(self._asl_data.get_ld())
@@ -423,7 +432,9 @@ class MultiDW_ASLMapping(MRIParameters):
         cbf_map_image.update_image_data(self._cbf_map)
 
         cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
-        cbf_map_norm_image.update_image_data(self._cbf_map * (60 * 60 * 1000))  # Convert to mL/100g/min
+        cbf_map_norm_image.update_image_data(
+            self._cbf_map * (60 * 60 * 1000)
+        )  # Convert to mL/100g/min
 
         att_map_image = ImageIO(self._asl_data('m0').get_image_path())
         att_map_image.update_image_data(self._att_map)

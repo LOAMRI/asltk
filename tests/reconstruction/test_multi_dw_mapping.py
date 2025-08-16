@@ -97,7 +97,12 @@ def test_multi_dw_asl_set_brain_mask_verify_if_input_is_a_label_mask():
     mte = MultiDW_ASLMapping(asldata_dw)
     not_mask = ImageIO(M0)
     with pytest.warns(UserWarning):
-        mte.set_brain_mask(ImageIO(image_array=not_mask.get_as_numpy() / np.max(not_mask.get_as_numpy())))
+        mte.set_brain_mask(
+            ImageIO(
+                image_array=not_mask.get_as_numpy()
+                / np.max(not_mask.get_as_numpy())
+            )
+        )
         warnings.warn(
             'Mask image is not a binary image. Any value > 0 will be assumed as brain label.',
             UserWarning,
@@ -106,7 +111,9 @@ def test_multi_dw_asl_set_brain_mask_verify_if_input_is_a_label_mask():
 
 def test_multi_dw_asl_set_brain_mask_raise_error_if_image_dimension_is_different_from_3d_volume():
     mte = MultiDW_ASLMapping(asldata_dw)
-    pcasl_3d_vol = ImageIO(image_array=ImageIO(PCASL_MDW).get_as_numpy()[0, 0, :, :, :])
+    pcasl_3d_vol = ImageIO(
+        image_array=ImageIO(PCASL_MDW).get_as_numpy()[0, 0, :, :, :]
+    )
     fake_mask = ImageIO(image_array=np.array(((1, 1, 1), (0, 1, 0))))
     with pytest.raises(Exception) as error:
         mte.set_brain_mask(fake_mask)
