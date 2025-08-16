@@ -46,7 +46,9 @@ class T2Scalar_ASLMapping(MRIParameters):
         if self._asl_data.get_dw() is not None:
             raise ValueError('ASLData must not include DW values.')
 
-        self._brain_mask = np.ones(self._asl_data('m0').get_as_numpy().shape)
+        self._brain_mask = ImageIO(
+            image_array=np.ones(self._asl_data('m0').get_as_numpy().shape)
+        )
         self._t2_maps = None  # Will be 4D: (N_PLDS, Z, Y, X)
         self._mean_t2s = None
 
@@ -60,10 +62,14 @@ class T2Scalar_ASLMapping(MRIParameters):
 
         The mask should be a 3D numpy array matching the spatial dimensions of the ASL data.
         """
-        brain_mask_image = ImageIO(image_array=brain_mask)
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
 
-        _check_mask_values(brain_mask_image, label, self._asl_data('m0').get_as_numpy().shape)
-        binary_mask = (brain_mask_image.get_as_numpy() == label).astype(np.uint8) * label
+        binary_mask = ImageIO(
+            image_array=(brain_mask.get_as_numpy() == label).astype(np.uint8)
+            * label
+        )
         self._brain_mask = binary_mask
 
     def get_t2_maps(self):
@@ -106,7 +112,7 @@ class T2Scalar_ASLMapping(MRIParameters):
         logger.info('Starting T2 map creation')
 
         data = self._asl_data('pcasl').get_as_numpy()
-        mask = self._brain_mask
+        mask = self._brain_mask.get_as_numpy()
         TEs = np.array(self._te_values)
         PLDs = np.array(self._pld_values)
         n_tes, n_plds, z_axis, y_axis, x_axis = data.shape
@@ -164,6 +170,9 @@ class T2Scalar_ASLMapping(MRIParameters):
         # TODO At the moment, the T2 maps and mean T2 maps are as ImageIO object, however, the Spacing, Dimension are not given as a 4D array. The m0 image is 3D... check if this is a problem for the T2 image properties
         t2_maps_image = ImageIO(self._asl_data('m0').get_image_path())
         t2_maps_image.update_image_data(self._t2_maps)
+
+        # Update the _t2_maps attribute to be an ImageIO object
+        self._t2_maps = t2_maps_image
 
         output_maps = {
             't2': t2_maps_image,

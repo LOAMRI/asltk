@@ -59,7 +59,9 @@ def test_t2_scalar_mapping_success_construction_t2_map():
     assert len(out['mean_t2']) == len(
         asldata_te.get_pld()
     )  # One mean T2 per PLD
-    assert np.mean(out['t2'].get_as_numpy()) > 0  # Ensure T2 values are positive
+    assert (
+        np.mean(out['t2'].get_as_numpy()) > 0
+    )  # Ensure T2 values are positive
 
 
 def test_t2_scalar_mapping_raise_error_with_dw_in_asldata():
@@ -96,26 +98,28 @@ def test_t2_scalar_mapping_get_t2_maps_and_mean_t2s_before_and_after_create_map(
         isinstance(val, float) or isinstance(val, np.floating)
         for val in mean_t2s
     )
-    assert np.all(t2_maps >= 0)
+    assert np.all(t2_maps.get_as_numpy() >= 0)
 
 
 def test_set_brain_mask_binary_and_label():
     t2_mapping = T2Scalar_ASLMapping(asldata_te)
-    shape = t2_mapping._asl_data('m0').shape
+    shape = t2_mapping._asl_data('m0').get_as_numpy().shape
 
     # Binary mask (all ones)
-    binary_mask = np.ones(shape, dtype=np.uint8)
+    binary_mask = ImageIO(image_array=np.ones(shape, dtype=np.uint8))
     t2_mapping.set_brain_mask(binary_mask)
-    assert np.all(t2_mapping._brain_mask == 1)
-    assert t2_mapping._brain_mask.shape == shape
+    assert np.all(t2_mapping._brain_mask.get_as_numpy() == 1)
+    assert t2_mapping._brain_mask.get_as_numpy().shape == shape
 
     # Mask with different label
     label = 2
     mask_with_label = np.zeros(shape, dtype=np.uint8)
     mask_with_label[0, 0, 0] = label
-    t2_mapping.set_brain_mask(mask_with_label, label=label)
-    assert t2_mapping._brain_mask[0, 0, 0] == label
-    assert np.sum(t2_mapping._brain_mask == label) == 1
+    t2_mapping.set_brain_mask(
+        ImageIO(image_array=mask_with_label), label=label
+    )
+    assert t2_mapping._brain_mask.get_as_numpy()[0, 0, 0] == label
+    assert np.sum(t2_mapping._brain_mask.get_as_numpy() == label) == 1
 
 
 def test_set_brain_mask_invalid_shape_raises():
@@ -131,8 +135,8 @@ def test_set_brain_mask_invalid_shape_raises():
 
 def test_set_brain_mask_noninteger_label():
     t2_mapping = T2Scalar_ASLMapping(asldata_te)
-    shape = t2_mapping._asl_data('m0').shape
-    mask = np.ones(shape, dtype=np.float32)
+    shape = t2_mapping._asl_data('m0').get_as_numpy().shape
+    mask = ImageIO(image_array=np.ones(shape, dtype=np.float32))
     # Should still work, as mask == label will be True for 1.0 == 1
     t2_mapping.set_brain_mask(mask, label=1)
-    assert np.all(t2_mapping._brain_mask == 1)
+    assert np.all(t2_mapping._brain_mask.get_as_numpy() == 1)
