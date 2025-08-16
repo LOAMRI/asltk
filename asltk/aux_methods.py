@@ -2,9 +2,9 @@ import warnings
 from typing import Any, Dict, Optional
 
 import numpy as np
-from asltk.utils.io import ImageIO
 
 from asltk.smooth import isotropic_gaussian, isotropic_median
+from asltk.utils.io import ImageIO
 
 
 def _check_mask_values(mask: ImageIO, label, ref_shape):
@@ -28,8 +28,10 @@ def _check_mask_values(mask: ImageIO, label, ref_shape):
     """
     # Check wheter mask input is an ImageIO object
     if not isinstance(mask, ImageIO):
-        raise TypeError(f'mask is not an ImageIO object. Type {type(mask)} is not allowed.')
-    
+        raise TypeError(
+            f'mask is not an ImageIO object. Type {type(mask)} is not allowed.'
+        )
+
     mask_array = mask.get_as_numpy()
 
     # Check whether the mask provided is a binary image
@@ -138,7 +140,7 @@ def _apply_smoothing_to_maps(
     # Apply smoothing to all maps
     smoothed_maps = {}
     for key, map_array in maps.items():
-        if isinstance(map_array, np.ndarray):
+        if isinstance(map_array, ImageIO):
             try:
                 smoothed_maps[key] = smooth_func(map_array, **smoothing_params)
             except Exception as e:
