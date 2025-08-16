@@ -7,7 +7,7 @@ import SimpleITK as sitk
 
 from asltk import asldata
 from asltk.models import signal_dynamic
-from asltk.utils.io import load_asl_data, ImageIO, save_asl_data
+from asltk.utils.io import ImageIO, load_asl_data, save_asl_data
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -27,7 +27,11 @@ def test_load_image_m0_type_update_object_image_reference():
 
 
 def test_load_image_m0_with_average_m0_option(tmp_path):
-    multi_M0 = ImageIO(image_array=np.stack([ImageIO(M0).get_as_numpy(), ImageIO(M0).get_as_numpy()], axis=0))
+    multi_M0 = ImageIO(
+        image_array=np.stack(
+            [ImageIO(M0).get_as_numpy(), ImageIO(M0).get_as_numpy()], axis=0
+        )
+    )
     tmp_file = tmp_path / 'temp_m0.nii.gz'
     multi_M0.save_image(str(tmp_file))
     img = ImageIO(str(tmp_file), average_m0=True)
@@ -200,7 +204,10 @@ def test_load_asl_data_sucess(input_data, filename, tmp_path):
     save_asl_data(obj, out_file)
     loaded_obj = load_asl_data(out_file)
     assert isinstance(loaded_obj, asldata.ASLData)
-    assert loaded_obj('pcasl').shape == obj('pcasl').shape
+    assert (
+        loaded_obj('pcasl').get_as_numpy().shape
+        == obj('pcasl').get_as_numpy().shape
+    )
 
 
 @pytest.mark.parametrize(
@@ -214,13 +221,13 @@ def test_load_asl_data_sucess(input_data, filename, tmp_path):
 )
 def test_load_image_using_BIDS_input_sucess(input_bids, sub, sess, mod, suff):
     loaded_obj = ImageIO(
-        full_path=input_bids,
+        image_path=input_bids,
         subject=sub,
         session=sess,
         modality=mod,
         suffix=suff,
     )
-    assert isinstance(loaded_obj, np.ndarray)
+    assert isinstance(loaded_obj, ImageIO)
 
 
 @pytest.mark.parametrize(
@@ -246,7 +253,7 @@ def test_load_image_raise_FileNotFoundError_not_matching_image_file(
 ):
     with pytest.raises(Exception) as e:
         loaded_obj = ImageIO(
-            full_path=input_bids,
+            image_path=input_bids,
             subject=sub,
             session=sess,
             modality=mod,
@@ -263,7 +270,7 @@ def test_load_image_from_bids_structure_returns_valid_array():
     suffix = None  # m0 is deleted, because it does not exist
 
     img = ImageIO(
-        full_path=bids_root,
+        image_path=bids_root,
         subject=subject,
         session=session,
         modality=modality,

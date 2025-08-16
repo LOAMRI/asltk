@@ -1,7 +1,10 @@
+import copy
 import fnmatch
 import os
 import warnings
+from typing import Union
 
+import ants
 import dill
 import numpy as np
 import SimpleITK as sitk
@@ -95,34 +98,26 @@ class ImageIO:
     def get_image_path(self):
         return self._image_path
 
+    # def set_full_representation(self, sitk_image: sitk.Image):
+    #     check_image_properties(sitk_image, self._image_as_numpy)
+
+    #     self._image_as_sitk = sitk_image
+    #     self._image_as_ants = from_sitk(self._image_as_sitk)
+
     def get_as_sitk(self):
         self._check_image_representation('sitk')
 
-        return self._image_as_sitk
+        return copy.deepcopy(self._image_as_sitk)
 
     def get_as_ants(self):
         self._check_image_representation('ants')
 
-        return self._image_as_ants
+        return self._image_as_ants.clone()
 
     def get_as_numpy(self):
         self._check_image_representation('numpy')
 
-        return self._image_as_numpy
-
-    def _check_image_representation(self, representation):
-        if representation == 'sitk' and self._image_as_sitk is None:
-            raise ValueError(
-                'Image is not loaded as SimpleITK. Please load the image first.'
-            )
-        elif representation == 'ants' and self._image_as_ants is None:
-            raise ValueError(
-                'Image is not loaded as ANTsPy. Please load the image first.'
-            )
-        elif representation == 'numpy' and self._image_as_numpy is None:
-            raise ValueError(
-                'Image is not loaded as numpy array. Please load the image first.'
-            )
+        return self._image_as_numpy.copy()
 
     def load_image(self):
         """
@@ -218,7 +213,7 @@ class ImageIO:
             # If average_m0 is True, then average the M0 image
             if self._image_as_numpy.ndim > 3:
                 avg_img = np.mean(self._image_as_numpy, axis=0)
-                self._image_as_numpy = self.update_image_data(avg_img)
+                self.update_image_data(avg_img)
 
     def update_image_data(self, new_array: np.ndarray):
         """
@@ -316,6 +311,20 @@ class ImageIO:
             compressor=compressor,
         )
 
+    def _check_image_representation(self, representation):
+        if representation == 'sitk' and self._image_as_sitk is None:
+            raise ValueError(
+                'Image is not loaded as SimpleITK. Please load the image first.'
+            )
+        elif representation == 'ants' and self._image_as_ants is None:
+            raise ValueError(
+                'Image is not loaded as ANTsPy. Please load the image first.'
+            )
+        elif representation == 'numpy' and self._image_as_numpy is None:
+            raise ValueError(
+                'Image is not loaded as numpy array. Please load the image first.'
+            )
+
     def _get_file_from_folder_layout(self):
         selected_file = None
         layout = BIDSLayout(self._image_path)
@@ -364,6 +373,7 @@ class ImageIO:
         Check if the image is initialized correctly.
         If both image_path and image_array are None, raise an error.
         """
+
         if self._image_path is None and self._image_as_numpy is None:
             raise ValueError(
                 'Either image_path or image_array must be provided to initialize the ImageIO object.'
@@ -376,6 +386,74 @@ class ImageIO:
             warnings.warn(
                 'image_array is provided but image_path is not set. The image will be loaded as a numpy array only and the image metadata will be set as default. For complex image processing it is better to provide the image_path instead.',
             )
+
+
+def check_image_properties(
+    first_image: Union[sitk.Image, np.ndarray, ants.ANTsImage, ImageIO],
+    ref_image: ImageIO,
+):
+    # Check the image size, dimension, spacing and all the properties to see if the first_image is equal to ref_image
+    if not isinstance(ref_image, ImageIO):
+        raise TypeError('Reference image must be a ImageIO object')
+
+    if isinstance(first_image, sitk.Image):
+        # Compare with ref_image's sitk representation
+        ref_sitk = ref_image._image_as_sitk
+
+        if first_image.GetSize() != ref_sitk.GetSize():
+            raise ValueError('Image size mismatch.')
+        if first_image.GetSpacing() != ref_sitk.GetSpacing():
+            raise ValueError('Image spacing mismatch.')
+        if first_image.GetOrigin() != ref_sitk.GetOrigin():
+            raise ValueError('Image origin mismatch.')
+        if first_image.GetDirection() != ref_sitk.GetDirection():
+            raise ValueError('Image direction mismatch.')
+
+    elif isinstance(first_image, np.ndarray):
+        ref_np = ref_image._image_as_numpy
+
+        if first_image.shape != ref_np.shape:
+            raise ValueError('Numpy array shape mismatch.')
+        if first_image.dtype != ref_np.dtype:
+            raise ValueError('Numpy array dtype mismatch.')
+
+        warnings.warn(
+            'Numpy arrays does not has spacing and origin image information.'
+        )
+
+    elif isinstance(first_image, ants.ANTsImage):
+        ref_ants = (
+            ref_image._image_as_ants
+            if isinstance(ref_image, ImageIO)
+            else ref_image
+        )
+        if not isinstance(ref_ants, ants.ANTsImage):
+            raise ValueError('Reference image is not an ANTsPy image.')
+        if first_image.shape != ref_ants.shape:
+            raise ValueError('ANTs image shape mismatch.')
+        if not np.allclose(first_image.spacing, ref_ants.spacing):
+            raise ValueError('ANTs image spacing mismatch.')
+        if not np.allclose(first_image.origin, ref_ants.origin):
+            raise ValueError('ANTs image origin mismatch.')
+        if not np.allclose(first_image.direction, ref_ants.direction):
+            raise ValueError('ANTs image direction mismatch.')
+
+    elif isinstance(first_image, ImageIO):
+        # Recursively check using numpy representation
+        check_image_properties(first_image.get_as_sitk(), ref_image)
+    else:
+        raise TypeError('Unsupported image type for comparison.')
+
+
+def clone_image(source: ImageIO, include_path: bool = False):
+    if not isinstance(source, ImageIO):
+        raise TypeError('Source image must be a ImageIO object')
+
+    cloned = copy.deepcopy(source)
+    if not include_path:
+        cloned._image_path = None
+
+    return cloned
 
 
 def check_path(path: str):
