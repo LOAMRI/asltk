@@ -119,7 +119,9 @@ def test_set_brain_mask_gives_binary_image_using_correct_label_value():
 
 def test_set_brain_mask_raise_error_if_image_dimension_is_different_from_3d_volume():
     cbf = CBFMapping(asldata_te)
-    pcasl_3d_vol = ImageIO(image_array=ImageIO(PCASL_MTE).get_as_numpy()[0, 0, :, :, :])
+    pcasl_3d_vol = ImageIO(
+        image_array=ImageIO(PCASL_MTE).get_as_numpy()[0, 0, :, :, :]
+    )
     fake_mask = np.array(((1, 1, 1), (0, 1, 0)))
     with pytest.raises(Exception) as error:
         cbf.set_brain_mask(ImageIO(image_array=fake_mask))

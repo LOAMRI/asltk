@@ -10,7 +10,6 @@ from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.logging_config import get_logger, log_processing_step
 from asltk.models.signal_dynamic import asl_model_buxton
 from asltk.mri_parameters import MRIParameters
-
 from asltk.utils.io import ImageIO
 
 # Global variables to assist multi cpu threading
@@ -132,7 +131,9 @@ class CBFMapping(MRIParameters):
 
         brain_mask_array = brain_mask.get_as_numpy()
 
-        _check_mask_values(brain_mask, label, self._asl_data('m0').get_as_numpy().shape)
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
 
         binary_mask = (brain_mask_array == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
