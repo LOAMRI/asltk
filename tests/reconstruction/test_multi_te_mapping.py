@@ -109,7 +109,10 @@ def test_multite_asl_set_brain_mask_verify_if_input_is_a_label_mask():
     mte = MultiTE_ASLMapping(asldata_te)
     not_mask = ImageIO(M0)
     with pytest.warns(UserWarning):
-        not_mask_image = ImageIO(image_array=not_mask.get_as_numpy() / np.max(not_mask.get_as_numpy()))
+        not_mask_image = ImageIO(
+            image_array=not_mask.get_as_numpy()
+            / np.max(not_mask.get_as_numpy())
+        )
         mte.set_brain_mask(not_mask_image)
         warnings.warn(
             'Mask image is not a binary image. Any value > 0 will be assumed as brain label.',

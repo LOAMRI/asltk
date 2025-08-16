@@ -118,9 +118,13 @@ class MultiTE_ASLMapping(MRIParameters):
                 'The brain_mask parameter must be an instance of ImageIO.'
             )
 
-        _check_mask_values(brain_mask, label, self._asl_data('m0').get_as_numpy().shape)
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
 
-        binary_mask = (brain_mask.get_as_numpy() == label).astype(np.uint8) * label
+        binary_mask = (brain_mask.get_as_numpy() == label).astype(
+            np.uint8
+        ) * label
         self._brain_mask = binary_mask
 
     def get_brain_mask(self):
@@ -449,7 +453,8 @@ def _tblgm_multite_process_slice(
                     )
 
                 Ydata = (
-                    asl_data('pcasl').get_as_numpy()[:, :, k, j, i]
+                    asl_data('pcasl')
+                    .get_as_numpy()[:, :, k, j, i]
                     .reshape(
                         (
                             len(ld_arr) * len(te_arr),
