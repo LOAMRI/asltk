@@ -303,19 +303,19 @@ def test_set_dw_throw_error_input_is_list_of_negative_or_zero_numbers(input):
 
 def test_asldata_object_call_returns_image():
     obj = asldata.ASLData(pcasl=T1_MRI)
-    assert isinstance(obj('pcasl'), np.ndarray)
+    assert isinstance(obj('pcasl'), ImageIO)
 
 
 def test_set_image_sucess_m0():
     obj = asldata.ASLData(pcasl=T1_MRI)
     obj.set_image(M0, 'm0')
-    assert isinstance(obj('m0'), np.ndarray)
+    assert isinstance(obj('m0'), ImageIO)
 
 
 def test_set_image_sucess_pcasl():
     obj = asldata.ASLData()
     obj.set_image(M0, 'pcasl')
-    assert isinstance(obj('pcasl'), np.ndarray)
+    assert isinstance(obj('pcasl'), ImageIO)
 
 
 @pytest.mark.parametrize(

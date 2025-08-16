@@ -1,6 +1,7 @@
 import copy
 import os
 import warnings
+from typing import Union
 
 import numpy as np
 
@@ -146,7 +147,7 @@ class ASLData:
 
         logger.debug('ASLData object created successfully')
 
-    def set_image(self, image, spec: str, **kwargs):
+    def set_image(self, image: Union[str, np.ndarray], spec: str, **kwargs):
         """Insert an image necessary to define the ASL data processing.
 
         The `spec` parameters specifies what is the type of image to be used in
