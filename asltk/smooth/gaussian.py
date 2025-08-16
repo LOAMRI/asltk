@@ -2,9 +2,9 @@ import warnings
 
 import numpy as np
 import SimpleITK as sitk
-from asltk.utils.io import ImageIO
 
 from asltk.utils.image_manipulation import collect_data_volumes
+from asltk.utils.io import ImageIO, clone_image
 
 
 def isotropic_gaussian(data: ImageIO, sigma: float = 1.0):
@@ -45,13 +45,11 @@ def isotropic_gaussian(data: ImageIO, sigma: float = 1.0):
     if not isinstance(data, ImageIO):
         raise TypeError(f'data is not an ImageIO object. Type {type(data)}')
 
-    data_array = data.get_as_numpy()
-
     # Make the Gaussian instance using the kernel size based on sigma parameter
     gaussian = sitk.SmoothingRecursiveGaussianImageFilter()
     gaussian.SetSigma(sigma)
 
-    if data_array.ndim > 3:
+    if data.get_as_numpy().ndim > 3:
         warnings.warn(
             'Input data is not a 3D volume. The filter will be applied for all volumes.',
             UserWarning,
@@ -61,7 +59,9 @@ def isotropic_gaussian(data: ImageIO, sigma: float = 1.0):
     for volume in volumes:
         processed.append(gaussian.Execute(sitk.GetImageFromArray(volume)))
 
-    smooth_array = np.array(processed).reshape(data_array.shape)
-    data.update_image_data(smooth_array)
+    smooth_array = np.array(processed).reshape(data.get_as_numpy().shape)
 
-    return data
+    out_data = clone_image(data)
+    out_data.update_image_data(smooth_array)
+
+    return out_data
