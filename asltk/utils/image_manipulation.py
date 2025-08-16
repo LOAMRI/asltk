@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple, Union
 import ants
 import numpy as np
 import SimpleITK as sitk
-from asltk.utils.io import ImageIO
 from rich import print
 
 from asltk.logging_config import get_logger
@@ -13,6 +12,7 @@ from asltk.utils.image_statistics import (
     calculate_mean_intensity,
     calculate_snr,
 )
+from asltk.utils.io import ImageIO, clone_image
 
 logger = get_logger(__name__)
 
@@ -42,7 +42,7 @@ def collect_data_volumes(data: ImageIO):
     """
     if not isinstance(data, ImageIO):
         raise TypeError('data is not an ImageIO object.')
-    
+
     data = data.get_as_numpy()
 
     if data.ndim < 3:
@@ -59,7 +59,7 @@ def collect_data_volumes(data: ImageIO):
 
 
 def orientation_check(
-    moving_image: np.ndarray, fixed_image: np.ndarray, threshold: float = 0.1
+    moving_image: ImageIO, fixed_image: ImageIO, threshold: float = 0.1
 ) -> Dict[str, any]:
     """
     Quick orientation compatibility check between two images.
@@ -86,8 +86,8 @@ def orientation_check(
         - 'recommendation': str, action recommendation
     """
     # Normalize images
-    moving_norm = _normalize_image_intensity(moving_image)
-    fixed_norm = _normalize_image_intensity(fixed_image)
+    moving_norm = _normalize_image_intensity(moving_image.get_as_numpy())
+    fixed_norm = _normalize_image_intensity(fixed_image.get_as_numpy())
 
     # Resize if needed for comparison
     # Resize the larger image to match the smaller one to minimize memory overhead
@@ -170,8 +170,8 @@ def orientation_check(
 
 
 def check_and_fix_orientation(
-    moving_image: np.ndarray,
-    fixed_image: np.ndarray,
+    moving_image: ImageIO,
+    fixed_image: ImageIO,
     moving_spacing: tuple = None,
     fixed_spacing: tuple = None,
     verbose: bool = False,
@@ -210,8 +210,8 @@ def check_and_fix_orientation(
         print('Analyzing image orientations...')
 
     # Convert to SimpleITK images for orientation analysis
-    moving_sitk = sitk.GetImageFromArray(moving_image)
-    fixed_sitk = sitk.GetImageFromArray(fixed_image)
+    moving_sitk = moving_image.get_as_sitk()
+    fixed_sitk = fixed_image.get_as_sitk()
 
     # Set spacing if provided
     if moving_spacing is not None:
@@ -229,21 +229,21 @@ def check_and_fix_orientation(
 
     # Analyze anatomical orientations using intensity patterns
     orientation_transform = _analyze_anatomical_orientation(
-        moving_image, fixed_image, verbose
+        moving_image.get_as_numpy(), fixed_image.get_as_numpy(), verbose
     )
 
     # Apply orientation corrections
     corrected_moving = _apply_orientation_correction(
-        moving_image, orientation_transform, verbose
+        moving_image.get_as_numpy(), orientation_transform, verbose
     )
 
     # Verify the correction using cross-correlation
     if verbose:
         original_corr = _compute_normalized_correlation(
-            moving_image, fixed_image
+            moving_image.get_as_numpy(), fixed_image.get_as_numpy()
         )
         corrected_corr = _compute_normalized_correlation(
-            corrected_moving, fixed_image
+            corrected_moving.get_as_numpy(), fixed_image.get_as_numpy()
         )
         print(f'Original correlation: {original_corr:.4f}')
         print(f'Corrected correlation: {corrected_corr:.4f}')
@@ -251,6 +251,9 @@ def check_and_fix_orientation(
             print('Orientation correction improved alignment')
         else:
             print('Orientation correction may not have improved alignment')
+
+    out_correct_moving = clone_image(fixed_image)
+    out_correct_moving.update_image_data(corrected_moving)
 
     return corrected_moving, orientation_transform
 
@@ -329,7 +332,7 @@ def create_orientation_report(
 
 def select_reference_volume(
     asl_data: Union['ASLData', list[np.ndarray]],
-    roi: np.ndarray = None,
+    roi: ImageIO = None,
     method: str = 'snr',
 ):
     from asltk.asldata import ASLData
@@ -357,9 +360,9 @@ def select_reference_volume(
         raise ValueError(f'Invalid method: {method}')
 
     if roi is not None:
-        if not isinstance(roi, np.ndarray):
-            raise TypeError('ROI must be a numpy array.')
-        if roi.ndim != 3:
+        if not isinstance(roi, ImageIO):
+            raise TypeError('ROI must be an ImageIO object.')
+        if roi.get_as_numpy().ndim != 3:
             raise ValueError('ROI must be a 3D array.')
 
     if isinstance(asl_data, ASLData):
@@ -377,7 +380,7 @@ def select_reference_volume(
         logger.info('Estimating maximum SNR from provided volumes...')
         ref_volume, vol_idx = _estimate_max_snr(volumes, roi=roi)
         logger.info(
-            f'Selected volume index: {vol_idx} with SNR: {calculate_snr(ref_volume):.2f}'
+            f'Selected volume index: {vol_idx} with SNR: {calculate_snr(ImageIO(image_array=ref_volume)):.2f}'
         )
 
     elif method == 'mean':
@@ -389,11 +392,11 @@ def select_reference_volume(
     else:
         raise ValueError(f'Unknown method: {method}')
 
-    return ref_volume, vol_idx
+    return ImageIO(image_array=ref_volume), vol_idx
 
 
 def _estimate_max_snr(
-    volumes: List[np.ndarray], roi: np.ndarray = None
+    volumes: List[np.ndarray], roi: ImageIO = None
 ) -> Tuple[np.ndarray, int]:   # pragma: no cover
     """
     Estimate the maximum SNR from a list of volumes.
@@ -414,7 +417,13 @@ def _estimate_max_snr(
             logger.error(f'Volume at index {idx} is not a numpy array.')
             raise TypeError('All volumes must be numpy arrays.')
 
-        snr_value = calculate_snr(vol, roi=roi)
+        if roi is not None:
+            snr_value = calculate_snr(
+                ImageIO(image_array=vol), roi=ImageIO(image_array=roi)
+            )
+        else:
+            snr_value = calculate_snr(ImageIO(image_array=vol))
+
         if snr_value > max_snr_value:
             max_snr_value = snr_value
             max_snr_idx = idx
@@ -425,7 +434,7 @@ def _estimate_max_snr(
 
 
 def _estimate_max_mean(
-    volumes: List[np.ndarray], roi: np.ndarray = None
+    volumes: List[np.ndarray], roi: ImageIO = None
 ) -> Tuple[np.ndarray, int]:
     """
     Estimate the maximum mean from a list of volumes.
@@ -446,7 +455,12 @@ def _estimate_max_mean(
             logger.error(f'Volume at index {idx} is not a numpy array.')
             raise TypeError('All volumes must be numpy arrays.')
 
-        mean_value = calculate_mean_intensity(vol, roi=roi)
+        if roi is not None:
+            mean_value = calculate_mean_intensity(
+                ImageIO(image_array=vol), roi=ImageIO(image_array=roi)
+            )
+        else:
+            mean_value = calculate_mean_intensity(ImageIO(image_array=vol))
         if mean_value > max_mean_value:
             max_mean_value = mean_value
             max_mean_idx = idx

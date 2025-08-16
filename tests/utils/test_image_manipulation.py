@@ -11,7 +11,7 @@ from asltk.utils.image_manipulation import (
     collect_data_volumes,
     select_reference_volume,
 )
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -108,6 +108,7 @@ def test_collect_data_volumes_return_correct_list_of_volumes_4D_data():
     data = np.ones((2, 30, 40, 15))
     data[0, :, :, :] = data[0, :, :, :] * 10
     data[1, :, :, :] = data[1, :, :, :] * 20
+    data = ImageIO(image_array=data)
     collected_volumes, _ = collect_data_volumes(data)
     assert len(collected_volumes) == 2
     assert collected_volumes[0].shape == (30, 40, 15)
@@ -121,6 +122,7 @@ def test_collect_data_volumes_return_correct_list_of_volumes_5D_data():
     data[0, 1, :, :, :] = data[0, 1, :, :, :] * 10
     data[1, 0, :, :, :] = data[1, 0, :, :, :] * 20
     data[1, 1, :, :, :] = data[1, 1, :, :, :] * 20
+    data = ImageIO(image_array=data)
     collected_volumes, _ = collect_data_volumes(data)
     assert len(collected_volumes) == 4
     assert collected_volumes[0].shape == (30, 40, 15)
@@ -134,11 +136,11 @@ def test_collect_data_volumes_error_if_input_is_not_numpy_array():
     data = [1, 2, 3]
     with pytest.raises(Exception) as e:
         collected_volumes, _ = collect_data_volumes(data)
-    assert 'data is not a numpy array' in e.value.args[0]
+    assert 'data is not an ImageIO object' in e.value.args[0]
 
 
 def test_collect_data_volumes_error_if_input_is_less_than_3D():
-    data = np.ones((30, 40))
+    data = ImageIO(image_array=np.ones((30, 40)))
     with pytest.raises(Exception) as e:
         collected_volumes, _ = collect_data_volumes(data)
     assert 'data is a 3D volume or higher dimensions' in e.value.args[0]
@@ -152,7 +154,10 @@ def test_select_reference_volume_returns_correct_volume_and_index_with_sample_im
 
     ref_volume, idx = select_reference_volume(asl, method=method)
 
-    assert ref_volume.shape == asl('pcasl')[0][0].shape
+    assert (
+        ref_volume.get_as_numpy().shape
+        == asl('pcasl').get_as_numpy()[0][0].shape
+    )
     assert idx != 0
 
 
