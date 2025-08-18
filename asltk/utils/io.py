@@ -213,22 +213,108 @@ class ImageIO:
             # If average_m0 is True, then average the M0 image
             if self._image_as_numpy.ndim > 3:
                 avg_img = np.mean(self._image_as_numpy, axis=0)
-                self.update_image_data(avg_img)
+                self.update_image_data(avg_img, enforce_new_dimension=True)
 
-    def update_image_data(self, new_array: np.ndarray):
+    def update_image_spacing(self, new_spacing: tuple):
+        """
+        Update the image spacing with a new tuple, preserving the original image metadata.
+
+        Args:
+            new_spacing (tuple): The new spacing for the image.
+        """
+        if not isinstance(new_spacing, tuple):
+            raise TypeError('new_spacing must be a tuple.')
+
+        # Update spacing in SimpleITK image
+        self._image_as_sitk.SetSpacing(new_spacing)
+
+        # Update internal numpy representation
+        self._image_as_numpy = sitk.GetArrayFromImage(self._image_as_sitk)
+        if self._image_as_numpy.ndim <= 3:
+            self._image_as_ants = from_sitk(self._image_as_sitk)
+
+    def update_image_origin(self, new_origin: tuple):
+        """
+        Update the image origin with a new tuple, preserving the original image metadata.
+
+        Args:
+            new_origin (tuple): The new origin for the image.
+        """
+        if not isinstance(new_origin, tuple):
+            raise TypeError('new_origin must be a tuple.')
+
+        # Update origin in SimpleITK image
+        self._image_as_sitk.SetOrigin(new_origin)
+
+        # Update internal numpy representation
+        self._image_as_numpy = sitk.GetArrayFromImage(self._image_as_sitk)
+        if self._image_as_numpy.ndim <= 3:
+            self._image_as_ants = from_sitk(self._image_as_sitk)
+
+    def update_image_direction(self, new_direction: tuple):
+        """
+        Update the image direction with a new tuple, preserving the original image metadata.
+
+        Args:
+            new_direction (tuple): The new direction for the image.
+        """
+        if not isinstance(new_direction, tuple):
+            raise TypeError('new_direction must be a tuple.')
+
+        # Update direction in SimpleITK image
+        self._image_as_sitk.SetDirection(new_direction)
+
+        # Update internal numpy representation
+        self._image_as_numpy = sitk.GetArrayFromImage(self._image_as_sitk)
+        if self._image_as_numpy.ndim <= 3:
+            self._image_as_ants = from_sitk(self._image_as_sitk)
+
+    def update_image_data(self, new_array: np.ndarray, enforce_new_dimension=False):
         """
         Update the image data with a new numpy array, preserving the original image metadata.
 
+        Important:
+            - The new array must match the shape of the original image unless `enforce_new_dimension` is set to True.
+            - If `enforce_new_dimension` is True, the new array can have a different shape than the original image, but 
+            it will be assumed the first dimensions to get averaged.
+
         Args:
             new_array (np.ndarray): The new image data array. Must match the shape of the original image.
+            enforce_new_dimension (bool): If True, allows the new array to have a different shape than the original image.
+            
         """
+        if not isinstance(new_array, np.ndarray):
+            raise TypeError('new_array must be a numpy array.')
+        if new_array.shape != self._image_as_numpy.shape:
+            if not enforce_new_dimension:
+                raise ValueError('new_array must match the shape of the original image.')
+        
+        # Get the dimension difference
+        dim_diff =  self._image_as_numpy.ndim - new_array.ndim
+
+        if dim_diff < 0 or abs(dim_diff) >= 2:
+            raise TypeError(
+                'The new array is too much different from the original image. '
+                'The new array must have the same number of dimensions as the original image or at most one dimension less.'
+            )
+
         # Create new SimpleITK image from array
         new_sitk_img = sitk.GetImageFromArray(new_array)
+
+        if dim_diff != 0:
+            base_origin = self._image_as_sitk.GetOrigin()[:3]
+            base_spacing = self._image_as_sitk.GetSpacing()[:3]
+            base_direction = tuple(np.array(self._image_as_sitk.GetDirection()).reshape(self._image_as_numpy.ndim, self._image_as_numpy.ndim)[:3, :3].flatten())
+        else:
+            base_origin = self._image_as_sitk.GetOrigin()
+            base_spacing = self._image_as_sitk.GetSpacing()
+            base_direction = self._image_as_sitk.GetDirection()
+
         # Copy metadata
         # Copy all metadata from the original image
-        new_sitk_img.SetOrigin(self._image_as_sitk.GetOrigin())
-        new_sitk_img.SetSpacing(self._image_as_sitk.GetSpacing())
-        new_sitk_img.SetDirection(self._image_as_sitk.GetDirection())
+        new_sitk_img.SetOrigin(base_origin)
+        new_sitk_img.SetSpacing(base_spacing)
+        new_sitk_img.SetDirection(base_direction)
         # Copy all key-value metadata
         for k in self._image_as_sitk.GetMetaDataKeys():
             new_sitk_img.SetMetaData(k, self._image_as_sitk.GetMetaData(k))

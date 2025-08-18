@@ -32,7 +32,12 @@ M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
 
 
 def test_head_movement_correction_build_asldata_success():
-    pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+    # pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
+    pcasl_orig = ASLData(
+        pcasl='/home/antonio/Desktop/asltk_paper/asltk_dataset/healthy/20240617/pcasl.nii.gz',
+        m0='/home/antonio/Desktop/asltk_paper/asltk_dataset/healthy/20240617/m0.nii.gz',
+        average_m0=True
+    )
 
     asldata, _ = head_movement_correction(pcasl_orig)
 

@@ -142,19 +142,19 @@ def space_normalization(
         )
 
     corrected_moving_image = clone_image(moving_image)
-    orientation_transform = None
+    # orientation_transform = None
 
-    # TODO VERIICAR SE CHECK_ORIENTATION ESTA CERTO... USAR sitk.FlipImageFilter usando a Origen da image (Slicer da certo assim)
-    if check_orientation:
-        (
-            corrected_moving_image_array,
-            orientation_transform,
-        ) = check_and_fix_orientation(
-            moving_image, template_array, verbose=verbose
-        )
-        if verbose and orientation_transform:
-            print(f'Applied orientation correction: {orientation_transform}')
-        corrected_moving_image.update_image_data(corrected_moving_image_array)
+    # # TODO VERIICAR SE CHECK_ORIENTATION ESTA CERTO... USAR sitk.FlipImageFilter usando a Origen da image (Slicer da certo assim)
+    # if check_orientation:
+    #     (
+    #         corrected_moving_image_array,
+    #         orientation_transform,
+    #     ) = check_and_fix_orientation(
+    #         moving_image, template_array, verbose=verbose
+    #     )
+    #     if verbose and orientation_transform:
+    #         print(f'Applied orientation correction: {orientation_transform}')
+    #     corrected_moving_image.update_image_data(corrected_moving_image_array)
 
     # Convert to ANTs images
     # moving = ants.from_numpy(corrected_moving_image)
@@ -181,7 +181,7 @@ def space_normalization(
     out_warped = clone_image(template_array)
     ants_numpy = registration['warpedmovout'].numpy()
     out_warped.update_image_data(
-        ImageIO(image_array=np.transpose(ants_numpy, (2, 1, 0)))
+        np.transpose(ants_numpy, (2, 1, 0))
     )
 
     return out_warped, registration['fwdtransforms']
@@ -308,8 +308,8 @@ def affine_registration(
 
 
 def apply_transformation(
-    moving_image: np.ndarray,
-    reference_image: np.ndarray,
+    moving_image: ImageIO,
+    reference_image: ImageIO,
     transforms: list,
     **kwargs,
 ):
@@ -340,12 +340,12 @@ def apply_transformation(
             The transformed image.
     """
     # TODO handle kwargs for additional parameters based on ants.apply_transforms
-    if not isinstance(moving_image, np.ndarray):
-        raise TypeError('moving image must be numpy array.')
+    if not isinstance(moving_image, ImageIO):
+        raise TypeError('moving image must be an ImageIO object.')
 
-    if not isinstance(reference_image, (np.ndarray, BrainAtlas)):
+    if not isinstance(reference_image, (ImageIO, BrainAtlas)):
         raise TypeError(
-            'reference_image must be a numpy array or a BrainAtlas object.'
+            'reference_image must be an ImageIO object or a BrainAtlas object.'
         )
     elif isinstance(reference_image, BrainAtlas):
         reference_image = ImageIO(reference_image.get_atlas()['t1_data'])
@@ -356,9 +356,12 @@ def apply_transformation(
         )
 
     corr_image = ants.apply_transforms(
-        fixed=ants.from_numpy(reference_image.get_as_numpy()),
-        moving=ants.from_numpy(moving_image),
+        fixed=reference_image.get_as_ants(),
+        moving=moving_image.get_as_ants(),
         transformlist=transforms,
     )
 
-    return corr_image.numpy()
+    out_image = clone_image(reference_image)
+    out_image.update_image_data(np.transpose(corr_image.numpy(), (2, 1, 0)))
+
+    return out_image
