@@ -62,7 +62,7 @@ def isotropic_median(data: ImageIO, size: int = 3):
     volumes, _ = collect_data_volumes(data)
     processed = []
     for volume in volumes:
-        filtered_volume = median_filter(volume, size=size)
+        filtered_volume = median_filter(volume.get_as_numpy(), size=size)
         processed.append(filtered_volume)
 
     smooth_array = np.array(processed).reshape(data.get_as_numpy().shape)

@@ -168,7 +168,7 @@ class T2Scalar_ASLMapping(MRIParameters):
 
         # Prepare output maps
         # TODO At the moment, the T2 maps and mean T2 maps are as ImageIO object, however, the Spacing, Dimension are not given as a 4D array. The m0 image is 3D... check if this is a problem for the T2 image properties
-        t2_maps_image = ImageIO(self._asl_data('m0').get_image_path())
+        t2_maps_image = ImageIO(image_array=np.array([self._asl_data('m0').get_as_numpy() for _ in range(len(t2_maps_all))]))
         t2_maps_image.update_image_data(self._t2_maps)
 
         # Update the _t2_maps attribute to be an ImageIO object

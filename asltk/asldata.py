@@ -179,10 +179,16 @@ class ASLData:
             elif spec == 'pcasl':
                 self._asl_image = ImageIO(image, **kwargs)
         elif isinstance(image, np.ndarray):
+            warnings.warn('Using numpy array as image input does not preserve metadata or image properties.')
             if spec == 'm0':
                 self._m0_image = ImageIO(image_array=image, **kwargs)
             elif spec == 'pcasl':
                 self._asl_image = ImageIO(image_array=image, **kwargs)
+        elif isinstance(image, ImageIO):
+            if spec == 'm0':
+                self._m0_image = image
+            elif spec == 'pcasl':
+                self._asl_image = image
         else:
             raise ValueError(
                 f'Invalid image type or path: {image}. '
@@ -291,6 +297,8 @@ class ASLData:
         Examples:
             >>> data = ASLData(pcasl='./tests/files/t1-mri.nrrd')
             >>> type(data('pcasl'))
+            <class 'asltk.utils.io.ImageIO'>
+            >>> type(data('pcasl').get_as_numpy())
             <class 'numpy.ndarray'>
 
             >>> np.min(data('pcasl'))

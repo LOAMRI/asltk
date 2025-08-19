@@ -108,12 +108,12 @@ def test_collect_data_volumes_return_correct_list_of_volumes_4D_data():
     data = np.ones((2, 30, 40, 15))
     data[0, :, :, :] = data[0, :, :, :] * 10
     data[1, :, :, :] = data[1, :, :, :] * 20
-    data = ImageIO(image_array=data)
-    collected_volumes, _ = collect_data_volumes(data)
+    image = ImageIO(image_array=data)
+    collected_volumes, _ = collect_data_volumes(image)
     assert len(collected_volumes) == 2
-    assert collected_volumes[0].shape == (30, 40, 15)
-    assert np.mean(collected_volumes[0]) == 10
-    assert np.mean(collected_volumes[1]) == 20
+    assert collected_volumes[0].get_as_numpy().shape == (30, 40, 15)
+    assert np.mean(collected_volumes[0].get_as_numpy()) == 10
+    assert np.mean(collected_volumes[1].get_as_numpy()) == 20
 
 
 def test_collect_data_volumes_return_correct_list_of_volumes_5D_data():

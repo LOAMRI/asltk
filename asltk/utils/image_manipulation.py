@@ -21,7 +21,7 @@ num_cores = max(1, os.cpu_count() // 4 if os.cpu_count() else 1)
 sitk.ProcessObject_SetGlobalDefaultNumberOfThreads(num_cores)
 
 
-def collect_data_volumes(data: ImageIO):
+def collect_data_volumes(data: ImageIO) -> Tuple[List[ImageIO], Tuple[int, ...]]:
     """Collect the data volumes from a higher dimension array.
 
     This method is used to collect the data volumes from a higher dimension

@@ -60,10 +60,10 @@ def _check_mask_values(mask: ImageIO, label, ref_shape):
 
 
 def _apply_smoothing_to_maps(
-    maps: Dict[str, np.ndarray],
+    maps: Dict[str, ImageIO],
     smoothing: Optional[str] = None,
     smoothing_params: Optional[Dict[str, Any]] = None,
-) -> Dict[str, np.ndarray]:
+) -> Dict[str, ImageIO]:
     """Apply smoothing filter to all maps in the dictionary.
 
     This function applies the specified smoothing filter to all map arrays

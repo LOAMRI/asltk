@@ -180,9 +180,7 @@ def space_normalization(
     # Passing the warped image and forward transforms
     out_warped = clone_image(template_array)
     ants_numpy = registration['warpedmovout'].numpy()
-    out_warped.update_image_data(
-        np.transpose(ants_numpy, (2, 1, 0))
-    )
+    out_warped.update_image_data(np.transpose(ants_numpy, (2, 1, 0)))
 
     return out_warped, registration['fwdtransforms']
 
@@ -253,10 +251,10 @@ def rigid_body_registration(
 
 
 def affine_registration(
-    fixed_image: np.ndarray,
-    moving_image: np.ndarray,
-    moving_mask: np.ndarray = None,
-    template_mask: np.ndarray = None,
+    fixed_image: ImageIO,
+    moving_image: ImageIO,
+    moving_mask: ImageIO = None,
+    template_mask: ImageIO = None,
     fast_method: bool = True,
 ):
     """
@@ -286,14 +284,14 @@ def affine_registration(
     transformation_matrix : np.ndarray
         The transformation matrix mapping from moving to template space.
     """
-    if not isinstance(fixed_image, np.ndarray) or not isinstance(
-        moving_image, np.ndarray
+    if not isinstance(fixed_image, ImageIO) or not isinstance(
+        moving_image, ImageIO
     ):
-        raise Exception('fixed_image and moving_image must be a numpy array.')
-    if moving_mask is not None and not isinstance(moving_mask, np.ndarray):
-        raise Exception('moving_mask must be a numpy array.')
-    if template_mask is not None and not isinstance(template_mask, np.ndarray):
-        raise Exception('template_mask must be a numpy array.')
+        raise Exception('fixed_image and moving_image must be an ImageIO object.')
+    if moving_mask is not None and not isinstance(moving_mask, ImageIO):
+        raise Exception('moving_mask must be an ImageIO object.')
+    if template_mask is not None and not isinstance(template_mask, ImageIO):
+        raise Exception('template_mask must be an ImageIO object.')
 
     affine_type = 'AffineFast' if fast_method else 'Affine'
     warped_image, transformation_matrix = space_normalization(

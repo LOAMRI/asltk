@@ -29,7 +29,7 @@ def test_t2_scalar_asl_mapping_initialization():
 
     assert isinstance(t2_mapping, T2Scalar_ASLMapping)
     assert isinstance(t2_mapping._asl_data, ASLData)
-    assert isinstance(t2_mapping._brain_mask, np.ndarray)
+    assert isinstance(t2_mapping._brain_mask, ImageIO)
     assert t2_mapping._t2_maps is None
     assert t2_mapping._mean_t2s is None
 
@@ -124,7 +124,7 @@ def test_set_brain_mask_binary_and_label():
 
 def test_set_brain_mask_invalid_shape_raises():
     t2_mapping = T2Scalar_ASLMapping(asldata_te)
-    wrong_shape_mask = np.ones((2, 2, 2), dtype=np.uint8)
+    wrong_shape_mask = ImageIO(image_array=np.ones((2, 2, 2), dtype=np.uint8))
     with pytest.raises(Exception) as error:
         t2_mapping.set_brain_mask(wrong_shape_mask)
 

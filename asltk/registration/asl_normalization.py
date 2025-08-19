@@ -17,7 +17,7 @@ from asltk.utils.image_statistics import (
     calculate_mean_intensity,
     calculate_snr,
 )
-from asltk.utils.io import ImageIO
+from asltk.utils.io import ImageIO, clone_image
 
 
 def asl_template_registration(
@@ -308,7 +308,8 @@ def head_movement_correction(
     # Check if the reference volume is a valid volume.
     if (
         not isinstance(ref_volume, ImageIO)
-        or ref_volume.get_as_numpy().shape != total_vols[0].get_as_numpy().shape
+        or ref_volume.get_as_numpy().shape
+        != total_vols[0].get_as_numpy().shape
     ):
         raise ValueError(
             'ref_vol must be a valid volume from the total asl data volumes.'
@@ -324,10 +325,13 @@ def head_movement_correction(
     new_asl_data = asl_data.copy()
     # Create the new ASLData object with the corrected volumes
     # TODO VERIFICAR AQUI COMO ERA O CODIGO TESTE ANTES DO IMAGEIO (PEGAR NO main, TEST: test_head_movement_correction_build_asldata_success)
-    corrected_vols_array = np.array(corrected_vols).reshape(
+    corrected_vols_array = np.array([vol.get_as_numpy() for vol in corrected_vols]).reshape(
         asl_data('pcasl').get_as_numpy().shape
     )
-    new_asl_data.set_image(ImageIO(image_array=corrected_vols_array), 'pcasl')
+
+    adjusted_pcasl = clone_image(asl_data('pcasl'))
+    adjusted_pcasl.update_image_data(corrected_vols_array)
+    new_asl_data.set_image(adjusted_pcasl, 'pcasl')
 
     return new_asl_data, trans_mtx
 
@@ -391,9 +395,7 @@ def _collect_transformation_proportions(total_vols, method, roi):
         if method == 'snr':
             value = calculate_snr(vol, roi=ImageIO(image_array=roi))
         elif method == 'mean':
-            value = calculate_mean_intensity(
-                vol, roi=ImageIO(image_array=roi)
-            )
+            value = calculate_mean_intensity(vol, roi=ImageIO(image_array=roi))
         else:
             raise ValueError(f'Unknown method: {method}')
         method_values.append(value)

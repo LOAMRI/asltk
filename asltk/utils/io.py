@@ -98,12 +98,6 @@ class ImageIO:
     def get_image_path(self):
         return self._image_path
 
-    # def set_full_representation(self, sitk_image: sitk.Image):
-    #     check_image_properties(sitk_image, self._image_as_numpy)
-
-    #     self._image_as_sitk = sitk_image
-    #     self._image_as_ants = from_sitk(self._image_as_sitk)
-
     def get_as_sitk(self):
         self._check_image_representation('sitk')
 
@@ -269,28 +263,32 @@ class ImageIO:
         if self._image_as_numpy.ndim <= 3:
             self._image_as_ants = from_sitk(self._image_as_sitk)
 
-    def update_image_data(self, new_array: np.ndarray, enforce_new_dimension=False):
+    def update_image_data(
+        self, new_array: np.ndarray, enforce_new_dimension=False
+    ):
         """
         Update the image data with a new numpy array, preserving the original image metadata.
 
         Important:
             - The new array must match the shape of the original image unless `enforce_new_dimension` is set to True.
-            - If `enforce_new_dimension` is True, the new array can have a different shape than the original image, but 
+            - If `enforce_new_dimension` is True, the new array can have a different shape than the original image, but
             it will be assumed the first dimensions to get averaged.
 
         Args:
             new_array (np.ndarray): The new image data array. Must match the shape of the original image.
             enforce_new_dimension (bool): If True, allows the new array to have a different shape than the original image.
-            
+
         """
         if not isinstance(new_array, np.ndarray):
             raise TypeError('new_array must be a numpy array.')
         if new_array.shape != self._image_as_numpy.shape:
             if not enforce_new_dimension:
-                raise ValueError('new_array must match the shape of the original image.')
-        
+                raise ValueError(
+                    'new_array must match the shape of the original image.'
+                )
+
         # Get the dimension difference
-        dim_diff =  self._image_as_numpy.ndim - new_array.ndim
+        dim_diff = self._image_as_numpy.ndim - new_array.ndim
 
         if dim_diff < 0 or abs(dim_diff) >= 2:
             raise TypeError(
@@ -304,7 +302,13 @@ class ImageIO:
         if dim_diff != 0:
             base_origin = self._image_as_sitk.GetOrigin()[:3]
             base_spacing = self._image_as_sitk.GetSpacing()[:3]
-            base_direction = tuple(np.array(self._image_as_sitk.GetDirection()).reshape(self._image_as_numpy.ndim, self._image_as_numpy.ndim)[:3, :3].flatten())
+            base_direction = tuple(
+                np.array(self._image_as_sitk.GetDirection())
+                .reshape(self._image_as_numpy.ndim, self._image_as_numpy.ndim)[
+                    :3, :3
+                ]
+                .flatten()
+            )
         else:
             base_origin = self._image_as_sitk.GetOrigin()
             base_spacing = self._image_as_sitk.GetSpacing()

@@ -28,9 +28,9 @@ def test_load_image_m0_type_update_object_image_reference():
 
 def test_load_image_m0_with_average_m0_option(tmp_path):
     multi_M0 = ImageIO(
-        image_array=np.stack(
-            [ImageIO(M0).get_as_numpy(), ImageIO(M0).get_as_numpy()], axis=0
-        )
+        image_array=np.array(
+            [ImageIO(M0).get_as_numpy(), ImageIO(M0).get_as_numpy()]
+        , dtype=np.float32)
     )
     tmp_file = tmp_path / 'temp_m0.nii.gz'
     multi_M0.save_image(str(tmp_file))

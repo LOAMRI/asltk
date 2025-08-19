@@ -57,9 +57,9 @@ def isotropic_gaussian(data: ImageIO, sigma: float = 1.0):
     volumes, _ = collect_data_volumes(data)
     processed = []
     for volume in volumes:
-        processed.append(gaussian.Execute(sitk.GetImageFromArray(volume)))
+        processed.append(gaussian.Execute(volume.get_as_sitk()))
 
-    smooth_array = np.array(processed).reshape(data.get_as_numpy().shape)
+    smooth_array = np.array([sitk.GetArrayFromImage(vol) for vol in processed]).reshape(data.get_as_numpy().shape)
 
     out_data = clone_image(data)
     out_data.update_image_data(smooth_array)

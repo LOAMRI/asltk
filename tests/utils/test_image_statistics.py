@@ -122,7 +122,7 @@ def test_calculate_snr_raise_error_roi_not_numpy_array(image_path):
     with pytest.raises(ValueError) as error:
         calculate_snr(img, roi=roi)
 
-    assert 'ROI must be a numpy array' in str(error.value)
+    assert 'ROI must be an ImageIO object' in str(error.value)
 
 
 @pytest.mark.parametrize('image_path', [T1_MRI, PCASL_MTE, M0])
