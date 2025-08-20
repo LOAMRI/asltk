@@ -67,10 +67,18 @@ def test_head_movement_correction_success():
         pcasl_orig, verbose=True
     )
 
-    assert pcasl_corrected('pcasl').get_as_numpy().shape == pcasl_orig('pcasl').get_as_numpy().shape
+    assert (
+        pcasl_corrected('pcasl').get_as_numpy().shape
+        == pcasl_orig('pcasl').get_as_numpy().shape
+    )
     assert (
         np.abs(
-            np.mean(np.subtract(pcasl_corrected('pcasl').get_as_numpy(), pcasl_orig('pcasl').get_as_numpy()))
+            np.mean(
+                np.subtract(
+                    pcasl_corrected('pcasl').get_as_numpy(),
+                    pcasl_orig('pcasl').get_as_numpy(),
+                )
+            )
         )
         != 0
     )
@@ -98,7 +106,8 @@ def test_rigid_body_registration_error_fixed_image_is_not_numpy_array(img_rot):
         rigid_body_registration(img_orig, img_rot)
 
     assert (
-        str(e.value) == 'fixed_image and moving_image must be an ImageIO object.'
+        str(e.value)
+        == 'fixed_image and moving_image must be an ImageIO object.'
     )
 
 
@@ -226,7 +235,9 @@ def test_affine_registration_success():
 
     resampled_image, _ = affine_registration(img_orig, img_rot)
 
-    assert np.mean(np.subtract(img_orig.get_as_numpy(), resampled_image.get_as_numpy())) < np.mean(img_orig.get_as_numpy())
+    assert np.mean(
+        np.subtract(img_orig.get_as_numpy(), resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 def test_affine_registration_raise_exception_if_fixed_image_not_numpy():
@@ -236,7 +247,8 @@ def test_affine_registration_raise_exception_if_fixed_image_not_numpy():
         affine_registration('invalid_image', img_rot)
 
     assert (
-        str(e.value) == 'fixed_image and moving_image must be an ImageIO object.'
+        str(e.value)
+        == 'fixed_image and moving_image must be an ImageIO object.'
     )
 
 
@@ -247,7 +259,8 @@ def test_affine_registration_raise_exception_if_moving_image_not_numpy():
         affine_registration(img_orig, 'invalid_image')
 
     assert (
-        str(e.value) == 'fixed_image and moving_image must be an ImageIO object.'
+        str(e.value)
+        == 'fixed_image and moving_image must be an ImageIO object.'
     )
 
 
@@ -281,7 +294,9 @@ def test_affine_registration_fast_method():
 
     assert isinstance(resampled_image, ImageIO)
     assert resampled_image.get_as_numpy().shape == img_rot.get_as_numpy().shape
-    assert np.mean(np.abs(img_orig.get_as_numpy() - resampled_image.get_as_numpy())) < np.mean(img_orig.get_as_numpy())
+    assert np.mean(
+        np.abs(img_orig.get_as_numpy() - resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 def test_affine_registration_slow_method():
@@ -294,7 +309,9 @@ def test_affine_registration_slow_method():
 
     assert isinstance(resampled_image, ImageIO)
     assert resampled_image.get_as_numpy().shape == img_rot.get_as_numpy().shape
-    assert np.mean(np.abs(img_orig.get_as_numpy() - resampled_image.get_as_numpy())) < np.mean(img_orig.get_as_numpy())
+    assert np.mean(
+        np.abs(img_orig.get_as_numpy() - resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 def test_apply_transformation_success():
@@ -306,7 +323,9 @@ def test_apply_transformation_success():
     transformed_img = apply_transformation(img_rot, img_orig, trans_matrix)
     assert isinstance(transformed_img, ImageIO)
     assert transformed_img.get_as_numpy().shape == img_rot.get_as_numpy().shape
-    assert np.mean(np.abs(transformed_img.get_as_numpy() - img_rot.get_as_numpy())) < np.mean(img_rot.get_as_numpy())
+    assert np.mean(
+        np.abs(transformed_img.get_as_numpy() - img_rot.get_as_numpy())
+    ) < np.mean(img_rot.get_as_numpy())
 
 
 def test_apply_transformation_invalid_fixed_image():
