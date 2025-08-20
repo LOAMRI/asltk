@@ -278,3 +278,24 @@ def test_load_image_from_bids_structure_returns_valid_array():
     )
 
     assert img is not None
+
+@pytest.mark.parametrize(
+    'input_data',
+    [(np.random.rand(10, 10, 10), 'array')],
+)
+def test_ImageIO_constructor_success_with_image_array(input_data):
+    """Test ImageIO constructor with an image array."""
+    img_array, _ = input_data
+    io = ImageIO(image_array=img_array)
+
+    io = ImageIO(image_array=img_array)
+    
+    # Save the image to a temporary file
+    with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
+        io.save_image(f.name)
+    
+    # Check if the file was created
+    assert os.path.exists(f.name)
+    
+    # Clean up the temporary file
+    os.remove(f.name)
