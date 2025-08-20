@@ -3,10 +3,8 @@ import os
 from functools import *
 
 import numpy as np
-import SimpleITK as sitk
+from asltk.utils.io import ImageIO
 from rich import print
-from rich.progress import track
-from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import CBFMapping
@@ -71,6 +69,12 @@ optional.add_argument(
     default='nii',
     help='The file format that will be used to save the output images. It is not allowed image compression (ex: .gz, .zip, etc). Default is nii, but it can be choosen: mha, nrrd.',
 )
+optional.add_argument(
+    '--average_m0',
+    action='store_true',
+    default=False,
+    help='Whether to average the M0 images across the time series. Default is False.',
+)
 
 args = parser.parse_args()
 
@@ -107,12 +111,14 @@ def checkUpParameters():
     return is_ok
 
 
-asl_img = ImageIO(args.pcasl).get_as_numpy()
-m0_img = ImageIO(args.m0).get_as_numpy()
+asl_img = ImageIO(args.pcasl)
+m0_img = ImageIO(args.m0)
 
-mask_img = np.ones(asl_img[0, 0, :, :, :].shape)
+average_m0 = args.average_m0
+
+mask_img = ImageIO(image_array=np.ones(asl_img.get_as_numpy().shape[-3:]))
 if args.mask != '':
-    mask_img = ImageIO(args.mask).get_as_numpy()
+    mask_img = ImageIO(args.mask)
 
 
 try:
@@ -132,16 +138,19 @@ if not checkUpParameters():
 if args.verbose:
     print(' --- Script Input Data ---')
     print('ASL file path: ' + args.pcasl)
-    print('ASL image dimension: ' + str(asl_img.shape))
+    print('ASL image dimension: ' + str(asl_img.get_as_numpy().shape))
     print('Mask file path: ' + args.mask)
-    print('Mask image dimension: ' + str(mask_img.shape))
+    print('Mask image dimension: ' + str(mask_img.get_as_numpy().shape))
     print('M0 file path: ' + args.m0)
-    print('M0 image dimension: ' + str(m0_img.shape))
+    print('M0 image dimension: ' + str(m0_img.get_as_numpy().shape))
     print('PLD: ' + str(pld))
     print('LD: ' + str(ld))
     print('Output file format: ' + str(args.file_fmt))
 
-data = ASLData(pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld)
+print(average_m0)
+data = ASLData(pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, 
+               average_m0=average_m0)
+
 recon = CBFMapping(data)
 recon.set_brain_mask(mask_img)
 maps = recon.create_map()
@@ -150,19 +159,33 @@ maps = recon.create_map()
 save_path = args.out_folder + os.path.sep + 'cbf_map.' + args.file_fmt
 if args.verbose:
     print('Saving CBF map - Path: ' + save_path)
-ImageIO(image_array=maps['cbf']).save_image(save_path)
+maps['cbf'].save_image(save_path)
 
 save_path = (
     args.out_folder + os.path.sep + 'cbf_map_normalized.' + args.file_fmt
 )
 if args.verbose:
     print('Saving normalized CBF map - Path: ' + save_path)
-save_image(maps['cbf_norm'], save_path)
+maps['cbf_norm'].save_image(save_path)
 
 save_path = args.out_folder + os.path.sep + 'att_map.' + args.file_fmt
 if args.verbose:
     print('Saving ATT map - Path: ' + save_path)
-save_image(maps['att'], save_path)
+maps['att'].save_image(save_path)
 
 if args.verbose:
     print('Execution: ' + parser.prog + ' finished successfully!')
+
+
+def main():
+    """
+    Entry point function for the CBF Scalar ASL mapping command-line tool.
+
+    This function is called when the `asltk_cbf` command is run.
+    All script logic is already defined at the module level.
+    """
+    # Script logic is already defined at the module level
+    pass
+
+if __name__ == "__main__":
+    main()
