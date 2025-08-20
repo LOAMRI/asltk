@@ -16,9 +16,42 @@ from asltk import AVAILABLE_IMAGE_FORMATS, BIDS_IMAGE_FORMATS
 
 
 class ImageIO:
+    """ImageIO is the base class in `asltk` for loading, manipulating, 
+    and saving ASL images.
+
+    The basic functionality includes:
+        - Loading images from a file path or a numpy array.
+        - Converting images to different representations (SimpleITK, ANTsPy, numpy).
+        - Saving images to a file path in various formats.
+    """
+
     def __init__(
         self, image_path: str = None, image_array: np.ndarray = None, **kwargs
     ):
+        """The constructor initializes the ImageIO object with an image path or a numpy array.
+
+        It is needed to provide either an image path or a numpy array to load the image.
+        If both are provided, an error will be raised because it is ambiguous which one to use.
+
+        Note:
+            - If `image_path` is provided, the image will be loaded from the file.
+            - If `image_array` is provided, the image will be loaded as a numpy array.
+            - If both are provided, an error will be raised.
+            - If neither is provided, an error will be raised.
+
+        Important:
+            The image path should be a valid file path to an image file or a directory containing BIDS-compliant images.
+            It is also recommended to provide the image path for complex image processing, as it allows to preserve the image metadata and properties, as seen for the SimpleITK and ANTsPy representations.
+
+        Only the SimpleITK and Numpy representations are availble to manipulate higher dimensional images (4D, 5D, etc.).
+        The ANTsPy representation is limited up to 3D images, mainly due to the specificity to image normalization applications.
+
+        Args:
+            image_path (str, optional): The file path to the image. Defaults to None.
+            image_array (np.ndarray, optional): The image as a numpy array. Defaults to None.
+            average_m0 (bool, optional): If True, averages the M0 image if it is provided. Defaults to False.
+            verbose (bool, optional): If True, prints additional information during loading. Defaults to False
+        """
         # Image parameters and objects
         self._image_path = image_path
         self._image_as_numpy = image_array
@@ -39,7 +72,18 @@ class ImageIO:
 
         self.load_image()
 
+        if kwargs.get('verbose', False):
+            print(
+                f'[bold green]ImageIO initialized with path:[/bold green] {self._image_path}'
+            )
+            print(self)
+
     def __str__(self) -> str:
+        """Returns a string representation of the ImageIO object.
+
+        Returns:
+            str: A summary of the image parameters, BIDS information, and loading parameters.
+        """
         # Section 1: Image parameters
         image_ext = (
             os.path.splitext(self._image_path)[-1]
@@ -92,32 +136,77 @@ class ImageIO:
         return '\n'.join(image_section + bids_section + loading_section)
 
     def set_image_path(self, image_path: str):
+        """Set the image path for loading.
+
+        Args:
+            image_path (str): Path to the image file.
+        """
         check_path(image_path)
         self._image_path = image_path
 
     def get_image_path(self):
+        """Get the image path for loading.
+
+        Returns:
+            str: Path to the image file.
+        """
         return self._image_path
 
     def get_as_sitk(self):
+        """Get the image as a SimpleITK image object.
+        
+        Important:
+            The methods returns a copy of the SimpleITK image object.
+            This is to ensure that the original image is not modified unintentionally.
+
+        Returns:
+            SimpleITK.Image: The image as a SimpleITK image object.
+        """
         self._check_image_representation('sitk')
 
         return copy.deepcopy(self._image_as_sitk)
 
     def get_as_ants(self):
+        """Get the image as an ANTsPy image object.
+
+        Important:
+            The methods returns a copy of the ANTsPy image object.
+            This is to ensure that the original image is not modified unintentionally.
+
+        Returns:
+            ants.image: The image as an ANTsPy image object.
+        """
         self._check_image_representation('ants')
 
         return self._image_as_ants.clone()
 
     def get_as_numpy(self):
+        """Get the image as a NumPy array.
+
+        Important:
+            The methods returns a copy of the NumPy array.
+            This is to ensure that the original image is not modified unintentionally.
+            Also, the image representation as numpy array does not preserve the image metadata, such as spacing, origin, and direction.
+            For a complete image representation, use the SimpleITK or ANTsPy representations.
+
+        Returns:
+            numpy.ndarray: The image as a NumPy array.
+        """
         self._check_image_representation('numpy')
 
         return self._image_as_numpy.copy()
 
     def load_image(self):
         """
-        Load an image file from a BIDS directory or file using the SimpleITK API.
+        Load an image file from a BIDS directory or file using the SimpleITK and ANTsPy representation (if applicable).
 
-        The output is always a numpy array, converted from the SimpleITK image object.
+        The output is allocated internaly to a ImageIO object that contains up to three image representations: a
+         SimpleITK image, a numpy array and (if applicable) a ANTsPy image.
+
+        Note:
+            - The general image loading is done using SimpleITK, which supports a wide range of image formats.
+            - The image is loaded as a SimpleITK image, and then converted to a numpy array.
+            - If the image is 3D or lower, it is also converted to an ANTsPy image.
 
         Supported image formats include: .nii, .nii.gz, .nrrd, .mha, .tif, and other formats supported by SimpleITK.
 
@@ -133,12 +222,7 @@ class ImageIO:
         Note:
             The image file is assumed to be an ASL subtract image (control-label). If not, use helper functions in `asltk.utils` to create one.
 
-        Args:
-            full_path (str): Path to the image file or BIDS directory.
-            subject (str, optional): Subject identifier. Defaults to None.
-            session (str, optional): Session identifier. Defaults to None.
-            modality (str, optional): Modality folder name. Defaults to None.
-            suffix (str, optional): Suffix of the file to load. Defaults to None.
+        The information passed to the ImageIO constructor is used to load the image.
 
         Examples:
             Load a single image file directly:
@@ -169,7 +253,7 @@ class ImageIO:
             <class 'numpy.ndarray'>
 
         Returns:
-            numpy.ndarray: The loaded image array.
+            ImageIO: The loaded image as a ImageIO object.
         """
 
         if self._image_path is not None:
@@ -213,6 +297,9 @@ class ImageIO:
         """
         Update the image spacing with a new tuple, preserving the original image metadata.
 
+        Important:
+            - The new spacing must be a tuple of the same length as the original image dimension.
+
         Args:
             new_spacing (tuple): The new spacing for the image.
         """
@@ -231,6 +318,9 @@ class ImageIO:
         """
         Update the image origin with a new tuple, preserving the original image metadata.
 
+        Important:
+            - The new origin must be a tuple of the same length as the original image dimension.
+
         Args:
             new_origin (tuple): The new origin for the image.
         """
@@ -248,6 +338,9 @@ class ImageIO:
     def update_image_direction(self, new_direction: tuple):
         """
         Update the image direction with a new tuple, preserving the original image metadata.
+
+        Important:
+            - The new direction must be a tuple of the same length as the original image dimension.
 
         Args:
             new_direction (tuple): The new direction for the image.
@@ -268,6 +361,23 @@ class ImageIO:
     ):
         """
         Update the image data with a new numpy array, preserving the original image metadata.
+
+        This is particularly useful for updating the image data after processing or when new data is available. 
+        Hence, it allows to change the image data without losing the original metadata such as spacing, origin, and direction.
+        
+        Another application for this method is to create a new image using a processed numpy array and then copy the metadata from the original image that was loaded using a file path, which contains the original metadata.
+
+        Examples:
+            >>> import numpy as np
+            >>> array = np.random.rand(10, 10, 10) 
+            >>> image1 = ImageIO(image_array=array)# Example 3D image from a numpy array (without metadata)
+            >>> full_image = ImageIO(image_path="./tests/files/m0.nii.gz") # Example 3D image with metadata
+            Both images has the same shape, so we can update the image data:
+            >>> image1.get_as_numpy().shape == image2.get_as_numpy().shape
+            True
+
+            >>> image2.update_image_data(image1.get_as_numpy())
+            Now the `image2` has the same data as `image1`, but retains its original metadata.
 
         Important:
             - The new array must match the shape of the original image unless `enforce_new_dimension` is set to True.
@@ -340,16 +450,15 @@ class ImageIO:
         **kwargs,
     ):
         """
-        Save an image to a file path using SimpleITK.
+        Save the current image to a file path using SimpleITK.
 
         All available image formats provided in the SimpleITK API can be used here. Supported formats include: .nii, .nii.gz, .nrrd, .mha, .tif, and others.
 
         Note:
             If the file extension is not recognized by SimpleITK, an error will be raised.
-            The input array should be 2D, 3D, or 4D. For 4D arrays, only the first volume may be saved unless handled explicitly.
+            The image array should be 2D, 3D, or 4D. For 4D arrays, only the first volume may be saved unless handled explicitly.
 
         Args:
-            img (np.ndarray): The image array to be saved. Can be 2D, 3D, or 4D.
             full_path (str): Full absolute path with image file name provided.
             bids_root (str): Optional BIDS root directory to save in BIDS structure.
             subject (str): Subject ID for BIDS saving.
@@ -358,24 +467,31 @@ class ImageIO:
         Examples:
             Save an image using a direct file path:
             >>> import tempfile
+            >>> from asltk.utils.io import ImageIO
             >>> import numpy as np
             >>> img = np.random.rand(10, 10, 10)
+            >>> io = ImageIO(image_array=img)
             >>> with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
-            ...     save_image(img, f.name)
+            ...     io.save_image(f.name)
 
             Save an image using BIDS structure:
             >>> import tempfile
+            >>> from asltk.utils.io import ImageIO
+            >>> import numpy as np
             >>> img = np.random.rand(10, 10, 10)
+            >>> io = ImageIO(image_array=img)
             >>> with tempfile.TemporaryDirectory() as temp_dir:
-            ...     save_image(img, bids_root=temp_dir, subject='001', session='01')
+            ...     io.save_image(bids_root=temp_dir, subject='001', session='01')
 
             Save processed ASL results:
             >>> from asltk.asldata import ASLData
+            >>> from asltk.utils.io import ImageIO
             >>> asl_data = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz')
             >>> processed_img = asl_data('pcasl')[0]  # Get first volume
+            >>> io = ImageIO(image_array=processed_img)
             >>> import tempfile
             >>> with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
-            ...     save_image(processed_img, f.name)
+            ...     io.save_image(f.name)
 
         Raises:
             ValueError: If neither full_path nor (bids_root + subject) are provided.
@@ -482,6 +598,22 @@ def check_image_properties(
     first_image: Union[sitk.Image, np.ndarray, ants.ANTsImage, ImageIO],
     ref_image: ImageIO,
 ):
+    """Check the properties of two images to ensure they are compatible.
+
+    The first image can be a SimpleITK image, a numpy array, an ANTsPy image, or an ImageIO object.
+    The reference image must be an ImageIO object.
+
+    This function checks the size, spacing, origin, and direction of the first image against the reference image.
+
+    Args:
+        first_image (Union[sitk.Image, np.ndarray, ants.ANTsImage, ImageIO]): The first image to check.
+        ref_image (ImageIO): The reference image to compare against.
+
+    Raises:
+        TypeError: If the reference image is not an ImageIO object.
+        ValueError: If the image properties (size, spacing, origin, direction) do not match.
+        ValueError: If the image properties (size, spacing, origin, direction) do not match.
+    """
     # Check the image size, dimension, spacing and all the properties to see if the first_image is equal to ref_image
     if not isinstance(ref_image, ImageIO):
         raise TypeError('Reference image must be a ImageIO object')
@@ -536,6 +668,26 @@ def check_image_properties(
 
 
 def clone_image(source: ImageIO, include_path: bool = False):
+    """Clone an image getting a deep copy.
+
+    All the image properties are copied, including the image path if `include_path` is True.
+
+    Tip:
+        This a useful method to create a copy of an image for processing without modifying the original image.
+        Also, after making a clone, you can modify the image properties without affecting the original image.
+        The image array representation can be modified, but the original image metadata will remain unchanged,
+        however the `update_image_data` method can be used to update the image data while preserving the original metadata.
+
+    Args:
+        source (ImageIO): The source image to clone.
+        include_path (bool, optional): Whether to include the image path in the clone. Defaults to False.
+
+    Raises:
+        TypeError: If the source image is not an ImageIO object.
+
+    Returns:
+        ImageIO: The cloned image.
+    """    
     if not isinstance(source, ImageIO):
         raise TypeError('Source image must be a ImageIO object')
 
@@ -547,6 +699,15 @@ def clone_image(source: ImageIO, include_path: bool = False):
 
 
 def check_path(path: str):
+    """Check if the image path is valid.
+
+    Args:
+        path (str): The image path to check.
+
+    Raises:
+        ValueError: If the image path is not set.
+        FileNotFoundError: If the image file does not exist.
+    """
     if path is None:
         raise ValueError(
             'Image path is not set. Please set the image path first.'
