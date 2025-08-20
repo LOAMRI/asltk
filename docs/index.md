@@ -37,9 +37,11 @@ Any improvement and suggestions are more than welcome. The ASL toolkit is a coll
 8. Code documentation
 9. Version control
 
+See the [How to Contribute](contribute.md) section for more details about the above topics.
+
 
 !!! note
-    All the documentation is by default generated in the American English language. Even though this may not be the first language for some users or code developers (including me), it is encouraging to follow this language format to keep the information as broad and accessible as possible. Furthermore, better documentation is also a wonderful way to help the project, so if you want to contribute to correcting typos, grammar or confounding sentences, please make a PR!
+    All the documentation is by default generated in the American English language. Even though this may not be the first language for some users or code developers (including me), it is encouraging to follow this language format to keep the information as broad and accessible as possible. Furthermore, better documentation is also a wonderful way to help the project, so if you want to contribute to correcting typos, grammar or confounding sentences, please make a Pull Request (PR)!
 
 
 ## Audience 
