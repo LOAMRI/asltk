@@ -1,4 +1,5 @@
 from multiprocessing import Array, Pool, cpu_count
+import warnings
 
 import numpy as np
 from rich import print
@@ -90,7 +91,7 @@ class T2Scalar_ASLMapping(MRIParameters):
         return self._mean_t2s
 
     def create_map(
-        self, cores=cpu_count(), smoothing=None, smoothing_params=None
+        self, cores=cpu_count(), smoothing=None, smoothing_params=None, suppress_warnings=False
     ):
         """
         Compute T2 maps using multi-echo ASL data and a brain mask, with multiprocessing.
@@ -111,82 +112,95 @@ class T2Scalar_ASLMapping(MRIParameters):
         logger = get_logger('t2_mapping')
         logger.info('Starting T2 map creation')
 
-        data = self._asl_data('pcasl').get_as_numpy()
-        mask = self._brain_mask.get_as_numpy()
-        TEs = np.array(self._te_values)
-        PLDs = np.array(self._pld_values)
-        n_tes, n_plds, z_axis, y_axis, x_axis = data.shape
+            # Optionally suppress warnings
+        if suppress_warnings:
+            warnings_context = warnings.catch_warnings()
+            warnings_context.__enter__()
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
+            logger.info('Warnings suppressed during T2 mapping')
+        
+        try:
+            data = self._asl_data('pcasl').get_as_numpy()
+            mask = self._brain_mask.get_as_numpy()
+            TEs = np.array(self._te_values)
+            PLDs = np.array(self._pld_values)
+            n_tes, n_plds, z_axis, y_axis, x_axis = data.shape
 
-        t2_maps_all = []
-        mean_t2s = []
+            t2_maps_all = []
+            mean_t2s = []
 
-        for pld_idx in range(n_plds):
-            logger.info(f'Processing PLD index {pld_idx} ({PLDs[pld_idx]} ms)')
-            t2_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
-            log_processing_step(
-                'Running voxel-wise T2 fitting',
-                'this may take several minutes',
-            )
-            with Pool(
-                processes=cores,
-                initializer=_t2_init_globals,
-                initargs=(t2_map_shared, mask, data, TEs),
-            ) as pool:
-                with Progress() as progress:
-                    task = progress.add_task(
-                        f'T2 fitting (PLD {PLDs[pld_idx]} ms)...', total=x_axis
-                    )
-                    results = [
-                        pool.apply_async(
-                            _t2_process_slice,
-                            args=(i, x_axis, y_axis, z_axis, pld_idx),
-                            callback=lambda _: progress.update(
-                                task, advance=1
-                            ),
+            for pld_idx in range(n_plds):
+                logger.info(f'Processing PLD index {pld_idx} ({PLDs[pld_idx]} ms)')
+                t2_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+                log_processing_step(
+                    'Running voxel-wise T2 fitting',
+                    'this may take several minutes',
+                )
+                with Pool(
+                    processes=cores,
+                    initializer=_t2_init_globals,
+                    initargs=(t2_map_shared, mask, data, TEs),
+                ) as pool:
+                    with Progress() as progress:
+                        task = progress.add_task(
+                            f'T2 fitting (PLD {PLDs[pld_idx]} ms)...', total=x_axis
                         )
-                        for i in range(x_axis)
+                        results = [
+                            pool.apply_async(
+                                _t2_process_slice,
+                                args=(i, x_axis, y_axis, z_axis, pld_idx),
+                                callback=lambda _: progress.update(
+                                    task, advance=1
+                                ),
+                            )
+                            for i in range(x_axis)
+                        ]
+                        for result in results:
+                            result.wait()
+
+                t2_map = np.frombuffer(t2_map_shared).reshape(
+                    z_axis, y_axis, x_axis
+                )
+                t2_maps_all.append(t2_map)
+                mean_t2s.append(np.nanmean(t2_map))
+
+            t2_maps_stacked = np.array(t2_maps_all)  # shape: (N_PLDS, Z, Y, X)
+            self._t2_maps = t2_maps_stacked
+            self._mean_t2s = mean_t2s
+
+            logger.info('T2 mapping completed successfully')
+            logger.info(
+                f'T2 statistics - Mean: {np.mean(self._t2_maps):.4f}, Std: {np.std(self._t2_maps):.4f}'
+            )
+
+            # Prepare output maps
+            # TODO At the moment, the T2 maps and mean T2 maps are as ImageIO object, however, the Spacing, Dimension are not given as a 4D array. The m0 image is 3D... check if this is a problem for the T2 image properties
+            t2_maps_image = ImageIO(
+                image_array=np.array(
+                    [
+                        self._asl_data('m0').get_as_numpy()
+                        for _ in range(len(t2_maps_all))
                     ]
-                    for result in results:
-                        result.wait()
-
-            t2_map = np.frombuffer(t2_map_shared).reshape(
-                z_axis, y_axis, x_axis
+                )
             )
-            t2_maps_all.append(t2_map)
-            mean_t2s.append(np.nanmean(t2_map))
+            t2_maps_image.update_image_data(self._t2_maps)
 
-        t2_maps_stacked = np.array(t2_maps_all)  # shape: (N_PLDS, Z, Y, X)
-        self._t2_maps = t2_maps_stacked
-        self._mean_t2s = mean_t2s
+            # Update the _t2_maps attribute to be an ImageIO object
+            self._t2_maps = t2_maps_image
 
-        logger.info('T2 mapping completed successfully')
-        logger.info(
-            f'T2 statistics - Mean: {np.mean(self._t2_maps):.4f}, Std: {np.std(self._t2_maps):.4f}'
-        )
+            output_maps = {
+                't2': t2_maps_image,
+                'mean_t2': self._mean_t2s,
+            }
 
-        # Prepare output maps
-        # TODO At the moment, the T2 maps and mean T2 maps are as ImageIO object, however, the Spacing, Dimension are not given as a 4D array. The m0 image is 3D... check if this is a problem for the T2 image properties
-        t2_maps_image = ImageIO(
-            image_array=np.array(
-                [
-                    self._asl_data('m0').get_as_numpy()
-                    for _ in range(len(t2_maps_all))
-                ]
+            return _apply_smoothing_to_maps(
+                output_maps, smoothing, smoothing_params
             )
-        )
-        t2_maps_image.update_image_data(self._t2_maps)
-
-        # Update the _t2_maps attribute to be an ImageIO object
-        self._t2_maps = t2_maps_image
-
-        output_maps = {
-            't2': t2_maps_image,
-            'mean_t2': self._mean_t2s,
-        }
-
-        return _apply_smoothing_to_maps(
-            output_maps, smoothing, smoothing_params
-        )
+        finally:
+            # Ensure warnings are restored if suppressed
+            if suppress_warnings:
+                warnings_context.__exit__(None, None, None)
 
 
 def _fit_voxel(signal, TEs):  # pragma: no cover
