@@ -94,28 +94,30 @@ class CBFMapping(MRIParameters):
             ... )
             >>> cbf_mapper = CBFMapping(asl_data)
             >>> # Create a simple brain mask (center region only)
-            >>> mask_shape = asl_data('m0').shape  # Get M0 dimensions
-            >>> brain_mask = np.zeros(mask_shape)
-            >>> brain_mask[2:6, 10:25, 10:25] = 1  # Define brain region
+            >>> mask_shape = asl_data('m0').get_as_numpy().shape  # Get M0 dimensions
+            >>> brain_mask = ImageIO(image_array=np.zeros(mask_shape))
+            >>> adjusted_brain_mask = brain_mask.get_as_numpy().copy()
+            >>> adjusted_brain_mask[2:6, 10:25, 10:25] = 1  # Define brain region
+            >>> brain_mask.update_image_data(adjusted_brain_mask)
             >>> cbf_mapper.set_brain_mask(brain_mask)
 
             Load and use an existing brain mask:
             >>> # Load pre-computed brain mask
             >>> from asltk.utils.io import ImageIO
-            >>> brain_mask = ImageIO('./tests/files/m0_brain_mask.nii.gz').get_as_numpy()
+            >>> brain_mask = ImageIO('./tests/files/m0_brain_mask.nii.gz')
             >>> cbf_mapper.set_brain_mask(brain_mask)
 
             Use multi-label mask (select specific region):
             >>> # Assuming a segmentation mask with different tissue labels
-            >>> segmentation_mask = np.random.randint(0, 4, mask_shape)  # Example
+            >>> segmentation_mask = ImageIO(image_array=np.random.randint(0, 4, mask_shape))  # Example
             >>> # Use only label 2 (e.g., grey matter)
             >>> cbf_mapper.set_brain_mask(segmentation_mask, label=2)
 
             Automatic thresholding of M0 image as mask:
             >>> # Use M0 intensity to create brain mask
-            >>> m0_data = asl_data('m0')
+            >>> m0_data = asl_data('m0').get_as_numpy()
             >>> threshold = np.percentile(m0_data, 20)  # Bottom 20% as background
-            >>> auto_mask = (m0_data > threshold).astype(np.uint8)
+            >>> auto_mask = ImageIO(image_array=(m0_data > threshold).astype(np.uint8))
             >>> cbf_mapper.set_brain_mask(auto_mask)
 
         Raises:
@@ -164,8 +166,10 @@ class CBFMapping(MRIParameters):
             >>> current_mask = cbf_mapper.get_brain_mask()
 
             Verify brain mask after setting:
-            >>> brain_mask = np.ones(asl_data('m0').shape)
-            >>> brain_mask[0:4, :, :] = 0  # Remove some slices
+            >>> brain_mask = ImageIO(image_array=np.ones(asl_data('m0').get_as_numpy().shape))
+            >>> new_brain_mask = brain_mask.get_as_numpy().copy()
+            >>> new_brain_mask[0:4, :, :] = 0  # Remove some slices
+            >>> brain_mask.update_image_data(new_brain_mask)
             >>> cbf_mapper.set_brain_mask(brain_mask)
             >>> updated_mask = cbf_mapper.get_brain_mask()
         """
@@ -225,6 +229,7 @@ class CBFMapping(MRIParameters):
         Examples:  # doctest: +SKIP
             Basic CBF mapping with default parameters:
             >>> from asltk.asldata import ASLData
+            >>> from asltk.utils.io import ImageIO
             >>> from asltk.reconstruction import CBFMapping
             >>> import numpy as np
             >>> # Load ASL data with LD/PLD values
@@ -236,7 +241,7 @@ class CBFMapping(MRIParameters):
             ... )
             >>> cbf_mapper = CBFMapping(asl_data)
             >>> # Set brain mask (recommended for faster processing)
-            >>> brain_mask = np.ones((5, 35, 35))  # Example mask
+            >>> brain_mask = ImageIO(image_array=np.ones((5, 35, 35)))  # Example mask
             >>> cbf_mapper.set_brain_mask(brain_mask)
             >>> # Generate maps
             >>> results = cbf_mapper.create_map() # doctest: +SKIP

@@ -133,9 +133,11 @@ class MultiDW_ASLMapping(MRIParameters):
             ... )
             >>> mdw_mapper = MultiDW_ASLMapping(asl_data)
             >>> # Create conservative brain mask (center region only)
-            >>> mask_shape = asl_data('m0').shape
-            >>> brain_mask = np.zeros(mask_shape)
-            >>> brain_mask[1:4, 5:30, 5:30] = 1  # Conservative brain region
+            >>> mask_shape = asl_data('m0').get_as_numpy().shape
+            >>> brain_mask = ImageIO(image_array=np.zeros(mask_shape))
+            >>> adjusted_brain_mask = brain_mask.get_as_numpy()
+            >>> adjusted_brain_mask[1:4, 5:30, 5:30] = 1  # Conservative brain region
+            >>> brain_mask.update_image_data(adjusted_brain_mask)
             >>> mdw_mapper.set_brain_mask(brain_mask)
 
         Note:
@@ -278,8 +280,10 @@ class MultiDW_ASLMapping(MRIParameters):
             ... )
             >>> mdw_mapper = MultiDW_ASLMapping(asl_data)
             >>> # Set brain mask for faster processing (recommended)
-            >>> brain_mask = np.ones(asl_data('m0').shape)
-            >>> brain_mask[0:2, :, :] = 0  # Remove some background slices
+            >>> brain_mask = ImageIO(image_array=np.ones(asl_data('m0').get_as_numpy().shape))
+            >>> adjusted_brain_mask = brain_mask.get_as_numpy().copy()
+            >>> adjusted_brain_mask[0:2, :, :] = 0  # Remove some background slices
+            >>> brain_mask.update_image_data(adjusted_brain_mask)
             >>> mdw_mapper.set_brain_mask(brain_mask)
             >>> # Generate all maps (may take several minutes)
             >>> results = mdw_mapper.create_map() # doctest: +SKIP

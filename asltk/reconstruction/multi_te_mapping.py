@@ -249,6 +249,7 @@ class MultiTE_ASLMapping(MRIParameters):
             Basic multi-TE ASL analysis:
             >>> from asltk.asldata import ASLData
             >>> from asltk.reconstruction import MultiTE_ASLMapping
+            >>> from asltk.utils.io import ImageIO
             >>> import numpy as np
             >>> # Load multi-TE ASL data
             >>> asl_data = ASLData(
@@ -260,7 +261,7 @@ class MultiTE_ASLMapping(MRIParameters):
             ... )
             >>> mte_mapper = MultiTE_ASLMapping(asl_data)
             >>> # Set brain mask for faster processing
-            >>> brain_mask = np.ones(asl_data('m0').shape)
+            >>> brain_mask = ImageIO(image_array=np.ones(asl_data('m0').get_as_numpy().shape))
             >>> mte_mapper.set_brain_mask(brain_mask)
             >>> # Generate all maps
             >>> results = mte_mapper.create_map() # doctest: +SKIP
@@ -298,7 +299,6 @@ class MultiTE_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
-        # # TODO As entradas ub, lb e par0 não são aplicadas para CBF. Pensar se precisa ter essa flexibilidade para acertar o CBF interno à chamada
         self._basic_maps.set_brain_mask(ImageIO(image_array=self._brain_mask))
 
         basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
