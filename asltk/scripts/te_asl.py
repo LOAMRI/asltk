@@ -7,13 +7,13 @@ import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
+from asltk.utils.io import ImageIO
 from asltk.logging_config import (
     configure_for_scripts,
     get_logger,
     log_processing_step,
 )
 from asltk.reconstruction import MultiTE_ASLMapping
-from asltk.utils.io import load_image, save_image
 
 parser = argparse.ArgumentParser(
     prog='Multi-TE ASL Mapping',
@@ -95,6 +95,12 @@ optional.add_argument(
     default='nii',
     help='The file format that will be used to save the output images. It is not allowed image compression (ex: .gz, .zip, etc). Default is nii, but it can be choosen: mha, nrrd.',
 )
+optional.add_argument(
+    '--average_m0',
+    action='store_true',
+    default=False,
+    help='Whether to average the M0 images across the time series. Default is False.',
+)
 
 args = parser.parse_args()
 
@@ -135,21 +141,23 @@ def checkUpParameters():
     return is_ok
 
 
-asl_img = load_image(args.pcasl)
-m0_img = load_image(args.m0)
+asl_img = ImageIO(args.pcasl)
+m0_img = ImageIO(args.m0)
 
-mask_img = np.ones(asl_img[0, 0, :, :, :].shape)
+average_m0 = args.average_m0
+
+mask_img = ImageIO(image_array=np.ones(asl_img.get_as_numpy().shape[-3:]))
 if args.mask != '':
-    mask_img = load_image(args.mask)
+    mask_img = ImageIO(args.mask)
 
 
 cbf_map = None
 if args.cbf is not None:
-    cbf_map = load_image(args.cbf)
+    cbf_map = ImageIO(args.cbf)
 
 att_map = None
 if args.att is not None:
-    att_map = load_image(args.att)
+    att_map = ImageIO(args.att)
 
 
 try:
@@ -172,11 +180,11 @@ logger.info('Multi-TE ASL processing started')
 if args.verbose:
     print(' --- Script Input Data ---')
     print('ASL file path: ' + args.pcasl)
-    print('ASL image dimension: ' + str(asl_img.shape))
+    print('ASL image dimension: ' + str(asl_img.get_as_numpy().shape))
     print('Mask file path: ' + args.mask)
-    print('Mask image dimension: ' + str(mask_img.shape))
+    print('Mask image dimension: ' + str(mask_img.get_as_numpy().shape))
     print('M0 file path: ' + args.m0)
-    print('M0 image dimension: ' + str(m0_img.shape))
+    print('M0 image dimension: ' + str(m0_img.get_as_numpy().shape))
     print('PLD: ' + str(pld))
     print('LD: ' + str(ld))
     print('TE: ' + str(te))
@@ -194,14 +202,14 @@ log_processing_step(
     'Creating ASLData object', f'Multi-TE with {len(te)} echo times'
 )
 data = ASLData(
-    pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, te_values=te
+    pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, te_values=te, average_m0=average_m0
 )
 
 log_processing_step('Initializing Multi-TE ASL mapper')
 recon = MultiTE_ASLMapping(data)
 recon.set_brain_mask(mask_img)
 
-if isinstance(cbf_map, np.ndarray) and isinstance(att_map, np.ndarray):
+if isinstance(cbf_map, ImageIO) and isinstance(att_map, ImageIO):
     logger.info('Setting optional CBF and ATT maps')
     recon.set_cbf_map(cbf_map)
     recon.set_att_map(att_map)
@@ -217,7 +225,7 @@ save_path = args.out_folder + os.path.sep + 'cbf_map.' + args.file_fmt
 if args.verbose and cbf_map is not None:
     print('Saving CBF map - Path: ' + save_path)
 logger.info(f'Saving CBF map to: {save_path}')
-save_image(maps['cbf'], save_path)
+maps['cbf'].save_image(save_path)
 
 save_path = (
     args.out_folder + os.path.sep + 'cbf_map_normalized.' + args.file_fmt
@@ -225,20 +233,34 @@ save_path = (
 if args.verbose and cbf_map is not None:
     print('Saving normalized CBF map - Path: ' + save_path)
 logger.info(f'Saving normalized CBF map to: {save_path}')
-save_image(maps['cbf_norm'], save_path)
+maps['cbf_norm'].save_image(save_path)
 
 save_path = args.out_folder + os.path.sep + 'att_map.' + args.file_fmt
 if args.verbose and att_map is not None:
     print('Saving ATT map - Path: ' + save_path)
 logger.info(f'Saving ATT map to: {save_path}')
-save_image(maps['att'], save_path)
+maps['att'].save_image(save_path)
 
 save_path = args.out_folder + os.path.sep + 'mte_t1blgm_map.' + args.file_fmt
 if args.verbose:
     print('Saving multiTE-ASL T1blGM map - Path: ' + save_path)
 logger.info(f'Saving T1blGM map to: {save_path}')
-save_image(maps['t1blgm'], save_path)
+maps['t1blgm'].save_image(save_path)
 
 if args.verbose:
     print('Execution: ' + parser.prog + ' finished successfully!')
 logger.info('Multi-TE ASL processing completed successfully')
+
+
+def main():
+    """
+    Entry point function for the multi-TE Scalar ASL mapping command-line tool.
+
+    This function is called when the `asltk_te_asl` command is run.
+    All script logic is already defined at the module level.
+    """
+    # Script logic is already defined at the module level
+    pass
+
+if __name__ == "__main__":
+    main()
