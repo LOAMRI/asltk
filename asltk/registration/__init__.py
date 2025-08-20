@@ -5,23 +5,9 @@ import SimpleITK as sitk
 from asltk.asldata import ASLData
 from asltk.data.brain_atlas import BrainAtlas
 from asltk.logging_config import get_logger
-from asltk.utils.image_manipulation import check_and_fix_orientation
+
+# from asltk.utils.image_manipulation import check_and_fix_orientation
 from asltk.utils.io import ImageIO, clone_image
-
-
-# TODO Montar classe para fazer o coregistro de ASL
-class ASLRegistration:
-
-    # Pipeline
-    # inputs: ASLData (com m0 e pcasl), BrainAtlas, resolution (1 or 2 mm)
-    # Tomar m0 e comparar orientação com o template
-    # Se necessário, corrigir orientação do template para estar coerente com o m0 (salvar a transformação e aplicar para os labels)
-    # Realizar o registro do m0 no template
-    # com a transformação do m0, deixar salvo como parametro do objeto da classe
-    # Ter metodos para aplicar transformação para o pcasl, ou mapas gerados pelo CBFMapping, MultiTE, etc.
-
-    def __init__(self):
-        pass
 
 
 def space_normalization(
@@ -47,7 +33,7 @@ def space_normalization(
     provided in the correct format.
 
     Note:
-        For more specfiic cases, such as ASL data normalization, one can
+        For more specific cases, such as ASL data normalization, one can
         use other methods, such as in `asl_normalization` module.
 
     Note:
@@ -87,9 +73,6 @@ def space_normalization(
         no mask is used.
     transform_type : str, optional
         Type of transformation ('SyN', 'BSpline', etc.). Default is 'SyNBoldAff'.
-    check_orientation : bool, optional
-        Whether to automatically check and fix orientation mismatches between
-        moving and template images. Default is True.
     verbose : bool, optional
         Whether to print detailed orientation analysis. Default is False.
 
@@ -107,17 +90,10 @@ def space_normalization(
             'moving_image must be an ImageIO object and template_image must be a BrainAtlas object, a string with the atlas name, or an ImageIO object.'
         )
 
-    # Take optional parameters
-    check_orientation = kwargs.get('check_orientation', True)
-    verbose = kwargs.get('verbose', False)
-
     logger = get_logger('registration')
     logger.info('Starting space normalization')
 
     # Load template image first
-    # TODO PROBLEMA PRINCIPAL: A leitura de imagens para numpy faz a perda da origen e spacing, para fazer o corregistro é preciso acertar a orientação da imagem com relação a origem (flip pela origem) para que ambas estejam na mesma orientação visual
-    # TODO Pensar em como será a utilização do corregistro para o ASLTK (assume que já está alinhado? ou tenta alinhar imagens check_orientation?)
-    # TODO Terminar de corrigir metodo com o ImageIO (ja com o spaceing, origning acertado)
     template_array = None
     if isinstance(template_image, BrainAtlas):
         template_file = template_image.get_atlas()['t1_data']
@@ -142,23 +118,6 @@ def space_normalization(
         )
 
     corrected_moving_image = clone_image(moving_image)
-    # orientation_transform = None
-
-    # # TODO VERIICAR SE CHECK_ORIENTATION ESTA CERTO... USAR sitk.FlipImageFilter usando a Origen da image (Slicer da certo assim)
-    # if check_orientation:
-    #     (
-    #         corrected_moving_image_array,
-    #         orientation_transform,
-    #     ) = check_and_fix_orientation(
-    #         moving_image, template_array, verbose=verbose
-    #     )
-    #     if verbose and orientation_transform:
-    #         print(f'Applied orientation correction: {orientation_transform}')
-    #     corrected_moving_image.update_image_data(corrected_moving_image_array)
-
-    # Convert to ANTs images
-    # moving = ants.from_numpy(corrected_moving_image)
-    # template = ants.from_numpy(template_array)
 
     # Load masks if provided
     if isinstance(moving_mask, ImageIO):
@@ -166,7 +125,6 @@ def space_normalization(
     if isinstance(template_mask, ImageIO):
         template_mask = template_mask.get_as_ants()
 
-    # TODO Vericicar se ants.registration consegue colocar o TransformInit como Centro de Massa!'
     # Perform registration
     registration = ants.registration(
         fixed=template_array.get_as_ants(),
@@ -287,7 +245,9 @@ def affine_registration(
     if not isinstance(fixed_image, ImageIO) or not isinstance(
         moving_image, ImageIO
     ):
-        raise Exception('fixed_image and moving_image must be an ImageIO object.')
+        raise Exception(
+            'fixed_image and moving_image must be an ImageIO object.'
+        )
     if moving_mask is not None and not isinstance(moving_mask, ImageIO):
         raise Exception('moving_mask must be an ImageIO object.')
     if template_mask is not None and not isinstance(template_mask, ImageIO):
@@ -324,6 +284,13 @@ def apply_transformation(
         obtained from a registration process. The transformations are applied
         in the order they are provided in the list.
 
+    Tip:
+        Additional parameters can be passed to the `ants.apply_transforms`
+        function using the `kwargs` parameter. This allows for customization of
+        the transformation process, such as specifying interpolation methods,
+        handling of missing data, etc. See more in the ANTsPy documentation:
+        https://antspy.readthedocs.io/en/latest/registration.html#ants.apply_transforms
+
     Args:
         image: np.ndarray
             The image to be transformed.
@@ -337,7 +304,6 @@ def apply_transformation(
         transformed_image: np.ndarray
             The transformed image.
     """
-    # TODO handle kwargs for additional parameters based on ants.apply_transforms
     if not isinstance(moving_image, ImageIO):
         raise TypeError('moving image must be an ImageIO object.')
 
@@ -345,7 +311,8 @@ def apply_transformation(
         raise TypeError(
             'reference_image must be an ImageIO object or a BrainAtlas object.'
         )
-    elif isinstance(reference_image, BrainAtlas):
+
+    if isinstance(reference_image, BrainAtlas):
         reference_image = ImageIO(reference_image.get_atlas()['t1_data'])
 
     if not isinstance(transforms, list):
@@ -357,6 +324,7 @@ def apply_transformation(
         fixed=reference_image.get_as_ants(),
         moving=moving_image.get_as_ants(),
         transformlist=transforms,
+        **kwargs,  # Additional parameters for ants.apply_transforms
     )
 
     out_image = clone_image(reference_image)
