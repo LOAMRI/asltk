@@ -16,7 +16,7 @@ from asltk import AVAILABLE_IMAGE_FORMATS, BIDS_IMAGE_FORMATS
 
 
 class ImageIO:
-    """ImageIO is the base class in `asltk` for loading, manipulating, 
+    """ImageIO is the base class in `asltk` for loading, manipulating,
     and saving ASL images.
 
     The basic functionality includes:
@@ -154,7 +154,7 @@ class ImageIO:
 
     def get_as_sitk(self):
         """Get the image as a SimpleITK image object.
-        
+
         Important:
             The methods returns a copy of the SimpleITK image object.
             This is to ensure that the original image is not modified unintentionally.
@@ -278,7 +278,13 @@ class ImageIO:
                     self._image_as_ants = from_sitk(self._image_as_sitk)
         elif self._image_as_numpy is not None:
             # If the image is already provided as a numpy array, convert it to SimpleITK
-            self._image_as_sitk = sitk.GetImageFromArray(self._image_as_numpy)
+            # is_vector = True
+            # if self._image_as_numpy.ndim > 3:
+            #     is_vector = False
+
+            self._image_as_sitk = sitk.GetImageFromArray(
+                self._image_as_numpy, isVector=False
+            )
             if self._image_as_numpy.ndim <= 3:
                 self._image_as_ants = from_sitk(self._image_as_sitk)
         else:
@@ -362,21 +368,24 @@ class ImageIO:
         """
         Update the image data with a new numpy array, preserving the original image metadata.
 
-        This is particularly useful for updating the image data after processing or when new data is available. 
+        This is particularly useful for updating the image data after processing or when new data is available.
         Hence, it allows to change the image data without losing the original metadata such as spacing, origin, and direction.
-        
+
         Another application for this method is to create a new image using a processed numpy array and then copy the metadata from the original image that was loaded using a file path, which contains the original metadata.
 
         Examples:
             >>> import numpy as np
-            >>> array = np.random.rand(10, 10, 10) 
+            >>> array = np.random.rand(5, 35, 35)
             >>> image1 = ImageIO(image_array=array)# Example 3D image from a numpy array (without metadata)
+            >>> image2 = ImageIO(image_path="./tests/files/m0.nii.gz") # Example 3D image with metadata
             >>> full_image = ImageIO(image_path="./tests/files/m0.nii.gz") # Example 3D image with metadata
+
             Both images has the same shape, so we can update the image data:
             >>> image1.get_as_numpy().shape == image2.get_as_numpy().shape
             True
 
             >>> image2.update_image_data(image1.get_as_numpy())
+
             Now the `image2` has the same data as `image1`, but retains its original metadata.
 
         Important:
@@ -407,7 +416,7 @@ class ImageIO:
             )
 
         # Create new SimpleITK image from array
-        new_sitk_img = sitk.GetImageFromArray(new_array)
+        new_sitk_img = sitk.GetImageFromArray(new_array, isVector=False)
 
         if dim_diff != 0:
             base_origin = self._image_as_sitk.GetOrigin()[:3]
@@ -487,7 +496,7 @@ class ImageIO:
             >>> from asltk.asldata import ASLData
             >>> from asltk.utils.io import ImageIO
             >>> asl_data = ASLData(pcasl='./tests/files/pcasl_mte.nii.gz', m0='./tests/files/m0.nii.gz')
-            >>> processed_img = asl_data('pcasl')[0]  # Get first volume
+            >>> processed_img = asl_data('pcasl').get_as_numpy()[0]  # Get first volume
             >>> io = ImageIO(image_array=processed_img)
             >>> import tempfile
             >>> with tempfile.NamedTemporaryFile(suffix='.nii.gz', delete=False) as f:
@@ -503,6 +512,11 @@ class ImageIO:
         if not full_path:
             raise ValueError(
                 'Either full_path or bids_root + subject must be provided.'
+            )
+
+        if not os.path.exists(os.path.dirname(full_path)):
+            raise FileNotFoundError(
+                f'The directory of the full path {full_path} does not exist.'
             )
 
         # sitk_img = sitk.GetImageFromArray(img)
@@ -687,7 +701,7 @@ def clone_image(source: ImageIO, include_path: bool = False):
 
     Returns:
         ImageIO: The cloned image.
-    """    
+    """
     if not isinstance(source, ImageIO):
         raise TypeError('Source image must be a ImageIO object')
 
@@ -817,7 +831,7 @@ def load_asl_data(fullpath: str):
         >>> loaded_asldata = load_asl_data(temp_file_path)
         >>> loaded_asldata.get_ld()
         [1.8, 1.8, 1.8]
-        >>> loaded_asldata('pcasl').shape
+        >>> loaded_asldata('pcasl').get_as_numpy().shape
         (8, 7, 5, 35, 35)
     """
     check_path(fullpath)
