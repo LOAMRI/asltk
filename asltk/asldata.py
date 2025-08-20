@@ -166,7 +166,7 @@ class ASLData:
             >>> data = ASLData()
             >>> path_m0 = './tests/files/m0.nii.gz' # M0 file with shape (5,35,35)
             >>> data.set_image(path_m0, spec='m0')
-            >>> data('m0').shape
+            >>> data('m0').get_as_numpy().shape
             (5, 35, 35)
 
         Args:
@@ -179,7 +179,9 @@ class ASLData:
             elif spec == 'pcasl':
                 self._asl_image = ImageIO(image, **kwargs)
         elif isinstance(image, np.ndarray):
-            warnings.warn('Using numpy array as image input does not preserve metadata or image properties.')
+            warnings.warn(
+                'Using numpy array as image input does not preserve metadata or image properties.'
+            )
             if spec == 'm0':
                 self._m0_image = ImageIO(image_array=image, **kwargs)
             elif spec == 'pcasl':
@@ -301,7 +303,7 @@ class ASLData:
             >>> type(data('pcasl').get_as_numpy())
             <class 'numpy.ndarray'>
 
-            >>> np.min(data('pcasl'))
+            >>> np.min(data('pcasl').get_as_numpy())
             0
 
         Returns:
