@@ -94,9 +94,26 @@ jobs:
         working-directory: C:\src
         run: pip install poetry
 
+      - name: Install ITK (dependency for antspyx)
+        working-directory: C:\src
+        run: pip install itk
+
+      - name: Configure additional dependencies
+        working-directory: C:\src
+        run: |
+          pip install ninja cmake
+          pip install wheel setuptools
+        shell: cmd
+
       - name: Install asltk project dependecies
         working-directory: C:\src
         run: poetry install
+
+      - name: Verify antspyx installation
+        working-directory: C:\src
+        run: |
+          python -c "import ants; print('ANTs version:', ants.__version__)" || (echo "::error::antspyx not installed correctly, failing build" && exit 1)
+        shell: cmd
 
       - name: Run code formatting check
         working-directory: C:\src
