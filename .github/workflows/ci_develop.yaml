@@ -84,16 +84,26 @@ jobs:
           $credentials | ConvertTo-Json -Compress | Set-Content -Path "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding ASCII
         shell: pwsh
 
+      - name: Move source to short path (windows limitation)
+        run: |
+          mkdir C:\src
+          xcopy /E /I . C:\src
+        shell: cmd
+
       - name: Install Poetry
+        working-directory: C:\src
         run: pip install poetry
 
       - name: Install asltk project dependecies
+        working-directory: C:\src
         run: poetry install
 
       - name: Run code formatting check
+        working-directory: C:\src
         run: poetry run task lint-check
 
       - name: Run project tests
+        working-directory: C:\src
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
 
       - name: Show-up test coverage (codecov)
