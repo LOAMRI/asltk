@@ -271,7 +271,6 @@ def head_movement_correction(
     return new_asl_data, trans_mtx
 
 
-# TODO Provavel que tenha que separar esse metodo para o asl_template_registration... revisar depois
 def __apply_array_normalization(
     total_vols, ref_vol, normalization_function, trans_proportions
 ):

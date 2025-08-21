@@ -1,4 +1,4 @@
-# ASLTK Logging System
+# ASLtk Logging System
 
 The ASLTK library includes a comprehensive logging system that provides detailed runtime information about ASL data processing operations. This system helps with debugging, monitoring, and understanding the behavior of ASL processing workflows.
 
