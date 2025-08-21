@@ -90,9 +90,6 @@ def space_normalization(
             'moving_image must be an ImageIO object and template_image must be a BrainAtlas object, a string with the atlas name, or an ImageIO object.'
         )
 
-    logger = get_logger('registration')
-    logger.info('Starting space normalization')
-
     # Load template image first
     template_array = None
     if isinstance(template_image, BrainAtlas):
