@@ -1,5 +1,5 @@
-from multiprocessing import Array, Pool, cpu_count
 import warnings
+from multiprocessing import Array, Pool, cpu_count
 
 import numpy as np
 from rich import print
@@ -91,7 +91,11 @@ class T2Scalar_ASLMapping(MRIParameters):
         return self._mean_t2s
 
     def create_map(
-        self, cores=cpu_count(), smoothing=None, smoothing_params=None, suppress_warnings=False
+        self,
+        cores=cpu_count(),
+        smoothing=None,
+        smoothing_params=None,
+        suppress_warnings=False,
     ):
         """
         Compute T2 maps using multi-echo ASL data and a brain mask, with multiprocessing.
@@ -112,14 +116,14 @@ class T2Scalar_ASLMapping(MRIParameters):
         logger = get_logger('t2_mapping')
         logger.info('Starting T2 map creation')
 
-            # Optionally suppress warnings
+        # Optionally suppress warnings
         if suppress_warnings:
             warnings_context = warnings.catch_warnings()
             warnings_context.__enter__()
-            warnings.filterwarnings("ignore", category=RuntimeWarning)
-            warnings.filterwarnings("ignore", category=UserWarning)
+            warnings.filterwarnings('ignore', category=RuntimeWarning)
+            warnings.filterwarnings('ignore', category=UserWarning)
             logger.info('Warnings suppressed during T2 mapping')
-        
+
         try:
             data = self._asl_data('pcasl').get_as_numpy()
             mask = self._brain_mask.get_as_numpy()
@@ -131,8 +135,12 @@ class T2Scalar_ASLMapping(MRIParameters):
             mean_t2s = []
 
             for pld_idx in range(n_plds):
-                logger.info(f'Processing PLD index {pld_idx} ({PLDs[pld_idx]} ms)')
-                t2_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+                logger.info(
+                    f'Processing PLD index {pld_idx} ({PLDs[pld_idx]} ms)'
+                )
+                t2_map_shared = Array(
+                    'd', z_axis * y_axis * x_axis, lock=False
+                )
                 log_processing_step(
                     'Running voxel-wise T2 fitting',
                     'this may take several minutes',
@@ -144,7 +152,8 @@ class T2Scalar_ASLMapping(MRIParameters):
                 ) as pool:
                     with Progress() as progress:
                         task = progress.add_task(
-                            f'T2 fitting (PLD {PLDs[pld_idx]} ms)...', total=x_axis
+                            f'T2 fitting (PLD {PLDs[pld_idx]} ms)...',
+                            total=x_axis,
                         )
                         results = [
                             pool.apply_async(

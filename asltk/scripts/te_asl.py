@@ -7,13 +7,13 @@ import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
-from asltk.utils.io import ImageIO
 from asltk.logging_config import (
     configure_for_scripts,
     get_logger,
     log_processing_step,
 )
 from asltk.reconstruction import MultiTE_ASLMapping
+from asltk.utils.io import ImageIO
 
 parser = argparse.ArgumentParser(
     prog='Multi-TE ASL Mapping',
@@ -202,7 +202,12 @@ log_processing_step(
     'Creating ASLData object', f'Multi-TE with {len(te)} echo times'
 )
 data = ASLData(
-    pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, te_values=te, average_m0=average_m0
+    pcasl=args.pcasl,
+    m0=args.m0,
+    ld_values=ld,
+    pld_values=pld,
+    te_values=te,
+    average_m0=average_m0,
 )
 
 log_processing_step('Initializing Multi-TE ASL mapper')
@@ -262,5 +267,6 @@ def main():
     # Script logic is already defined at the module level
     pass
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

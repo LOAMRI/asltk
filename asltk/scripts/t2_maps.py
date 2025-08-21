@@ -6,13 +6,13 @@ import numpy as np
 from rich import print
 
 from asltk.asldata import ASLData
-from asltk.utils.io import ImageIO
 from asltk.logging_config import (
     configure_for_scripts,
     get_logger,
     log_processing_step,
 )
 from asltk.reconstruction import T2Scalar_ASLMapping
+from asltk.utils.io import ImageIO
 
 parser = argparse.ArgumentParser(
     prog='T2 Scalar Mapping from ASL Multi-TE ASLData',
@@ -174,7 +174,12 @@ log_processing_step(
     'Creating ASLData object', f'Multi-TE with {len(te)} echo times'
 )
 data = ASLData(
-    pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, te_values=te, average_m0=average_m0
+    pcasl=args.pcasl,
+    m0=args.m0,
+    ld_values=ld,
+    pld_values=pld,
+    te_values=te,
+    average_m0=average_m0,
 )
 
 log_processing_step('Initializing T2 Scalar mapper')
@@ -203,12 +208,13 @@ logger.info('T2 Scalar ASL processing completed successfully')
 def main():
     """
     Entry point function for the T2 Scalar ASL mapping command-line tool.
-    
+
     This function is called when the `asltk_t2_asl` command is run.
     All script logic is already defined at the module level.
     """
     # Script logic is already defined at the module level
     pass
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

@@ -3,7 +3,6 @@ import os
 from functools import *
 
 import numpy as np
-from asltk.utils.io import ImageIO
 from rich import print
 
 from asltk.asldata import ASLData
@@ -148,8 +147,13 @@ if args.verbose:
     print('Output file format: ' + str(args.file_fmt))
 
 print(average_m0)
-data = ASLData(pcasl=args.pcasl, m0=args.m0, ld_values=ld, pld_values=pld, 
-               average_m0=average_m0)
+data = ASLData(
+    pcasl=args.pcasl,
+    m0=args.m0,
+    ld_values=ld,
+    pld_values=pld,
+    average_m0=average_m0,
+)
 
 recon = CBFMapping(data)
 recon.set_brain_mask(mask_img)
@@ -187,5 +191,6 @@ def main():
     # Script logic is already defined at the module level
     pass
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()
