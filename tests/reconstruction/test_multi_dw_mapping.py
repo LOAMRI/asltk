@@ -7,7 +7,7 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import MultiDW_ASLMapping
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 
@@ -49,35 +49,35 @@ def test_multi_dw_asl_object_constructor_created_sucessfully():
 
 def test_multi_dw_asl_set_brain_mask_success():
     mte = MultiDW_ASLMapping(asldata_dw)
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     mte.set_brain_mask(mask)
     assert isinstance(mte._brain_mask, np.ndarray)
 
 
 def test_multi_dw_asl_set_cbf_map_success():
     mte = MultiDW_ASLMapping(asldata_dw)
-    fake_cbf = np.ones((10, 10)) * 20
+    fake_cbf = ImageIO(image_array=np.ones((10, 10)) * 20)
     mte.set_cbf_map(fake_cbf)
     assert np.mean(mte._cbf_map) == 20
 
 
 def test_multi_dw_asl_get_cbf_map_success():
     mte = MultiDW_ASLMapping(asldata_dw)
-    fake_cbf = np.ones((10, 10)) * 20
+    fake_cbf = ImageIO(image_array=np.ones((10, 10)) * 20)
     mte.set_cbf_map(fake_cbf)
     assert np.mean(mte.get_cbf_map()) == 20
 
 
 def test_multi_dw_asl_set_att_map_success():
     mte = MultiDW_ASLMapping(asldata_dw)
-    fake_att = np.ones((10, 10)) * 20
+    fake_att = ImageIO(image_array=np.ones((10, 10)) * 20)
     mte.set_att_map(fake_att)
     assert np.mean(mte._att_map) == 20
 
 
 def test_multi_dw_asl_get_att_map_success():
     mte = MultiDW_ASLMapping(asldata_dw)
-    fake_att = np.ones((10, 10)) * 20
+    fake_att = ImageIO(image_array=np.ones((10, 10)) * 20)
     mte.set_att_map(fake_att)
     assert np.mean(mte.get_att_map()) == 20
 
@@ -87,7 +87,7 @@ def test_multi_dw_asl_set_brain_mask_set_label_value_raise_error_value_not_found
     label,
 ):
     mte = MultiDW_ASLMapping(asldata_dw)
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     with pytest.raises(Exception) as e:
         mte.set_brain_mask(mask, label=label)
     assert e.value.args[0] == 'Label value is not found in the mask provided.'
@@ -95,9 +95,14 @@ def test_multi_dw_asl_set_brain_mask_set_label_value_raise_error_value_not_found
 
 def test_multi_dw_asl_set_brain_mask_verify_if_input_is_a_label_mask():
     mte = MultiDW_ASLMapping(asldata_dw)
-    not_mask = load_image(M0)
+    not_mask = ImageIO(M0)
     with pytest.warns(UserWarning):
-        mte.set_brain_mask(not_mask / np.max(not_mask))
+        mte.set_brain_mask(
+            ImageIO(
+                image_array=not_mask.get_as_numpy()
+                / np.max(not_mask.get_as_numpy())
+            )
+        )
         warnings.warn(
             'Mask image is not a binary image. Any value > 0 will be assumed as brain label.',
             UserWarning,
@@ -106,13 +111,15 @@ def test_multi_dw_asl_set_brain_mask_verify_if_input_is_a_label_mask():
 
 def test_multi_dw_asl_set_brain_mask_raise_error_if_image_dimension_is_different_from_3d_volume():
     mte = MultiDW_ASLMapping(asldata_dw)
-    pcasl_3d_vol = load_image(PCASL_MDW)[0, 0, :, :, :]
-    fake_mask = np.array(((1, 1, 1), (0, 1, 0)))
+    pcasl_3d_vol = ImageIO(
+        image_array=ImageIO(PCASL_MDW).get_as_numpy()[0, 0, :, :, :]
+    )
+    fake_mask = ImageIO(image_array=np.array(((1, 1, 1), (0, 1, 0))))
     with pytest.raises(Exception) as error:
         mte.set_brain_mask(fake_mask)
     assert (
         error.value.args[0]
-        == f'Image mask dimension does not match with input 3D volume. Mask shape {fake_mask.shape} not equal to {pcasl_3d_vol.shape}'
+        == f'Image mask dimension does not match with input 3D volume. Mask shape {fake_mask.get_as_numpy().shape} not equal to {pcasl_3d_vol.get_as_numpy().shape}'
     )
 
 
@@ -120,7 +127,7 @@ def test_multi_dw_mapping_get_brain_mask_return_adjusted_brain_mask_image_in_the
     mdw = MultiDW_ASLMapping(asldata_dw)
     assert np.mean(mdw.get_brain_mask()) == 1
 
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     mdw.set_brain_mask(mask)
     assert np.unique(mdw.get_brain_mask()).tolist() == [0, 1]
 
@@ -166,7 +173,7 @@ def test_multi_dw_asl_object_set_cbf_and_att_maps_before_create_map():
     mte = MultiDW_ASLMapping(asldata_dw)
     assert np.mean(mte.get_brain_mask()) == 1
 
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     mte.set_brain_mask(mask)
     assert np.mean(mte.get_brain_mask()) < 1
 
@@ -174,8 +181,8 @@ def test_multi_dw_asl_object_set_cbf_and_att_maps_before_create_map():
     assert np.mean(mte.get_att_map()) == 0 and np.mean(mte.get_cbf_map()) == 0
 
     # Update CBF/ATT maps and test if it changed in the obj
-    cbf = np.ones(mask.shape) * 100
-    att = np.ones(mask.shape) * 1500
+    cbf = ImageIO(image_array=np.ones(mask.get_as_numpy().shape) * 100)
+    att = ImageIO(image_array=np.ones(mask.get_as_numpy().shape) * 1500)
     mte.set_cbf_map(cbf)
     mte.set_att_map(att)
     assert (
@@ -186,9 +193,9 @@ def test_multi_dw_asl_object_set_cbf_and_att_maps_before_create_map():
 
 def test_multi_dw_asl_object_create_map_using_provided_cbf_att_maps(capfd):
     mte = MultiDW_ASLMapping(asldata_dw)
-    mask = load_image(M0_BRAIN_MASK)
-    cbf = np.ones(mask.shape) * 100
-    att = np.ones(mask.shape) * 1500
+    mask = ImageIO(M0_BRAIN_MASK)
+    cbf = ImageIO(image_array=np.ones(mask.get_as_numpy().shape) * 100)
+    att = ImageIO(image_array=np.ones(mask.get_as_numpy().shape) * 1500)
 
     mte.set_brain_mask(mask)
     mte.set_cbf_map(cbf)

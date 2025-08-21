@@ -11,7 +11,7 @@ from asltk.utils.image_manipulation import (
     collect_data_volumes,
     select_reference_volume,
 )
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
@@ -108,11 +108,12 @@ def test_collect_data_volumes_return_correct_list_of_volumes_4D_data():
     data = np.ones((2, 30, 40, 15))
     data[0, :, :, :] = data[0, :, :, :] * 10
     data[1, :, :, :] = data[1, :, :, :] * 20
-    collected_volumes, _ = collect_data_volumes(data)
+    image = ImageIO(image_array=data)
+    collected_volumes, _ = collect_data_volumes(image)
     assert len(collected_volumes) == 2
-    assert collected_volumes[0].shape == (30, 40, 15)
-    assert np.mean(collected_volumes[0]) == 10
-    assert np.mean(collected_volumes[1]) == 20
+    assert collected_volumes[0].get_as_numpy().shape == (30, 40, 15)
+    assert np.mean(collected_volumes[0].get_as_numpy()) == 10
+    assert np.mean(collected_volumes[1].get_as_numpy()) == 20
 
 
 def test_collect_data_volumes_return_correct_list_of_volumes_5D_data():
@@ -121,27 +122,28 @@ def test_collect_data_volumes_return_correct_list_of_volumes_5D_data():
     data[0, 1, :, :, :] = data[0, 1, :, :, :] * 10
     data[1, 0, :, :, :] = data[1, 0, :, :, :] * 20
     data[1, 1, :, :, :] = data[1, 1, :, :, :] * 20
+    data = ImageIO(image_array=data)
     collected_volumes, _ = collect_data_volumes(data)
     assert len(collected_volumes) == 4
-    assert collected_volumes[0].shape == (30, 40, 15)
-    assert np.mean(collected_volumes[0]) == 10
-    assert np.mean(collected_volumes[1]) == 10
-    assert np.mean(collected_volumes[2]) == 20
-    assert np.mean(collected_volumes[3]) == 20
+    assert collected_volumes[0].get_as_numpy().shape == (30, 40, 15)
+    assert np.mean(collected_volumes[0].get_as_numpy()) == 10
+    assert np.mean(collected_volumes[1].get_as_numpy()) == 10
+    assert np.mean(collected_volumes[2].get_as_numpy()) == 20
+    assert np.mean(collected_volumes[3].get_as_numpy()) == 20
 
 
 def test_collect_data_volumes_error_if_input_is_not_numpy_array():
     data = [1, 2, 3]
     with pytest.raises(Exception) as e:
         collected_volumes, _ = collect_data_volumes(data)
-    assert 'data is not a numpy array' in e.value.args[0]
+    assert 'data is not an ImageIO object' in e.value.args[0]
 
 
 def test_collect_data_volumes_error_if_input_is_less_than_3D():
-    data = np.ones((30, 40))
+    data = ImageIO(image_array=np.ones((30, 40)))
     with pytest.raises(Exception) as e:
         collected_volumes, _ = collect_data_volumes(data)
-    assert 'data is a 3D volume or higher dimensions' in e.value.args[0]
+    assert 'data is not a 3D volume or higher dimensions' in e.value.args[0]
 
 
 @pytest.mark.parametrize('method', ['snr', 'mean'])
@@ -152,7 +154,10 @@ def test_select_reference_volume_returns_correct_volume_and_index_with_sample_im
 
     ref_volume, idx = select_reference_volume(asl, method=method)
 
-    assert ref_volume.shape == asl('pcasl')[0][0].shape
+    assert (
+        ref_volume.get_as_numpy().shape
+        == asl('pcasl').get_as_numpy()[0][0].shape
+    )
     assert idx != 0
 
 
@@ -164,4 +169,41 @@ def test_select_reference_volume_raise_error_invalid_method(method):
 
     with pytest.raises(Exception) as e:
         select_reference_volume(asl, method=method)
+    assert 'Invalid method' in e.value.args[0]
+
+
+def test_select_reference_volume_raise_error_wrong_roi():
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    with pytest.raises(Exception) as e:
+        select_reference_volume(asl, roi='invalid_roi')
+    assert 'ROI must be an ImageIO object' in e.value.args[0]
+
+
+def test_select_reference_volume_raise_error_wrong_4D_roi():
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+    roi = ImageIO(
+        image_array=np.array(
+            [asl('m0').get_as_numpy(), asl('m0').get_as_numpy()]
+        )
+    )
+
+    with pytest.raises(Exception) as e:
+        select_reference_volume(asl, roi=roi)
+    assert 'ROI must be a 3D array' in e.value.args[0]
+
+
+def test_select_reference_volume_raise_error_wrong_list_image_input_images():
+    wrong_input_list = ['wrong_input1', 'wrong_input2']
+
+    with pytest.raises(Exception) as e:
+        select_reference_volume(wrong_input_list)
+    assert 'asl_data must be an ASLData object' in e.value.args[0]
+
+
+def test_select_reference_volume_raise_error_wrong_method():
+    asl = asldata.ASLData(pcasl=PCASL_MTE, m0=M0)
+
+    with pytest.raises(Exception) as e:
+        select_reference_volume(asl, method='invalid_method')
     assert 'Invalid method' in e.value.args[0]

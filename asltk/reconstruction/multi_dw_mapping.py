@@ -12,6 +12,7 @@ from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.models.signal_dynamic import asl_model_multi_dw
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
+from asltk.utils.io import ImageIO
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -88,22 +89,22 @@ class MultiDW_ASLMapping(MRIParameters):
                 'ASLData is incomplete. MultiDW_ASLMapping need a list of DW values.'
             )
 
-        self._brain_mask = np.ones(self._asl_data('m0').shape)
-        self._cbf_map = np.zeros(self._asl_data('m0').shape)
-        self._att_map = np.zeros(self._asl_data('m0').shape)
+        self._brain_mask = np.ones(self._asl_data('m0').get_as_numpy().shape)
+        self._cbf_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._att_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
 
         self._b_values = self._asl_data.get_dw()
         # self._A1 = np.zeros(tuple([len(self._b_values)]) + self._asl_data('m0').shape)
-        self._A1 = np.zeros(self._asl_data('m0').shape)
+        self._A1 = np.zeros(self._asl_data('m0').get_as_numpy().shape)
         # self._D1 = np.zeros(tuple([1]) +self._asl_data('m0').shape)
-        self._D1 = np.zeros(self._asl_data('m0').shape)
-        self._A2 = np.zeros(self._asl_data('m0').shape)
+        self._D1 = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._A2 = np.zeros(self._asl_data('m0').get_as_numpy().shape)
         # self._A2 = np.zeros(tuple([len(self._b_values)])  + self._asl_data('m0').shape)
         # self._D2 = np.zeros(tuple([1]) +self._asl_data('m0').shape)
-        self._D2 = np.zeros(self._asl_data('m0').shape)
-        self._kw = np.zeros(self._asl_data('m0').shape)
+        self._D2 = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._kw = np.zeros(self._asl_data('m0').get_as_numpy().shape)
 
-    def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
+    def set_brain_mask(self, brain_mask: ImageIO, label: int = 1):
         """Set brain mask for MultiDW-ASL processing (strongly recommended).
 
         A brain mask is especially important for multi-diffusion-weighted ASL
@@ -132,9 +133,11 @@ class MultiDW_ASLMapping(MRIParameters):
             ... )
             >>> mdw_mapper = MultiDW_ASLMapping(asl_data)
             >>> # Create conservative brain mask (center region only)
-            >>> mask_shape = asl_data('m0').shape
-            >>> brain_mask = np.zeros(mask_shape)
-            >>> brain_mask[1:4, 5:30, 5:30] = 1  # Conservative brain region
+            >>> mask_shape = asl_data('m0').get_as_numpy().shape
+            >>> brain_mask = ImageIO(image_array=np.zeros(mask_shape))
+            >>> adjusted_brain_mask = brain_mask.get_as_numpy()
+            >>> adjusted_brain_mask[1:4, 5:30, 5:30] = 1  # Conservative brain region
+            >>> brain_mask.update_image_data(adjusted_brain_mask)
             >>> mdw_mapper.set_brain_mask(brain_mask)
 
         Note:
@@ -142,9 +145,19 @@ class MultiDW_ASLMapping(MRIParameters):
             mask initially to test parameters and processing time, then expand
             to full brain analysis once satisfied with results.
         """
-        _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
+        if not isinstance(brain_mask, ImageIO):
+            raise TypeError(
+                'Brain mask must be an instance of ImageIO. '
+                'Use ImageIO to load or create the mask.'
+            )
 
-        binary_mask = (brain_mask == label).astype(np.uint8) * label
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
+
+        binary_mask = (brain_mask.get_as_numpy() == label).astype(
+            np.uint8
+        ) * label
         self._brain_mask = binary_mask
 
     def get_brain_mask(self):
@@ -155,7 +168,7 @@ class MultiDW_ASLMapping(MRIParameters):
         """
         return self._brain_mask
 
-    def set_cbf_map(self, cbf_map: np.ndarray):
+    def set_cbf_map(self, cbf_map: ImageIO):
         """Set the CBF map to the MultiDW_ASLMapping object.
 
         Note:
@@ -166,9 +179,9 @@ class MultiDW_ASLMapping(MRIParameters):
         Args:
             cbf_map (np.ndarray): The CBF map that is set in the MultiDW_ASLMapping object
         """
-        self._cbf_map = cbf_map
+        self._cbf_map = cbf_map.get_as_numpy()
 
-    def get_cbf_map(self) -> np.ndarray:
+    def get_cbf_map(self) -> ImageIO:
         """Get the CBF map storaged at the MultiDW_ASLMapping object
 
         Returns:
@@ -177,13 +190,13 @@ class MultiDW_ASLMapping(MRIParameters):
         """
         return self._cbf_map
 
-    def set_att_map(self, att_map: np.ndarray):
+    def set_att_map(self, att_map: ImageIO):
         """Set the ATT map to the MultiDW_ASLMapping object.
 
         Args:
             att_map (np.ndarray): The ATT map that is set in the MultiDW_ASLMapping object
         """
-        self._att_map = att_map
+        self._att_map = att_map.get_as_numpy()
 
     def get_att_map(self):
         """Get the ATT map storaged at the MultiDW_ASLMapping object
@@ -267,8 +280,10 @@ class MultiDW_ASLMapping(MRIParameters):
             ... )
             >>> mdw_mapper = MultiDW_ASLMapping(asl_data)
             >>> # Set brain mask for faster processing (recommended)
-            >>> brain_mask = np.ones(asl_data('m0').shape)
-            >>> brain_mask[0:2, :, :] = 0  # Remove some background slices
+            >>> brain_mask = ImageIO(image_array=np.ones(asl_data('m0').get_as_numpy().shape))
+            >>> adjusted_brain_mask = brain_mask.get_as_numpy().copy()
+            >>> adjusted_brain_mask[0:2, :, :] = 0  # Remove some background slices
+            >>> brain_mask.update_image_data(adjusted_brain_mask)
             >>> mdw_mapper.set_brain_mask(brain_mask)
             >>> # Generate all maps (may take several minutes)
             >>> results = mdw_mapper.create_map() # doctest: +SKIP
@@ -291,7 +306,7 @@ class MultiDW_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
-        self._basic_maps.set_brain_mask(self._brain_mask)
+        self._basic_maps.set_brain_mask(ImageIO(image_array=self._brain_mask))
 
         basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
         if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
@@ -300,12 +315,16 @@ class MultiDW_ASLMapping(MRIParameters):
                 '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
             )   # pragma: no cover
             basic_maps = self._basic_maps.create_map()   # pragma: no cover
-            self._cbf_map = basic_maps['cbf']   # pragma: no cover
-            self._att_map = basic_maps['att']   # pragma: no cover
+            self._cbf_map = basic_maps[
+                'cbf'
+            ].get_as_numpy()   # pragma: no cover
+            self._att_map = basic_maps[
+                'att'
+            ].get_as_numpy()   # pragma: no cover
 
-        x_axis = self._asl_data('m0').shape[2]   # height
-        y_axis = self._asl_data('m0').shape[1]   # width
-        z_axis = self._asl_data('m0').shape[0]   # depth
+        x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # height
+        y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
+        z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
 
         # TODO Fix
         print('multiDW-ASL processing...')
@@ -325,7 +344,8 @@ class MultiDW_ASLMapping(MRIParameters):
 
                         # M(t,b)/M(t,0)
                         Ydata = (
-                            self._asl_data('pcasl')[:, :, k, j, i]
+                            self._asl_data('pcasl')
+                            .get_as_numpy()[:, :, k, j, i]
                             .reshape(
                                 (
                                     len(self._asl_data.get_ld())
@@ -334,7 +354,7 @@ class MultiDW_ASLMapping(MRIParameters):
                                 )
                             )
                             .flatten()
-                            / self._asl_data('m0')[k, j, i]
+                            / self._asl_data('m0').get_as_numpy()[k, j, i]
                         )
 
                         try:
@@ -363,7 +383,7 @@ class MultiDW_ASLMapping(MRIParameters):
                             self._D2[k, j, i] = 0
 
                         # Calculates the Mc fitting to alpha = kw + T1blood
-                        m0_px = self._asl_data('m0')[k, j, i]
+                        m0_px = self._asl_data('m0').get_as_numpy()[k, j, i]
 
                         # def mod_2comp(Xdata, par1):
                         #     ...
@@ -411,16 +431,43 @@ class MultiDW_ASLMapping(MRIParameters):
         # # Adjusting output image boundaries
         # self._kw = self._adjust_image_limits(self._kw, par0[0])
 
+        # Prepare output maps
+        cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_image.update_image_data(self._cbf_map)
+
+        cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_norm_image.update_image_data(
+            self._cbf_map * (60 * 60 * 1000)
+        )  # Convert to mL/100g/min
+
+        att_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        att_map_image.update_image_data(self._att_map)
+
+        a1_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        a1_map_image.update_image_data(self._A1)
+
+        d1_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        d1_map_image.update_image_data(self._D1)
+
+        a2_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        a2_map_image.update_image_data(self._A2)
+
+        d2_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        d2_map_image.update_image_data(self._D2)
+
+        kw_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        kw_map_image.update_image_data(self._kw)
+
         # Create output maps dictionary
         output_maps = {
-            'cbf': self._cbf_map,
-            'cbf_norm': self._cbf_map * (60 * 60 * 1000),
-            'att': self._att_map,
-            'a1': self._A1,
-            'd1': self._D1,
-            'a2': self._A2,
-            'd2': self._D2,
-            'kw': self._kw,
+            'cbf': cbf_map_image,
+            'cbf_norm': cbf_map_norm_image,
+            'att': att_map_image,
+            'a1': a1_map_image,
+            'd1': d1_map_image,
+            'a2': a2_map_image,
+            'd2': d2_map_image,
+            'kw': kw_map_image,
         }
 
         # Apply smoothing if requested

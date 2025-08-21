@@ -11,6 +11,7 @@ from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
+from asltk.utils.io import ImageIO
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -91,12 +92,12 @@ class MultiTE_ASLMapping(MRIParameters):
                 'ASLData is incomplete. MultiTE_ASLMapping need a list of TE values.'
             )
 
-        self._brain_mask = np.ones(self._asl_data('m0').shape)
-        self._cbf_map = np.zeros(self._asl_data('m0').shape)
-        self._att_map = np.zeros(self._asl_data('m0').shape)
-        self._t1blgm_map = np.zeros(self._asl_data('m0').shape)
+        self._brain_mask = np.ones(self._asl_data('m0').get_as_numpy().shape)
+        self._cbf_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._att_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._t1blgm_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
 
-    def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
+    def set_brain_mask(self, brain_mask: ImageIO, label: int = 1):
         """Defines whether a brain a mask is applied to the CBFMapping
         calculation
 
@@ -112,9 +113,18 @@ class MultiTE_ASLMapping(MRIParameters):
         Args:
             brain_mask (np.ndarray): The image representing the brain mask label (int, optional): The label value used to define the foreground tissue (brain). Defaults to 1.
         """
-        _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
+        if not isinstance(brain_mask, ImageIO):
+            raise TypeError(
+                'The brain_mask parameter must be an instance of ImageIO.'
+            )
 
-        binary_mask = (brain_mask == label).astype(np.uint8) * label
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
+
+        binary_mask = (brain_mask.get_as_numpy() == label).astype(
+            np.uint8
+        ) * label
         self._brain_mask = binary_mask
 
     def get_brain_mask(self):
@@ -125,7 +135,7 @@ class MultiTE_ASLMapping(MRIParameters):
         """
         return self._brain_mask
 
-    def set_cbf_map(self, cbf_map: np.ndarray):
+    def set_cbf_map(self, cbf_map: ImageIO):
         """Set the CBF map to the MultiTE_ASLMapping object.
 
         Note:
@@ -136,7 +146,7 @@ class MultiTE_ASLMapping(MRIParameters):
         Args:
             cbf_map (np.ndarray): The CBF map that is set in the MultiTE_ASLMapping object
         """
-        self._cbf_map = cbf_map
+        self._cbf_map = cbf_map.get_as_numpy()
 
     def get_cbf_map(self) -> np.ndarray:
         """Get the CBF map storaged at the MultiTE_ASLMapping object
@@ -147,13 +157,13 @@ class MultiTE_ASLMapping(MRIParameters):
         """
         return self._cbf_map
 
-    def set_att_map(self, att_map: np.ndarray):
+    def set_att_map(self, att_map: ImageIO):
         """Set the ATT map to the MultiTE_ASLMapping object.
 
         Args:
             att_map (np.ndarray): The ATT map that is set in the MultiTE_ASLMapping object
         """
-        self._att_map = att_map
+        self._att_map = att_map.get_as_numpy()
 
     def get_att_map(self):
         """Get the ATT map storaged at the MultiTE_ASLMapping object
@@ -239,6 +249,7 @@ class MultiTE_ASLMapping(MRIParameters):
             Basic multi-TE ASL analysis:
             >>> from asltk.asldata import ASLData
             >>> from asltk.reconstruction import MultiTE_ASLMapping
+            >>> from asltk.utils.io import ImageIO
             >>> import numpy as np
             >>> # Load multi-TE ASL data
             >>> asl_data = ASLData(
@@ -250,7 +261,7 @@ class MultiTE_ASLMapping(MRIParameters):
             ... )
             >>> mte_mapper = MultiTE_ASLMapping(asl_data)
             >>> # Set brain mask for faster processing
-            >>> brain_mask = np.ones(asl_data('m0').shape)
+            >>> brain_mask = ImageIO(image_array=np.ones(asl_data('m0').get_as_numpy().shape))
             >>> mte_mapper.set_brain_mask(brain_mask)
             >>> # Generate all maps
             >>> results = mte_mapper.create_map() # doctest: +SKIP
@@ -288,8 +299,7 @@ class MultiTE_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
-        # # TODO As entradas ub, lb e par0 não são aplicadas para CBF. Pensar se precisa ter essa flexibilidade para acertar o CBF interno à chamada
-        self._basic_maps.set_brain_mask(self._brain_mask)
+        self._basic_maps.set_brain_mask(ImageIO(image_array=self._brain_mask))
 
         basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
         if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
@@ -298,8 +308,8 @@ class MultiTE_ASLMapping(MRIParameters):
                 '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
             )
             basic_maps = self._basic_maps.create_map()
-            self._cbf_map = basic_maps['cbf']
-            self._att_map = basic_maps['att']
+            self._cbf_map = basic_maps['cbf'].get_as_numpy()
+            self._att_map = basic_maps['att'].get_as_numpy()
 
         global asl_data, brain_mask, cbf_map, att_map, t2bl, t2gm
         asl_data = self._asl_data
@@ -312,9 +322,9 @@ class MultiTE_ASLMapping(MRIParameters):
         t2bl = self.T2bl
         t2gm = self.T2gm
 
-        x_axis = self._asl_data('m0').shape[2]   # height
-        y_axis = self._asl_data('m0').shape[1]   # width
-        z_axis = self._asl_data('m0').shape[0]   # depth
+        x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # height
+        y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
+        z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
 
         tblgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
 
@@ -356,12 +366,25 @@ class MultiTE_ASLMapping(MRIParameters):
         # Adjusting output image boundaries
         self._t1blgm_map = self._adjust_image_limits(self._t1blgm_map, par0[0])
 
+        # Prepare output maps
+        cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_image.update_image_data(self._cbf_map)
+
+        cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_norm_image.update_image_data(self._cbf_map * (60 * 60 * 1000))
+
+        att_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        att_map_image.update_image_data(self._att_map)
+
+        t1blgm_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        t1blgm_map_image.update_image_data(self._t1blgm_map)
+
         # Create output maps dictionary
         output_maps = {
-            'cbf': self._cbf_map,
-            'cbf_norm': self._cbf_map * (60 * 60 * 1000),
-            'att': self._att_map,
-            't1blgm': self._t1blgm_map,
+            'cbf': cbf_map_image,
+            'cbf_norm': cbf_map_norm_image,
+            'att': att_map_image,
+            't1blgm': t1blgm_map_image,
         }
 
         # Apply smoothing if requested
@@ -414,7 +437,7 @@ def _tblgm_multite_process_slice(
     for j in range(y_axis):
         for k in range(z_axis):
             if brain_mask[k, j, i] != 0:
-                m0_px = asl_data('m0')[k, j, i]
+                m0_px = asl_data('m0').get_as_numpy()[k, j, i]
 
                 def mod_2comp(Xdata, par1):
                     return asl_model_multi_te(
@@ -430,7 +453,8 @@ def _tblgm_multite_process_slice(
                     )
 
                 Ydata = (
-                    asl_data('pcasl')[:, :, k, j, i]
+                    asl_data('pcasl')
+                    .get_as_numpy()[:, :, k, j, i]
                     .reshape(
                         (
                             len(ld_arr) * len(te_arr),
