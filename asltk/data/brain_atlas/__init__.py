@@ -13,7 +13,7 @@ class BrainAtlas:
 
     ATLAS_JSON_PATH = os.path.join(os.path.dirname(__file__))
 
-    def __init__(self, atlas_name: str = 'MNI2009'):
+    def __init__(self, atlas_name: str = 'MNI2009', resolution: str = '1mm'):
         """
         Initializes the BrainAtlas class with a specified atlas name.
         If no atlas name is provided, it defaults to 'MNI2009'.
@@ -21,7 +21,11 @@ class BrainAtlas:
         Args:
             atlas_name (str, optional):  The name of the atlas to be used. Defaults to 'MNI2009'.
         """
+        self._check_resolution_input(resolution)
+
         self._chosen_atlas = None
+        self._resolution = resolution
+
         self.set_atlas(atlas_name)
 
     def set_atlas(self, atlas_name: str):
@@ -61,6 +65,7 @@ class BrainAtlas:
         # Assuming the atlas_data is a dictionary, we can add the path to it
         atlas_data['atlas_file_location'] = path
         # Assuming the atlas data contains a key for T1-weighted and Label image data
+        atlas_data['resolution'] = self._resolution
         atlas_data['t1_data'] = os.path.join(path, self._collect_t1(path))
         atlas_data['label_data'] = os.path.join(
             path, self._collect_label(path)
@@ -76,6 +81,13 @@ class BrainAtlas:
             dict: The current atlas data.
         """
         return self._chosen_atlas
+
+    def set_resolution(self, resolution: str):
+        self._check_resolution_input(resolution)
+        self._resolution = resolution
+
+    def get_resolution(self):
+        return self._resolution
 
     def get_atlas_url(self, atlas_name: str):
         """
@@ -145,10 +157,13 @@ class BrainAtlas:
         Returns:
             str: The filename of the T1-weighted image data.
         """
-        t1_file = next((f for f in os.listdir(path) if '_t1' in f), None)
+        t1_file = next(
+            (f for f in os.listdir(path) if self._resolution + '_t1' in f),
+            None,
+        )
         if t1_file is None:
             raise ValueError(
-                f"No file with '_t1' found in the atlas directory: {path}"
+                f"No file with '_t1_' and resolution {self._resolution} found in the atlas directory: {path}"
             )
 
         return t1_file
@@ -161,10 +176,20 @@ class BrainAtlas:
         Returns:
             str: The filename of the label file.
         """
-        label_file = next((f for f in os.listdir(path) if '_label' in f), None)
+        label_file = next(
+            (f for f in os.listdir(path) if self._resolution + '_label' in f),
+            None,
+        )
         if label_file is None:
             raise ValueError(
-                f"No file with '_label' found in the atlas directory: {path}"
+                f"No file with '_label' and resolution {self._resolution} found in the atlas directory: {path}"
             )
 
         return label_file
+
+    def _check_resolution_input(self, resolution):
+        valid_resolutions = ['1mm', '2mm']
+        if resolution not in valid_resolutions:
+            raise ValueError(
+                f"Invalid resolution '{resolution}'. Valid options are: {valid_resolutions}"
+            )
