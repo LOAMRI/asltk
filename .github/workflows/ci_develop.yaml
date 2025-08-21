@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.10"]
 
     
     steps:
@@ -54,7 +54,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.10"]
     
     steps:
       - name: Clone repo
@@ -84,43 +84,16 @@ jobs:
           $credentials | ConvertTo-Json -Compress | Set-Content -Path "$env:USERPROFILE\.kaggle\kaggle.json" -Encoding ASCII
         shell: pwsh
 
-      - name: Move source to short path (windows limitation)
-        run: |
-          mkdir C:\src
-          xcopy /E /I . C:\src
-        shell: cmd
-
       - name: Install Poetry
-        working-directory: C:\src
         run: pip install poetry
 
-      - name: Install ITK (dependency for antspyx)
-        working-directory: C:\src
-        run: pip install itk
-
-      - name: Configure additional dependencies
-        working-directory: C:\src
-        run: |
-          pip install ninja cmake
-          pip install wheel setuptools
-        shell: cmd
-
       - name: Install asltk project dependecies
-        working-directory: C:\src
         run: poetry install
 
-      - name: Verify antspyx installation
-        working-directory: C:\src
-        run: |
-          python -c "import ants; print('ANTs version:', ants.__version__)" || (echo "::error::antspyx not installed correctly, failing build" && exit 1)
-        shell: cmd
-
       - name: Run code formatting check
-        working-directory: C:\src
         run: poetry run task lint-check
 
       - name: Run project tests
-        working-directory: C:\src
         run: poetry run task test --cov-report=xml --ignore-glob='./asltk/scripts/*.py'
 
       - name: Show-up test coverage (codecov)
@@ -133,7 +106,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.10"]
     
     steps:
       - name: Clone repo
