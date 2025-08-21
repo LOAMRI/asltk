@@ -31,12 +31,12 @@ Please select the relevant option(s):
 - [ ] Code passes linting checks (`task lint-check`)
 - [ ] Code includes appropriate inline documentation
 
-**Note:** According to our [contribution guidelines](docs/contribute.md), please target the `develop` branch for most contributions to ensure proper testing before merging to `main`.
+**Note:** According to our [contribution guidelines](https://asltk.readthedocs.io/en/main/contribute/), please target the `develop` branch for most contributions to ensure proper testing before merging to `main`.
 
 **By submitting this pull request, I confirm:**
-- [ ] I have read and followed the [contribution guidelines](docs/contribute.md)
+- [ ] I have read and followed the [contribution guidelines](https://asltk.readthedocs.io/en/main/contribute/)
 - [ ] I have tested my changes thoroughly
 - [ ] I understand this is an open source project and my contributions may be used by others
-- [ ] I agree to the project's [Code of Conduct](CODE_OF_CONDUCT.md)
+- [ ] I agree to the project's [Code of Conduct](https://github.com/LOAMRI/asltk/blob/main/CODE_OF_CONDUCT.md)
 
 <!-- Thank you for contributing to asltk! 🚀 -->

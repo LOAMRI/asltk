@@ -6,7 +6,7 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.reconstruction import CBFMapping
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 
@@ -64,7 +64,7 @@ def test_cbf_object_set_mri_parameters_values(value, param):
 
 def test_cbf_add_brain_mask_success():
     cbf = CBFMapping(asldata_te)
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     cbf.set_brain_mask(mask)
     assert isinstance(cbf._brain_mask, np.ndarray)
 
@@ -79,7 +79,7 @@ def test_cbf_object_create_map_raise_error_if_ld_or_pld_are_not_provided():
 
 def test_set_brain_mask_verify_if_input_is_a_label_mask():
     cbf = CBFMapping(asldata_te)
-    not_mask = load_image(T1_MRI)
+    not_mask = ImageIO(T1_MRI)
     with pytest.warns(UserWarning):
         warnings.warn(
             'Mask image is not a binary image. Any value > 0 will be assumed as brain label.',
@@ -89,7 +89,7 @@ def test_set_brain_mask_verify_if_input_is_a_label_mask():
 
 def test_set_brain_mask_set_label_value():
     cbf = CBFMapping(asldata_te)
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     cbf.set_brain_mask(mask, label=1)
     assert np.unique(cbf._brain_mask).size == 2
     assert np.max(cbf._brain_mask) == np.int8(1)
@@ -100,7 +100,7 @@ def test_set_brain_mask_set_label_value_raise_error_value_not_found_in_mask(
     label,
 ):
     cbf = CBFMapping(asldata_te)
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     with pytest.raises(Exception) as e:
         cbf.set_brain_mask(mask, label=label)
     assert e.value.args[0] == 'Label value is not found in the mask provided.'
@@ -111,7 +111,7 @@ def test_set_brain_mask_gives_binary_image_using_correct_label_value():
     img = np.zeros((5, 35, 35))
     img[1, 16:30, 16:30] = 250
     img[1, 0:15, 0:15] = 1
-    cbf.set_brain_mask(img, label=250)
+    cbf.set_brain_mask(ImageIO(image_array=img), label=250)
     assert np.unique(cbf._brain_mask).size == 2
     assert np.max(cbf._brain_mask) == np.uint8(250)
     assert np.min(cbf._brain_mask) == np.uint8(0)
@@ -119,19 +119,21 @@ def test_set_brain_mask_gives_binary_image_using_correct_label_value():
 
 def test_set_brain_mask_raise_error_if_image_dimension_is_different_from_3d_volume():
     cbf = CBFMapping(asldata_te)
-    pcasl_3d_vol = load_image(PCASL_MTE)[0, 0, :, :, :]
+    pcasl_3d_vol = ImageIO(
+        image_array=ImageIO(PCASL_MTE).get_as_numpy()[0, 0, :, :, :]
+    )
     fake_mask = np.array(((1, 1, 1), (0, 1, 0)))
     with pytest.raises(Exception) as error:
-        cbf.set_brain_mask(fake_mask)
+        cbf.set_brain_mask(ImageIO(image_array=fake_mask))
     assert (
         error.value.args[0]
-        == f'Image mask dimension does not match with input 3D volume. Mask shape {fake_mask.shape} not equal to {pcasl_3d_vol.shape}'
+        == f'Image mask dimension does not match with input 3D volume. Mask shape {fake_mask.shape} not equal to {pcasl_3d_vol.get_as_numpy().shape}'
     )
 
 
 def test_set_brain_mask_creates_3d_volume_of_ones_if_not_set_in_cbf_object():
     cbf = CBFMapping(asldata_te)
-    vol_shape = asldata_te('m0').shape
+    vol_shape = asldata_te('m0').get_as_numpy().shape
     mask_shape = cbf._brain_mask.shape
     assert vol_shape == mask_shape
 
@@ -142,7 +144,7 @@ def test_set_brain_mask_raise_error_mask_is_not_an_numpy_array():
         cbf.set_brain_mask(M0_BRAIN_MASK)
     assert (
         e.value.args[0]
-        == f'mask is not an numpy array. Type {type(M0_BRAIN_MASK)}'
+        == f'mask is not an ImageIO object. Type {type(M0_BRAIN_MASK)}'
     )
 
 
@@ -150,7 +152,7 @@ def test_cbf_mapping_get_brain_mask_return_adjusted_brain_mask_image_in_the_obje
     cbf = CBFMapping(asldata_te)
     assert np.mean(cbf.get_brain_mask()) == 1
 
-    mask = load_image(M0_BRAIN_MASK)
+    mask = ImageIO(M0_BRAIN_MASK)
     cbf.set_brain_mask(mask)
     assert np.unique(cbf.get_brain_mask()).tolist() == [0, 1]
 
@@ -158,19 +160,19 @@ def test_cbf_mapping_get_brain_mask_return_adjusted_brain_mask_image_in_the_obje
 def test_cbf_object_create_map_success():
     cbf = CBFMapping(asldata_te)
     out = cbf.create_map()
-    assert isinstance(out['cbf'], np.ndarray)
-    assert np.mean(out['cbf']) < 0.0001
-    assert isinstance(out['att'], np.ndarray)
-    assert np.mean(out['att']) > 10
+    assert isinstance(out['cbf'], ImageIO)
+    assert np.mean(out['cbf'].get_as_numpy()) < 0.0001
+    assert isinstance(out['att'], ImageIO)
+    assert np.mean(out['att'].get_as_numpy()) > 10
 
 
 def test_cbf_object_create_map_sucess_setting_single_core():
     cbf = CBFMapping(asldata_te)
     out = cbf.create_map(cores=1)
-    assert isinstance(out['cbf'], np.ndarray)
-    assert np.mean(out['cbf']) < 0.0001
-    assert isinstance(out['att'], np.ndarray)
-    assert np.mean(out['att']) > 10
+    assert isinstance(out['cbf'], ImageIO)
+    assert np.mean(out['cbf'].get_as_numpy()) < 0.0001
+    assert isinstance(out['att'], ImageIO)
+    assert np.mean(out['att'].get_as_numpy()) > 10
 
 
 @pytest.mark.parametrize('core_value', [(100), (-1), (-10), (1.5), (-1.5)])
@@ -188,6 +190,7 @@ def test_cbf_raise_error_cores_not_valid(core_value):
 def test_cbf_map_normalized_flag_true_result_cbf_map_rescaled():
     cbf = CBFMapping(asldata_te)
     out = cbf.create_map()
-    out['cbf_norm'][out['cbf_norm'] == 0] = np.nan
-    mean_px_value = np.nanmean(out['cbf_norm'])
+    out_norm_array = out['cbf_norm'].get_as_numpy()
+    out_norm_array[out_norm_array == 0] = np.nan
+    mean_px_value = np.nanmean(out_norm_array)
     assert mean_px_value < 500 and mean_px_value > 50

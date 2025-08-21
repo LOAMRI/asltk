@@ -3,8 +3,10 @@ from typing import Dict
 import numpy as np
 from scipy.ndimage import center_of_mass
 
+from asltk.utils.io import ImageIO
 
-def calculate_snr(image: np.ndarray, roi: np.ndarray = None) -> float:
+
+def calculate_snr(image: ImageIO, roi: ImageIO = None) -> float:
     """
     Calculate the Signal-to-Noise Ratio (SNR) of a medical image.
 
@@ -20,21 +22,21 @@ def calculate_snr(image: np.ndarray, roi: np.ndarray = None) -> float:
     float
         The SNR value of the image.
     """
-    if not isinstance(image, np.ndarray):
-        raise ValueError('Input must be a numpy array.')
+    if not isinstance(image, ImageIO):
+        raise ValueError('Input must be an ImageIO object.')
 
     if roi is not None:
-        if not isinstance(roi, np.ndarray):
-            raise ValueError('ROI must be a numpy array.')
-        if roi.shape != image.shape:
+        if not isinstance(roi, ImageIO):
+            raise ValueError('ROI must be an ImageIO object.')
+        if roi.get_as_numpy().shape != image.get_as_numpy().shape:
             raise ValueError('ROI shape must match image shape.')
 
-        image_roi = image[roi > 0]
+        image_roi = image.get_as_numpy()[roi.get_as_numpy() > 0]
         mean_signal = np.mean(image_roi)
         noise = image_roi - mean_signal
     else:
-        mean_signal = np.mean(image)
-        noise = image - mean_signal
+        mean_signal = np.mean(image.get_as_numpy())
+        noise = image.get_as_numpy() - mean_signal
 
     try:
         snr = mean_signal / np.std(noise)
@@ -44,9 +46,7 @@ def calculate_snr(image: np.ndarray, roi: np.ndarray = None) -> float:
     return float(abs(snr)) if not np.isnan(snr) else 0.0
 
 
-def calculate_mean_intensity(
-    image: np.ndarray, roi: np.ndarray = None
-) -> float:
+def calculate_mean_intensity(image: ImageIO, roi: ImageIO = None) -> float:
     """
     Calculate the mean intensity of a medical image.
 
@@ -63,22 +63,24 @@ def calculate_mean_intensity(
     float
         The mean intensity value of the image or ROI.
     """
-    if not isinstance(image, np.ndarray):
-        raise ValueError('Input must be a numpy array.')
+    if not isinstance(image, ImageIO):
+        raise ValueError('Input must be an ImageIO object.')
 
     if roi is not None:
-        if not isinstance(roi, np.ndarray):
-            raise ValueError('ROI must be a numpy array.')
-        if roi.shape != image.shape:
+        if not isinstance(roi, ImageIO):
+            raise ValueError('ROI must be an ImageIO object.')
+        if roi.get_as_numpy().shape != image.get_as_numpy().shape:
             raise ValueError('ROI shape must match image shape.')
 
     # Compute mean intensity
     if roi is not None:
-        return float(abs(np.mean(image[roi > 0])))  # Only consider ROI
-    return float(abs(np.mean(image)))
+        return float(
+            abs(np.mean(image.get_as_numpy()[roi.get_as_numpy() > 0]))
+        )  # Only consider ROI
+    return float(abs(np.mean(image.get_as_numpy())))
 
 
-def analyze_image_properties(image: np.ndarray) -> Dict[str, any]:
+def analyze_image_properties(image: ImageIO) -> Dict[str, any]:
     """
     Analyze basic properties of a medical image for orientation assessment.
 
@@ -96,33 +98,35 @@ def analyze_image_properties(image: np.ndarray) -> Dict[str, any]:
         - 'intensity_stats': dict, intensity statistics
         - 'symmetry_axes': dict, symmetry analysis for each axis
     """
+    image_array = image.get_as_numpy()
+
     # Basic properties
-    shape = image.shape
+    shape = image_array.shape
 
     # Center of mass
     try:
 
-        com = center_of_mass(image > np.mean(image))
+        com = center_of_mass(image_array > np.mean(image_array))
     except ImportError:   # pragma: no cover
         # Fallback calculation without scipy
-        coords = np.argwhere(image > np.mean(image))
+        coords = np.argwhere(image_array > np.mean(image_array))
         com = np.mean(coords, axis=0) if len(coords) > 0 else (0, 0, 0)
 
     # Intensity statistics
     intensity_stats = {
-        'min': float(np.min(image)),
-        'max': float(np.max(image)),
-        'mean': float(np.mean(image)),
-        'std': float(np.std(image)),
-        'median': float(np.median(image)),
+        'min': float(np.min(image_array)),
+        'max': float(np.max(image_array)),
+        'mean': float(np.mean(image_array)),
+        'std': float(np.std(image_array)),
+        'median': float(np.median(image_array)),
     }
 
     # Symmetry analysis
     symmetry_axes = {}
     for axis in range(3):
         # Flip along axis and compare
-        flipped = np.flip(image, axis=axis)
-        correlation = _compute_correlation_simple(image, flipped)
+        flipped = np.flip(image_array, axis=axis)
+        correlation = _compute_correlation_simple(image_array, flipped)
         symmetry_axes[f'axis_{axis}'] = {
             'symmetry_correlation': correlation,
             'likely_symmetric': correlation > 0.8,

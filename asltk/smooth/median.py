@@ -4,9 +4,10 @@ import numpy as np
 from scipy.ndimage import median_filter
 
 from asltk.utils.image_manipulation import collect_data_volumes
+from asltk.utils.io import ImageIO, clone_image
 
 
-def isotropic_median(data, size: int = 3):
+def isotropic_median(data: ImageIO, size: int = 3):
     """Smooth the data using a median filter.
 
     This method applies a median filter with an isotropic kernel to reduce
@@ -41,8 +42,8 @@ def isotropic_median(data, size: int = 3):
         raise ValueError('size must be a positive integer.')
 
     # Check if the input data is a numpy array
-    if not isinstance(data, np.ndarray):
-        raise TypeError(f'data is not a numpy array. Type {type(data)}')
+    if not isinstance(data, ImageIO):
+        raise TypeError(f'data is not an ImageIO object. Type {type(data)}')
 
     # Ensure size is odd
     if size % 2 == 0:
@@ -52,7 +53,7 @@ def isotropic_median(data, size: int = 3):
             UserWarning,
         )
 
-    if data.ndim > 3:
+    if data.get_as_numpy().ndim > 3:
         warnings.warn(
             'Input data is not a 3D volume. The filter will be applied for all volumes.',
             UserWarning,
@@ -61,7 +62,12 @@ def isotropic_median(data, size: int = 3):
     volumes, _ = collect_data_volumes(data)
     processed = []
     for volume in volumes:
-        filtered_volume = median_filter(volume, size=size)
+        filtered_volume = median_filter(volume.get_as_numpy(), size=size)
         processed.append(filtered_volume)
 
-    return np.array(processed).reshape(data.shape)
+    smooth_array = np.array(processed).reshape(data.get_as_numpy().shape)
+
+    out_data = clone_image(data)
+    out_data.update_image_data(smooth_array)
+
+    return out_data

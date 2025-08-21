@@ -5,6 +5,7 @@ import pytest
 
 from asltk.asldata import ASLData
 from asltk.reconstruction.t2_mapping import T2Scalar_ASLMapping
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 
@@ -28,7 +29,7 @@ def test_t2_scalar_asl_mapping_initialization():
 
     assert isinstance(t2_mapping, T2Scalar_ASLMapping)
     assert isinstance(t2_mapping._asl_data, ASLData)
-    assert isinstance(t2_mapping._brain_mask, np.ndarray)
+    assert isinstance(t2_mapping._brain_mask, ImageIO)
     assert t2_mapping._t2_maps is None
     assert t2_mapping._mean_t2s is None
 
@@ -52,13 +53,15 @@ def test_t2_scalar_mapping_success_construction_t2_map():
 
     out = t2_mapping.create_map()
 
-    assert isinstance(out['t2'], np.ndarray)
-    assert out['t2'].ndim == 4  # Expecting a 4D array
+    assert isinstance(out['t2'], ImageIO)
+    assert out['t2'].get_as_numpy().ndim == 4  # Expecting a 4D array
     assert out['mean_t2'] is not None
     assert len(out['mean_t2']) == len(
         asldata_te.get_pld()
     )  # One mean T2 per PLD
-    assert np.mean(out['t2']) > 0  # Ensure T2 values are positive
+    assert (
+        np.mean(out['t2'].get_as_numpy()) > 0
+    )  # Ensure T2 values are positive
 
 
 def test_t2_scalar_mapping_raise_error_with_dw_in_asldata():
@@ -87,39 +90,41 @@ def test_t2_scalar_mapping_get_t2_maps_and_mean_t2s_before_and_after_create_map(
     t2_maps = t2_mapping.get_t2_maps()
     mean_t2s = t2_mapping.get_mean_t2s()
 
-    assert isinstance(t2_maps, np.ndarray)
-    assert t2_maps.ndim == 4  # (N_PLDS, Z, Y, X)
+    assert isinstance(t2_maps, ImageIO)
+    assert t2_maps.get_as_numpy().ndim == 4  # (N_PLDS, Z, Y, X)
     assert isinstance(mean_t2s, list)
     assert len(mean_t2s) == len(asldata_te.get_pld())
     assert all(
         isinstance(val, float) or isinstance(val, np.floating)
         for val in mean_t2s
     )
-    assert np.all(t2_maps >= 0)
+    assert np.all(t2_maps.get_as_numpy() >= 0)
 
 
 def test_set_brain_mask_binary_and_label():
     t2_mapping = T2Scalar_ASLMapping(asldata_te)
-    shape = t2_mapping._asl_data('m0').shape
+    shape = t2_mapping._asl_data('m0').get_as_numpy().shape
 
     # Binary mask (all ones)
-    binary_mask = np.ones(shape, dtype=np.uint8)
+    binary_mask = ImageIO(image_array=np.ones(shape, dtype=np.uint8))
     t2_mapping.set_brain_mask(binary_mask)
-    assert np.all(t2_mapping._brain_mask == 1)
-    assert t2_mapping._brain_mask.shape == shape
+    assert np.all(t2_mapping._brain_mask.get_as_numpy() == 1)
+    assert t2_mapping._brain_mask.get_as_numpy().shape == shape
 
     # Mask with different label
     label = 2
     mask_with_label = np.zeros(shape, dtype=np.uint8)
     mask_with_label[0, 0, 0] = label
-    t2_mapping.set_brain_mask(mask_with_label, label=label)
-    assert t2_mapping._brain_mask[0, 0, 0] == label
-    assert np.sum(t2_mapping._brain_mask == label) == 1
+    t2_mapping.set_brain_mask(
+        ImageIO(image_array=mask_with_label), label=label
+    )
+    assert t2_mapping._brain_mask.get_as_numpy()[0, 0, 0] == label
+    assert np.sum(t2_mapping._brain_mask.get_as_numpy() == label) == 1
 
 
 def test_set_brain_mask_invalid_shape_raises():
     t2_mapping = T2Scalar_ASLMapping(asldata_te)
-    wrong_shape_mask = np.ones((2, 2, 2), dtype=np.uint8)
+    wrong_shape_mask = ImageIO(image_array=np.ones((2, 2, 2), dtype=np.uint8))
     with pytest.raises(Exception) as error:
         t2_mapping.set_brain_mask(wrong_shape_mask)
 
@@ -130,8 +135,8 @@ def test_set_brain_mask_invalid_shape_raises():
 
 def test_set_brain_mask_noninteger_label():
     t2_mapping = T2Scalar_ASLMapping(asldata_te)
-    shape = t2_mapping._asl_data('m0').shape
-    mask = np.ones(shape, dtype=np.float32)
+    shape = t2_mapping._asl_data('m0').get_as_numpy().shape
+    mask = ImageIO(image_array=np.ones(shape, dtype=np.float32))
     # Should still work, as mask == label will be True for 1.0 == 1
     t2_mapping.set_brain_mask(mask, label=1)
-    assert np.all(t2_mapping._brain_mask == 1)
+    assert np.all(t2_mapping._brain_mask.get_as_numpy() == 1)
