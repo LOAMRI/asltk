@@ -21,7 +21,7 @@ data = ASLData(
 The example above creates an `asldata.ASLData` object, called `data`, which will store the pCASL and M0 images, along with the LD, PLD and TE values (in this case we are showing a prototype of multiTE-ASL data loading)
 
 !!! tip
-    There are many other image file formatts that is accepted in the `asltk` tool. We adopted the `SimpleITK` API, then one can check the image formatts in the [official documentation](https://simpleitk.readthedocs.io/en/master/IO.html)
+    There are many other image file formats that is accepted in the `asltk` tool. We adopted the `SimpleITK` API, then one can check the image formatts in the [official documentation](https://simpleitk.readthedocs.io/en/master/IO.html)
 
 ## Example operation using `asltk`
 
