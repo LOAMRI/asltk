@@ -12,18 +12,10 @@ from asltk.utils.io import ImageIO
 SEP = os.sep
 
 T1_MRI = f'tests' + SEP + 'files' + SEP + 't1-mri.nrrd'
-PCASL_MTE = f'tests' + SEP + 'files' + SEP + 'pcasl_mte.nii.gz'
 PCASL_MDW = f'tests' + SEP + 'files' + SEP + 'pcasl_mdw.nii.gz'
 M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
 M0_BRAIN_MASK = f'tests' + SEP + 'files' + SEP + 'm0_brain_mask.nii.gz'
 
-asldata_te = ASLData(
-    pcasl=PCASL_MTE,
-    m0=M0,
-    ld_values=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
-    pld_values=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
-    te_values=[13.56, 67.82, 122.08, 176.33, 230.59, 284.84, 339.100, 393.36],
-)
 asldata_dw = ASLData(
     pcasl=PCASL_MDW,
     m0=M0,
@@ -31,7 +23,7 @@ asldata_dw = ASLData(
     pld_values=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
     dw_values=[0, 50.0, 100.0, 250.0],
 )
-incomplete_asldata = ASLData(pcasl=PCASL_MTE)
+incomplete_asldata = ASLData(pcasl=PCASL_MDW)
 
 
 def test_multi_dw_asl_object_constructor_created_sucessfully():
