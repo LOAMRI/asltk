@@ -326,7 +326,7 @@ class MultiDW_ASLMapping(MRIParameters):
         y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
         z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
 
-        # TODO Fix
+        # TODO Fix the reconstruction method when ASL-DWI acquisition works properly
         print('multiDW-ASL processing...')
         for i in range(x_axis):
             for j in range(y_axis):
