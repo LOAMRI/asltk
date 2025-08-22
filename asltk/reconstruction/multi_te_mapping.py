@@ -1,3 +1,4 @@
+import warnings
 from multiprocessing import Array, Pool, cpu_count
 
 import numpy as np
@@ -190,6 +191,7 @@ class MultiTE_ASLMapping(MRIParameters):
         cores=cpu_count(),
         smoothing=None,
         smoothing_params=None,
+        suppress_warnings=True,
     ):
         """Create multi-TE ASL maps including T1 blood-gray matter exchange (T1blGM).
 
@@ -236,6 +238,8 @@ class MultiTE_ASLMapping(MRIParameters):
             smoothing_params (dict, optional): Parameters for the smoothing filter.
                 For 'gaussian': {'sigma': float} (default: 1.0)
                 For 'median': {'size': int} (default: 3)
+            suppress_warnings (bool, optional): Whether to suppress warnings during
+                processing. Defaults to True.
 
         Returns:
             dict: Dictionary containing:
@@ -299,98 +303,116 @@ class MultiTE_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
-        self._basic_maps.set_brain_mask(ImageIO(image_array=self._brain_mask))
-
-        basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
-        if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
-            # If the CBF/ATT maps are zero (empty), then a new one is created
-            print(
-                '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
-            )
-            basic_maps = self._basic_maps.create_map()
-            self._cbf_map = basic_maps['cbf'].get_as_numpy()
-            self._att_map = basic_maps['att'].get_as_numpy()
-
-        global asl_data, brain_mask, cbf_map, att_map, t2bl, t2gm
-        asl_data = self._asl_data
-        brain_mask = self._brain_mask
-        cbf_map = self._cbf_map
-        att_map = self._att_map
-        ld_arr = self._asl_data.get_ld()
-        pld_arr = self._asl_data.get_pld()
-        te_arr = self._asl_data.get_te()
-        t2bl = self.T2bl
-        t2gm = self.T2gm
-
-        x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # height
-        y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
-        z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
-
-        tblgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
-
-        with Pool(
-            processes=cores,
-            initializer=_multite_init_globals,
-            initargs=(
-                cbf_map,
-                att_map,
-                brain_mask,
-                asl_data,
-                ld_arr,
-                pld_arr,
-                te_arr,
-                tblgm_map_shared,
-                t2bl,
-                t2gm,
-            ),
-        ) as pool:
-            with Progress() as progress:
-                task = progress.add_task(
-                    'multiTE-ASL processing...', total=x_axis
+        # Use context manager to suppress warnings if requested
+        with warnings.catch_warnings():
+            if suppress_warnings:
+                # Filter common warnings that might appear during fitting and processing
+                warnings.filterwarnings('ignore', category=RuntimeWarning)
+                warnings.filterwarnings('ignore', category=UserWarning)
+                warnings.filterwarnings(
+                    'ignore', category=np.VisibleDeprecationWarning
                 )
-                results = [
-                    pool.apply_async(
-                        _tblgm_multite_process_slice,
-                        args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
-                        callback=lambda _: progress.update(task, advance=1),
+
+            self._basic_maps.set_brain_mask(
+                ImageIO(image_array=self._brain_mask)
+            )
+
+            basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
+            if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
+                # If the CBF/ATT maps are zero (empty), then a new one is created
+                print(
+                    '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
+                )
+                basic_maps = self._basic_maps.create_map()
+                self._cbf_map = basic_maps['cbf'].get_as_numpy()
+                self._att_map = basic_maps['att'].get_as_numpy()
+
+            global asl_data, brain_mask, cbf_map, att_map, t2bl, t2gm
+            asl_data = self._asl_data
+            brain_mask = self._brain_mask
+            cbf_map = self._cbf_map
+            att_map = self._att_map
+            ld_arr = self._asl_data.get_ld()
+            pld_arr = self._asl_data.get_pld()
+            te_arr = self._asl_data.get_te()
+            t2bl = self.T2bl
+            t2gm = self.T2gm
+
+            x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # height
+            y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
+            z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
+
+            tblgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+
+            with Pool(
+                processes=cores,
+                initializer=_multite_init_globals,
+                initargs=(
+                    cbf_map,
+                    att_map,
+                    brain_mask,
+                    asl_data,
+                    ld_arr,
+                    pld_arr,
+                    te_arr,
+                    tblgm_map_shared,
+                    t2bl,
+                    t2gm,
+                ),
+            ) as pool:
+                with Progress() as progress:
+                    task = progress.add_task(
+                        'multiTE-ASL processing...', total=x_axis
                     )
-                    for i in range(x_axis)
-                ]
-                for result in results:
-                    result.wait()
+                    results = [
+                        pool.apply_async(
+                            _tblgm_multite_process_slice,
+                            args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
+                            callback=lambda _: progress.update(
+                                task, advance=1
+                            ),
+                        )
+                        for i in range(x_axis)
+                    ]
+                    for result in results:
+                        result.wait()
 
-        self._t1blgm_map = np.frombuffer(tblgm_map_shared).reshape(
-            z_axis, y_axis, x_axis
-        )
+            self._t1blgm_map = np.frombuffer(tblgm_map_shared).reshape(
+                z_axis, y_axis, x_axis
+            )
 
-        # Adjusting output image boundaries
-        self._t1blgm_map = self._adjust_image_limits(self._t1blgm_map, par0[0])
+            # Adjusting output image boundaries
+            self._t1blgm_map = self._adjust_image_limits(
+                self._t1blgm_map, par0[0]
+            )
 
-        # Prepare output maps
-        cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
-        cbf_map_image.update_image_data(self._cbf_map)
+            # Prepare output maps
+            cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
+            cbf_map_image.update_image_data(self._cbf_map)
 
-        cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
-        cbf_map_norm_image.update_image_data(self._cbf_map * (60 * 60 * 1000))
+            cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
+            cbf_map_norm_image.update_image_data(
+                self._cbf_map * (60 * 60 * 1000)
+            )
 
-        att_map_image = ImageIO(self._asl_data('m0').get_image_path())
-        att_map_image.update_image_data(self._att_map)
+            att_map_image = ImageIO(self._asl_data('m0').get_image_path())
+            att_map_image.update_image_data(self._att_map)
 
-        t1blgm_map_image = ImageIO(self._asl_data('m0').get_image_path())
-        t1blgm_map_image.update_image_data(self._t1blgm_map)
+            t1blgm_map_image = ImageIO(self._asl_data('m0').get_image_path())
+            t1blgm_map_image.update_image_data(self._t1blgm_map)
 
-        # Create output maps dictionary
-        output_maps = {
-            'cbf': cbf_map_image,
-            'cbf_norm': cbf_map_norm_image,
-            'att': att_map_image,
-            't1blgm': t1blgm_map_image,
-        }
+            # Create output maps dictionary
+            output_maps = {
+                'cbf': cbf_map_image,
+                'cbf_norm': cbf_map_norm_image,
+                'att': att_map_image,
+                't1blgm': t1blgm_map_image,
+            }
 
-        # Apply smoothing if requested
-        return _apply_smoothing_to_maps(
-            output_maps, smoothing, smoothing_params
-        )
+            # Apply smoothing if requested
+            return _apply_smoothing_to_maps(
+                output_maps, smoothing, smoothing_params
+            )
 
     def _adjust_image_limits(self, map, init_guess):
         img = sitk.GetImageFromArray(map)

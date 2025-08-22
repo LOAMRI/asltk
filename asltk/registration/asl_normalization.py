@@ -206,9 +206,9 @@ def head_movement_correction(
             If True, prints progress messages. Defaults to False.
 
     Raises:
-        TypeError: _description_
-        ValueError: _description_
-        RuntimeError: _description_
+        TypeError: If the input is not an ASLData object.
+        ValueError: If no valid reference volume is provided.
+        RuntimeError: If the normalization fails.
 
     Returns:
         tuple: ASLData object with corrected volumes and a list of transformation matrices.
@@ -286,10 +286,6 @@ def __apply_array_normalization(
                     vol, ref_vol
                 )
 
-                # Adjust the transformation matrix
-                # if len(trans_m) > 1:
-                #     # Non-linear transformation is being applied
-
                 trans_path = trans_m[-1]
                 t_matrix = ants.read_transform(trans_path)
                 if trans_proportions is None:
@@ -317,10 +313,6 @@ def __apply_array_normalization(
             corrected_vols.append(corrected_vol)
             trans_mtx.append(trans_m)
             progress.update(task, advance=1)
-
-    # Rebuild the original ASLData object with the corrected volumes
-    # orig_shape = orig_shape[1:4]
-    # corrected_vols = np.stack(corrected_vols).reshape(orig_shape)
 
     if isinstance(trans_mtx[0], list):
         # If the transformation list has a inner list, then take the first one
