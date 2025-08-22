@@ -3,7 +3,6 @@ import os
 from functools import *
 
 import numpy as np
-import SimpleITK as sitk
 from rich import print
 
 from asltk.asldata import ASLData
