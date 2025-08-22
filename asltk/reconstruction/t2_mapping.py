@@ -90,6 +90,7 @@ class T2Scalar_ASLMapping(MRIParameters):
         """
         return self._mean_t2s
 
+    # TODO Check if the T2 maps can be a better memory performance. See the adjustments in the CBF, MultiTE and UltraLong TE. 
     def create_map(
         self,
         cores=cpu_count(),
