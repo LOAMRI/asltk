@@ -9,12 +9,15 @@ from rich.progress import Progress
 from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
-from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
+from asltk.aux_methods import (
+    _apply_smoothing_to_maps,
+    _check_mask_values,
+    get_optimal_core_count,
+)
 from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
 from asltk.utils.io import ImageIO
-from asltk.aux_methods import get_optimal_core_count
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -49,10 +52,10 @@ class UltraLongTE_ASLMapping(MRIParameters):
             multi-echo model fitting and T1 estimation.
 
         Notes:
-            This method is based from the original paper of: 
-            Leonie Petitclerc, Lydiane Hirschler, Jack A. Wells, David L. Thomas, 
-            Marianne A.A. van Walderveen, Mark A. van Buchem, Matthias J.P. van Osch, 
-            "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide 
+            This method is based from the original paper of:
+            Leonie Petitclerc, Lydiane Hirschler, Jack A. Wells, David L. Thomas,
+            Marianne A.A. van Walderveen, Mark A. van Buchem, Matthias J.P. van Osch,
+            "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide
             blood-to-CSF water transport in humans", NeuroImage, ISSN 1053-8119,
             https://doi.org/10.1016/j.neuroimage.2021.118755.
 
@@ -246,8 +249,8 @@ class UltraLongTE_ASLMapping(MRIParameters):
                 Should be positive for realistic T1 values.
             par0 (list, optional): Initial guess for T1csfGM in milliseconds.
                 Defaults to [400]. Good starting values: 300-500 ms.
-            cores (int or str, optional): Number of CPU threads for parallel processing. 
-                If "auto" (default), automatically determines the optimal number based on 
+            cores (int or str, optional): Number of CPU threads for parallel processing.
+                If "auto" (default), automatically determines the optimal number based on
                 available system memory. If an integer is provided, uses that specific number.
             smoothing (str, optional): Type of spatial smoothing filter to apply.
                 Options: None (default, no smoothing), 'gaussian', 'median'.
@@ -320,7 +323,7 @@ class UltraLongTE_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
-         # Determine optimal number of cores based on available memory
+        # Determine optimal number of cores based on available memory
         actual_cores = get_optimal_core_count(cores)
 
         # Use context manager to suppress warnings if requested
@@ -362,7 +365,9 @@ class UltraLongTE_ASLMapping(MRIParameters):
             y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
             z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
 
-            tcsfgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+            tcsfgm_map_shared = Array(
+                'd', z_axis * y_axis * x_axis, lock=False
+            )
 
             with Pool(
                 processes=actual_cores,

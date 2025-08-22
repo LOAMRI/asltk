@@ -182,7 +182,9 @@ def test_multite_asl_object_set_cbf_and_att_maps_before_create_map():
     assert np.mean(ulte.get_brain_mask()) < 1
 
     # Test if CBF/ATT are empty (fresh obj creation)
-    assert np.mean(ulte.get_att_map()) == 0 and np.mean(ulte.get_cbf_map()) == 0
+    assert (
+        np.mean(ulte.get_att_map()) == 0 and np.mean(ulte.get_cbf_map()) == 0
+    )
 
     # Update CBF/ATT maps and test if it changed in the obj
     cbf = ImageIO(image_array=np.ones(mask.get_as_numpy().shape) * 100)

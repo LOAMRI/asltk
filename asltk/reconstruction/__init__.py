@@ -9,5 +9,5 @@ __all__ = [
     'MultiTE_ASLMapping',
     'MultiDW_ASLMapping',
     'T2Scalar_ASLMapping',
-    'UltraLongTE_ASLMapping'
+    'UltraLongTE_ASLMapping',
 ]
