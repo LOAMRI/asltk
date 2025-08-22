@@ -145,7 +145,7 @@ class MultiTE_ASLMapping(MRIParameters):
             CBFMapping class, one can use the 'cbf' output.
 
         Args:
-            cbf_map (np.ndarray): The CBF map that is set in the MultiTE_ASLMapping object
+            cbf_map (ImageIO): The CBF map that is set in the MultiTE_ASLMapping object
         """
         self._cbf_map = cbf_map.get_as_numpy()
 
@@ -153,7 +153,7 @@ class MultiTE_ASLMapping(MRIParameters):
         """Get the CBF map storaged at the MultiTE_ASLMapping object
 
         Returns:
-            (np.ndarray): The CBF map that is storaged in the
+            (ImageIO): The CBF map that is storaged in the
             MultiTE_ASLMapping object
         """
         return self._cbf_map
@@ -162,7 +162,7 @@ class MultiTE_ASLMapping(MRIParameters):
         """Set the ATT map to the MultiTE_ASLMapping object.
 
         Args:
-            att_map (np.ndarray): The ATT map that is set in the MultiTE_ASLMapping object
+            att_map (ImageIO): The ATT map that is set in the MultiTE_ASLMapping object
         """
         self._att_map = att_map.get_as_numpy()
 
@@ -170,7 +170,8 @@ class MultiTE_ASLMapping(MRIParameters):
         """Get the ATT map storaged at the MultiTE_ASLMapping object
 
         Returns:
-            (np.ndarray): _description_
+            (ImageIO): The ATT map that is storaged in the
+            MultiTE_ASLMapping object
         """
         return self._att_map
 
@@ -178,7 +179,7 @@ class MultiTE_ASLMapping(MRIParameters):
         """Get the T1blGM map storaged at the MultiTE_ASLMapping object
 
         Returns:
-            (np.ndarray): The T1blGM map that is storaged in the
+            (ImageIO): The T1blGM map that is storaged in the
             MultiTE_ASLMapping object
         """
         return self._t1blgm_map
@@ -243,10 +244,10 @@ class MultiTE_ASLMapping(MRIParameters):
 
         Returns:
             dict: Dictionary containing:
-                - 'cbf': Basic CBF map in original units (numpy.ndarray)
-                - 'cbf_norm': Normalized CBF in mL/100g/min (numpy.ndarray)
-                - 'att': Arterial transit time in ms (numpy.ndarray)
-                - 't1blgm': T1 blood-gray matter exchange time in ms (numpy.ndarray)
+                - 'cbf': Basic CBF map in original units (ImageIO)
+                - 'cbf_norm': Normalized CBF in mL/100g/min (ImageIO)
+                - 'att': Arterial transit time in ms (ImageIO)
+                - 't1blgm': T1 blood-gray matter exchange time in ms (ImageIO)
                 All maps are smoothed if smoothing is enabled.
 
         Examples:
