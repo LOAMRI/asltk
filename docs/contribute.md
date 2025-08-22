@@ -47,6 +47,25 @@ More details about the entire project configuration is provided in the `pyprojec
 !!! tip
     The `asltk` presents some aliases setup in the `pyproject.toml` configuration to assist some common steps in the code develpment. Check theses commands to understand there usages. By the way, if you want to prepare some interesting and useful new alias to the project, feel free to contribute!
 
+After setting up the Poetry environment, you'll need to install the pre-commit hooks to ensure code quality standards are maintained:
+
+```bash
+poetry run pre-commit install
+```
+
+!!! note
+    Pre-commit hooks run automatically before each commit to ensure code quality. In this project, pre-commit is configured to run the `lint` task (blue + isort) on Python files.
+
+!!! tip
+    You can manually run pre-commit on all files to check your codebase:
+    ```bash
+    poetry run pre-commit run --all-files
+    ```
+
+The pre-commit configuration is defined in `.pre-commit-config.yaml` at the root of the project. When you make a commit, the hooks will run automatically and prevent the commit if there are any linting issues that need to be fixed first.
+
+!!! warning
+    Installing pre-commit hooks is a separate step from `poetry install`. New developers must explicitly run the pre-commit install command to enable the hooks.
 
 ### Basic tools
 
