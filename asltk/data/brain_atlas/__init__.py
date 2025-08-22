@@ -3,6 +3,8 @@
 # When a new data is called, then the brain atlas is allocated locally
 import json
 import os
+import time
+from datetime import datetime
 
 import kagglehub
 
@@ -10,6 +12,9 @@ import kagglehub
 class BrainAtlas:
 
     ATLAS_JSON_PATH = os.path.join(os.path.dirname(__file__))
+    # Class-level variable to track API calls
+    _last_api_call = None
+    _min_call_interval = 2  # Minimum seconds between API calls
 
     def __init__(self, atlas_name: str = 'MNI2009', resolution: str = '1mm'):
         """
@@ -52,11 +57,16 @@ class BrainAtlas:
         with open(atlas_path, 'r') as f:
             atlas_data = json.load(f)
 
+        # Apply rate limiting before API call
+        self._respect_rate_limits()
+
         # Add the current atlas file location in the atlas data
         try:
             path = kagglehub.dataset_download(
                 atlas_data.get('dataset_url', None)
             )
+            # Update the last API call timestamp after successful download
+            BrainAtlas._last_api_call = datetime.now()
         except Exception as e:
             raise ValueError(f'Error downloading the atlas: {e}')
 
@@ -191,3 +201,17 @@ class BrainAtlas:
             raise ValueError(
                 f"Invalid resolution '{resolution}'. Valid options are: {valid_resolutions}"
             )
+
+    @classmethod
+    def _respect_rate_limits(cls):
+        """
+        Ensures API calls respect rate limits by adding delay if necessary.
+        This helps prevent 429 Too Many Requests errors.
+
+        The method enforces a minimum interval between consecutive API calls
+        by sleeping if the last call was too recent.
+        """
+        if cls._last_api_call is not None:
+            elapsed = (datetime.now() - cls._last_api_call).total_seconds()
+            if elapsed < cls._min_call_interval:
+                time.sleep(cls._min_call_interval - elapsed)
