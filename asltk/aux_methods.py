@@ -158,7 +158,7 @@ def _apply_smoothing_to_maps(
 
     return smoothed_maps
 
-def get_optimal_core_count(requested_cores: int = None, mb_per_core: int =500):
+def get_optimal_core_count(requested_cores: int = None, mb_per_core: int =1000):
     """Determine optimal number of cores based on available memory.
     
     This function calculates the appropriate number of CPU cores to use for
@@ -178,6 +178,22 @@ def get_optimal_core_count(requested_cores: int = None, mb_per_core: int =500):
     Returns:
         int: Optimal number of cores to use (at least 1)
     """
+    if requested_cores is not None:
+        if not isinstance(requested_cores, (int, str)):
+            raise TypeError(
+                f'Invalid type for requested_cores: {type(requested_cores)}. '
+                'Expected int or str ("auto").'
+            )
+        if isinstance(requested_cores, str) and requested_cores.lower() != "auto":
+            raise ValueError(
+                'Invalid value for requested_cores. Use an integer or "auto".'
+            )
+        if isinstance(requested_cores, int):
+            if requested_cores < 0 or requested_cores > cpu_count():
+                raise ValueError(
+                    'Number of CPU must be at least 1 and less than maximum cores availble.'
+                )
+
     # If specific cores requested (and not "auto"), respect that choice
     if requested_cores not in (None, "auto") and requested_cores > 0:
         return min(requested_cores, cpu_count())

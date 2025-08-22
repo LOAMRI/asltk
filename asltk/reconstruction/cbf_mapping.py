@@ -1,4 +1,6 @@
 from multiprocessing import Array, Pool, cpu_count
+import gc  # Add garbage collection module
+import psutil  # Add for memory detection
 
 import numpy as np
 import SimpleITK as sitk
@@ -11,12 +13,16 @@ from asltk.logging_config import get_logger, log_processing_step
 from asltk.models.signal_dynamic import asl_model_buxton
 from asltk.mri_parameters import MRIParameters
 from asltk.utils.io import ImageIO
+from asltk.aux_methods import get_optimal_core_count
 
 # Global variables to assist multi cpu threading
 cbf_map = None
 att_map = None
 brain_mask = None
 asl_data = None
+# Batch processing variables
+batch_start = None
+batch_end = None
 
 
 class CBFMapping(MRIParameters):
@@ -180,9 +186,11 @@ class CBFMapping(MRIParameters):
         ub=[1.0, 5000.0],
         lb=[0.0, 0.0],
         par0=[1e-5, 1000],
-        cores: int = int(cpu_count() / 2),
+        cores="auto",  # Changed default from cpu_count()/2 to "auto"
         smoothing=None,
         smoothing_params=None,
+        mb_per_core=500,  # New parameter for memory allocation per core
+        batch_size=None,  # New parameter for batch processing
     ):
         """Create the CBF and also ATT maps using the Buxton ASL model.
 
@@ -209,15 +217,21 @@ class CBFMapping(MRIParameters):
                 Defaults to [0.0, 0.0]. Both parameters must be non-negative.
             par0 (list, optional): The initial guess for [CBF, ATT] parameters.
                 Defaults to [1e-5, 1000]. Good starting values help convergence.
-            cores (int, optional): Number of CPU threads to use for parallel processing.
-                Defaults to using all available threads. Use fewer cores to preserve
-                system resources.
+            cores (int or str, optional): Number of CPU threads for parallel processing.
+                If "auto" (default), automatically determines the optimal number based on 
+                available system memory. If an integer is provided, uses that specific number.
             smoothing (str, optional): Type of spatial smoothing filter to apply.
                 Options: None (default, no smoothing), 'gaussian', 'median'.
                 Smoothing is applied to all output maps after reconstruction.
             smoothing_params (dict, optional): Parameters for the smoothing filter.
                 For 'gaussian': {'sigma': float} (default: 1.0)
                 For 'median': {'size': int} (default: 3)
+            mb_per_core (int, optional): Memory allocation per core in MB.
+                Only used when cores="auto". Default is 500MB per core.
+            batch_size (int, optional): Number of slices to process at once. 
+                If None (default), an optimal batch size is calculated based on
+                available memory. Smaller batch sizes reduce memory usage but
+                may increase processing time.
 
         Returns:
             dict: A dictionary containing:
@@ -270,9 +284,12 @@ class CBFMapping(MRIParameters):
             ...     smoothing_params={'size': 5}
             ... ) # doctest: +SKIP
 
-            Memory-efficient processing with limited cores:
-            >>> # Use only 4 cores to preserve system resources
-            >>> results = cbf_mapper.create_map(cores=4) # doctest: +SKIP
+            Memory-efficient processing with automatic resource allocation:
+            >>> # Use automatic core count based on available memory
+            >>> results = cbf_mapper.create_map(cores="auto") # doctest: +SKIP
+            
+            >>> # Use batch processing with custom batch size (5 slices per batch)
+            >>> results = cbf_mapper.create_map(batch_size=5) # doctest: +SKIP
 
         Raises:
             ValueError: If cores parameter is invalid, or if LD/PLD values are missing.
@@ -280,10 +297,14 @@ class CBFMapping(MRIParameters):
         logger = get_logger('cbf_mapping')
         logger.info('Starting CBF map creation')
 
-        if (cores < 0) or (cores > cpu_count()) or not isinstance(cores, int):
-            error_msg = 'Number of proecess must be at least 1 and less than maximum cores availble.'
+        # Determine optimal number of cores based on available memory
+        actual_cores = get_optimal_core_count(cores, mb_per_core)
+        
+        # Validate core count
+        if (actual_cores <= 0) or (actual_cores > cpu_count()):
+            error_msg = 'Number of processes must be at least 1 and less than maximum cores available.'
             logger.error(
-                f'{error_msg} Requested: {cores}, Available: {cpu_count()}'
+                f'{error_msg} Calculated: {actual_cores}, Available: {cpu_count()}'
             )
             raise ValueError(error_msg)
 
@@ -295,7 +316,7 @@ class CBFMapping(MRIParameters):
             logger.error(error_msg)
             raise ValueError(error_msg)
 
-        logger.info(f'Using {cores} CPU cores for parallel processing')
+        logger.info(f'Using {actual_cores} CPU cores for parallel processing')
         log_processing_step('Initializing CBF mapping computation')
 
         global asl_data, brain_mask
@@ -313,39 +334,69 @@ class CBFMapping(MRIParameters):
         logger.info(
             f'Processing volume dimensions: {z_axis}x{y_axis}x{x_axis}'
         )
+        
+        # Calculate optimal batch size if not specified
+        if batch_size is None:
+            batch_size = _calculate_optimal_batch_size(x_axis, y_axis, z_axis, actual_cores, mb_per_core)
+        
+        logger.info(f'Using batch size of {batch_size} slices')
 
+        # Create shared memory arrays for the full volume
         cbf_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
         att_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
 
         log_processing_step(
             'Running voxel-wise CBF fitting', 'this may take several minutes'
         )
-        with Pool(
-            processes=cores,
-            initializer=_cbf_init_globals,
-            initargs=(cbf_map_shared, att_map_shared, brain_mask, asl_data),
-        ) as pool:
-            with Progress() as progress:
-                task = progress.add_task('CBF/ATT processing...', total=x_axis)
-                results = [
-                    pool.apply_async(
-                        _cbf_process_slice,
-                        args=(
-                            i,
-                            x_axis,
-                            y_axis,
-                            z_axis,
-                            BuxtonX,
-                            par0,
-                            lb,
-                            ub,
-                        ),
-                        callback=lambda _: progress.update(task, advance=1),
+        
+        # Process in batches to reduce memory usage
+        for batch_start in range(0, x_axis, batch_size):
+            batch_end = min(batch_start + batch_size, x_axis)
+            batch_slices = batch_end - batch_start
+            
+            logger.info(f"Processing batch {batch_start//batch_size + 1}/{-(-x_axis//batch_size)}: slices {batch_start}-{batch_end-1}")
+            
+            with Pool(
+                processes=actual_cores,
+                initializer=_cbf_init_globals_optimized,
+                initargs=(
+                    cbf_map_shared,
+                    att_map_shared,
+                    brain_mask,
+                    asl_data,
+                    BuxtonX,
+                    batch_start,
+                    batch_end
+                ),
+            ) as pool:
+                with Progress() as progress:
+                    task = progress.add_task(
+                        f'CBF/ATT processing batch {batch_start//batch_size + 1}/{-(-x_axis//batch_size)}...',
+                        total=batch_slices
                     )
-                    for i in range(x_axis)
-                ]
-                for result in results:
-                    result.wait()
+                    results = [
+                        pool.apply_async(
+                            _cbf_process_slice_optimized,
+                            args=(
+                                i,
+                                x_axis,
+                                y_axis,
+                                z_axis,
+                                BuxtonX,
+                                par0,
+                                lb,
+                                ub,
+                            ),
+                            callback=lambda _: progress.update(task, advance=1),
+                        )
+                        for i in range(batch_start, batch_end)
+                    ]
+                    for result in results:
+                        result.wait()
+            
+            # Force garbage collection between batches
+            pool = None
+            gc.collect()
 
         self._cbf_map = np.frombuffer(cbf_map_shared).reshape(
             z_axis, y_axis, x_axis
@@ -427,3 +478,123 @@ def _cbf_process_slice(
                 except RuntimeError:
                     cbf_map[index] = 0.0
                     att_map[index] = 0.0
+
+    # Clear references and collect garbage
+    del i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub
+    gc.collect()
+
+
+def _cbf_init_globals_optimized(
+    cbf_map_shared,
+    att_map_shared,
+    brain_mask_,
+    asl_data_,
+    buxton_x,
+    batch_start_,
+    batch_end_
+):  # pragma: no cover
+    # Optimized globals for batch processing
+    global cbf_map, att_map, brain_mask, asl_data, batch_start, batch_end
+    
+    # Set shared memory arrays
+    cbf_map = cbf_map_shared
+    att_map = att_map_shared
+    
+    # Only load the data needed for the current batch
+    # For 3D data with shape [z, y, x], we slice along the x dimension
+    brain_mask = brain_mask_[:, :, batch_start_:batch_end_] if batch_start_ is not None else brain_mask_
+    
+    # Store reference to the ASL data object but don't load all data yet
+    asl_data = asl_data_
+    
+    # Store batch parameters
+    batch_start = batch_start_
+    batch_end = batch_end_
+
+
+def _cbf_process_slice_optimized(
+    i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub
+):  # pragma: no cover
+    # i is the global slice index, need to convert to local batch index
+    local_i = i - batch_start  # Convert global slice index to local batch index
+    
+    for j in range(y_axis):
+        for k in range(z_axis):
+            # Use local_i for the batch-specific brain_mask array
+            if brain_mask[k, j, local_i] != 0:
+                # For m0 and pcasl data, use the global index i
+                m0_px = asl_data('m0').get_as_numpy()[k, j, i]
+
+                def mod_buxton(Xdata, par1, par2):
+                    return asl_model_buxton(
+                        Xdata[0], Xdata[1], m0_px, par1, par2
+                    )
+
+                Ydata = asl_data('pcasl').get_as_numpy()[0, :, k, j, i]
+
+                # Calculate the processing index for the 3D space - use global index
+                index = k * (y_axis * x_axis) + j * x_axis + i
+
+                try:
+                    par_fit, _ = curve_fit(
+                        mod_buxton, BuxtonX, Ydata, p0=par0, bounds=(lb, ub)
+                    )
+                    cbf_map[index] = par_fit[0]
+                    att_map[index] = par_fit[1]
+                except RuntimeError:
+                    cbf_map[index] = 0.0
+                    att_map[index] = 0.0
+
+    # Clear references and collect garbage
+    del i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub
+    gc.collect()
+
+
+# def _get_optimal_core_count(requested_cores=None, mb_per_core=500):
+#     """Determine optimal number of cores based on available memory.
+
+#     This function calculates the appropriate number of CPU cores to use for
+#     parallel processing based on the available system memory. It ensures
+#     that the process won't exhaust the system's memory during computation.
+
+#     Args:
+#         requested_cores (int or str, optional): User-requested number of cores.
+#             If specified and > 0, this value is returned. If "auto" or None,
+#             the function calculates based on available memory.
+#         mb_per_core (int, optional): Memory required per core in MB.
+#             Defaults to 500MB per core as a safe estimate.
+
+#     Returns:
+#         int: Optimal number of cores to use (at least 1)
+#     """
+#     # If specific cores requested (and not "auto"), respect that choice
+#     if requested_cores not in (None, "auto") and requested_cores > 0:
+#         return min(requested_cores, cpu_count())
+
+#     # Calculate based on available memory
+#     free_memory_mb = psutil.virtual_memory().available / (1024 * 1024)
+#     cores_by_memory = max(1, int(free_memory_mb / mb_per_core))
+
+#     # Return the smaller of: cores based on memory or total available cores
+#     return min(cores_by_memory, cpu_count())
+
+
+def _calculate_optimal_batch_size(x_axis, y_axis, z_axis, cores, mb_per_core=500):
+    """Calculate optimal batch size based on available memory and volume dimensions.
+
+    Args:
+        x_axis (int): Width dimension of the volume
+        y_axis (int): Height dimension of the volume
+        z_axis (int): Depth dimension of the volume
+        cores (int): Number of CPU cores to be used
+        mb_per_core (int, optional): Memory allocation per core in MB
+
+    Returns:
+        int: Optimal batch size (number of slices per batch)
+    """
+    available_mem = psutil.virtual_memory().available / (1024 * 1024)  # MB
+    # Estimate memory needed per slice (adjust based on testing)
+    est_mem_per_slice = y_axis * x_axis * 8 * 2 / (1024 * 1024)  # MB (8 bytes per float64, 2 arrays)
+    # Allocate ~50% of available memory, distributed across cores
+    batch_size = max(1, min(x_axis, int((available_mem * 0.5) / (est_mem_per_slice * cores))))
+    return batch_size

@@ -1,6 +1,8 @@
 import warnings
 from multiprocessing import Array, Pool, cpu_count
 from typing import Union
+import psutil
+import gc
 
 import numpy as np
 import SimpleITK as sitk
@@ -208,6 +210,8 @@ class UltraLongTE_ASLMapping(MRIParameters):
         smoothing=None,
         smoothing_params=None,
         suppress_warnings=True,
+        mb_per_core: int = 500,
+        batch_size=None,  # New parameter for batch processing
     ):
         """Create ultra-long-TE ASL maps including T1 csf-gray matter exchange (T1csfGM).
 
@@ -249,6 +253,9 @@ class UltraLongTE_ASLMapping(MRIParameters):
             cores (int or str, optional): Number of CPU threads for parallel processing. 
                 If "auto" (default), automatically determines the optimal number based on 
                 available system memory. If an integer is provided, uses that specific number.
+            batch_size (int, optional): Number of slices to process at once. If None (default),
+                an optimal batch size is calculated based on available memory. Smaller batch
+                sizes reduce memory usage but may increase processing time.
             smoothing (str, optional): Type of spatial smoothing filter to apply.
                 Options: None (default, no smoothing), 'gaussian', 'median'.
                 Smoothing is applied to all output maps after reconstruction.
@@ -320,8 +327,8 @@ class UltraLongTE_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
-         # Determine optimal number of cores based on available memory
-        actual_cores = get_optimal_core_count(cores)
+        # Determine optimal number of cores based on available memory
+        actual_cores = get_optimal_core_count(cores, mb_per_core)
 
         # Use context manager to suppress warnings if requested
         with warnings.catch_warnings():
@@ -329,73 +336,87 @@ class UltraLongTE_ASLMapping(MRIParameters):
                 # Filter common warnings that might appear during fitting and processing
                 warnings.filterwarnings('ignore', category=RuntimeWarning)
                 warnings.filterwarnings('ignore', category=UserWarning)
-                warnings.filterwarnings(
-                    'ignore', category=np.VisibleDeprecationWarning
-                )
+                warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
-            self._basic_maps.set_brain_mask(
-                ImageIO(image_array=self._brain_mask)
-            )
+            # Get dimensions
+            x_axis = self._asl_data('m0').get_as_numpy().shape[2]  # width
+            y_axis = self._asl_data('m0').get_as_numpy().shape[1]  # height
+            z_axis = self._asl_data('m0').get_as_numpy().shape[0]  # depth
 
-            basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
+            # Calculate optimal batch size if not specified
+            if batch_size is None:
+                # Estimate based on memory and cores
+                available_mem = psutil.virtual_memory().available / (1024 * 1024)  # MB
+                # Estimate memory needed per slice (adjust multiplier based on testing)
+                est_mem_per_slice = y_axis * x_axis * 8 * 2 / (1024 * 1024)  # MB (8 bytes per float64, 2 arrays)
+                # Allocate ~50% of available memory, distributed across cores
+                batch_size = max(1, min(x_axis, int((available_mem * 0.5) / (est_mem_per_slice * actual_cores))))
+
+            # Process the basic CBF/ATT maps if needed
+            self._basic_maps.set_brain_mask(ImageIO(image_array=self._brain_mask))
+
             if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
-                # If the CBF/ATT maps are zero (empty), then a new one is created
-                print(
-                    '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
-                )
-                basic_maps = self._basic_maps.create_map()
+                print('[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...')
+
+                # Memory optimization: Use the same optimized cores and memory batch processing
+                basic_maps = self._basic_maps.create_map(cores=actual_cores)
                 self._cbf_map = basic_maps['cbf'].get_as_numpy()
                 self._att_map = basic_maps['att'].get_as_numpy()
 
-            global asl_data, brain_mask, cbf_map, att_map, t2bl, t2gm
-            asl_data = self._asl_data
-            brain_mask = self._brain_mask
-            cbf_map = self._cbf_map
-            att_map = self._att_map
-            ld_arr = self._asl_data.get_ld()
-            pld_arr = self._asl_data.get_pld()
-            te_arr = self._asl_data.get_te()
-            t2bl = self.T2bl
-            t2gm = self.T2gm
+                # Clear cached results to free memory
+                basic_maps = None
+                
+                gc.collect()
 
-            x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # height
-            y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
-            z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
-
+            # Create output array in shared memory for the full volume
             tcsfgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
 
-            with Pool(
-                processes=actual_cores,
-                initializer=_multite_init_globals,
-                initargs=(
-                    cbf_map,
-                    att_map,
-                    brain_mask,
-                    asl_data,
-                    ld_arr,
-                    pld_arr,
-                    te_arr,
-                    tcsfgm_map_shared,
-                    t2bl,
-                    t2gm,
-                ),
-            ) as pool:
-                with Progress() as progress:
-                    task = progress.add_task(
-                        'ultralongTE-ASL processing...', total=x_axis
-                    )
-                    results = [
-                        pool.apply_async(
-                            _tcsfgm_multite_process_slice,
-                            args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
-                            callback=lambda _: progress.update(
-                                task, advance=1
-                            ),
+            # Process in batches to reduce memory usage
+            for batch_start in range(0, x_axis, batch_size):
+                batch_end = min(batch_start + batch_size, x_axis)
+                batch_slices = batch_end - batch_start
+
+                print(f"[blue][INFO] Processing batch {batch_start//batch_size + 1}/{-(-x_axis//batch_size)}: slices {batch_start}-{batch_end-1}")
+
+                with Pool(
+                    processes=actual_cores,
+                    initializer=_multite_init_globals_optimized,
+                    initargs=(
+                        self._cbf_map,
+                        self._att_map,
+                        self._brain_mask,
+                        self._asl_data,
+                        self._asl_data.get_ld(),
+                        self._asl_data.get_pld(),
+                        self._asl_data.get_te(),
+                        tcsfgm_map_shared,
+                        self.T2bl,
+                        self.T2gm,
+                        batch_start,
+                        batch_end,
+                        y_axis,
+                        x_axis,
+                    ),
+                ) as pool:
+                    with Progress() as progress:
+                        task = progress.add_task(
+                            'ultralongTE-ASL processing batch...', 
+                            total=batch_slices
                         )
-                        for i in range(x_axis)
-                    ]
-                    for result in results:
-                        result.wait()
+                        results = [
+                            pool.apply_async(
+                                _tcsfgm_multite_process_slice_optimized,
+                                args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
+                                callback=lambda _: progress.update(task, advance=1),
+                            )
+                            for i in range(batch_start, batch_end)
+                        ]
+                        for result in results:
+                            result.wait()
+
+                # Force garbage collection between batches
+                pool = None
+                gc.collect()
 
             self._t1csfgm_map = np.frombuffer(tcsfgm_map_shared).reshape(
                 z_axis, y_axis, x_axis
@@ -539,3 +560,105 @@ def _multite_create_x_data(ld, pld, te):   # pragma: no cover
             count += 1
 
     return Xdata
+
+
+def _multite_init_globals_optimized(
+    cbf_map_,
+    att_map_,
+    brain_mask_,
+    asl_data_,
+    ld_arr_,
+    pld_arr_,
+    te_arr_,
+    tblgm_map_,
+    t2bl_,
+    t2gm_,
+    batch_start_,
+    batch_end_,
+    y_axis_,
+    x_axis_,
+):  # pragma: no cover
+    # Global variables optimized for memory usage
+    global cbf_map, att_map, brain_mask, asl_data, ld_arr, te_arr, pld_arr, tblgm_map, t2bl, t2gm
+    global batch_start, batch_end, y_axis, x_axis
+    
+    # Only load the data needed for the current batch
+    cbf_map = cbf_map_[:, :, batch_start_:batch_end_] if batch_start_ is not None else cbf_map_
+    att_map = att_map_[:, :, batch_start_:batch_end_] if batch_start_ is not None else att_map_
+    brain_mask = brain_mask_[:, :, batch_start_:batch_end_] if batch_start_ is not None else brain_mask_
+    
+    # Store the asl_data object reference but don't load all data
+    asl_data = asl_data_
+    
+    # These are small arrays, no need to optimize
+    ld_arr = ld_arr_
+    pld_arr = pld_arr_
+    te_arr = te_arr_
+    tblgm_map = tblgm_map_
+    t2bl = t2bl_
+    t2gm = t2gm_
+    
+    # Batch parameters
+    batch_start = batch_start_
+    batch_end = batch_end_
+    y_axis = y_axis_
+    x_axis = x_axis_
+
+
+def _tcsfgm_multite_process_slice_optimized(
+    i, x_axis, y_axis, z_axis, par0, lb, ub
+):  # pragma: no cover
+    # Modified to work with batch processing
+    local_i = i - batch_start  # Convert global slice index to local batch index
+    
+    for j in range(y_axis):
+        for k in range(z_axis):
+            if brain_mask[k, j, local_i] != 0:
+                # Get m0 value for this voxel - access directly from the asl_data object
+                m0_px = asl_data('m0').get_as_numpy()[k, j, i]  # Use global i for m0
+
+                def mod_2comp(Xdata, par1):
+                    return asl_model_multi_te(
+                        Xdata[:, 0],
+                        Xdata[:, 1],
+                        Xdata[:, 2],
+                        m0_px,
+                        cbf_map[k, j, local_i],  # Use local_i for batch data
+                        att_map[k, j, local_i],  # Use local_i for batch data
+                        par1,
+                        t2bl,
+                        t2gm,
+                    )
+
+                # Get ASL data for this voxel - only load what's needed
+                Ydata = (
+                    asl_data('pcasl')
+                    .get_as_numpy()[:, :, k, j, i]  # Use global i for pcasl data
+                    .reshape(
+                        (
+                            len(ld_arr) * len(te_arr),
+                            1,
+                        )
+                    )
+                    .flatten()
+                )
+
+                # Calculate global index in the shared output array
+                index = k * (y_axis * x_axis) + j * x_axis + i
+
+                try:
+                    Xdata = _multite_create_x_data(
+                        ld_arr,
+                        pld_arr,
+                        te_arr,
+                    )
+                    par_fit, _ = curve_fit(
+                        mod_2comp,
+                        Xdata,
+                        Ydata,
+                        p0=par0,
+                        bounds=(lb, ub),
+                    )
+                    tblgm_map[index] = par_fit[0]
+                except RuntimeError:  # pragma: no cover
+                    tblgm_map[index] = 0.0

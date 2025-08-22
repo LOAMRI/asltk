@@ -1,5 +1,8 @@
 import warnings
 from multiprocessing import Array, Pool, cpu_count
+import gc  # Add garbage collection module
+import psutil  # Add for memory detection
+from typing import Union
 
 import numpy as np
 import SimpleITK as sitk
@@ -13,6 +16,7 @@ from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
 from asltk.utils.io import ImageIO
+from asltk.aux_methods import get_optimal_core_count  # Import if already defined, otherwise define it
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -25,6 +29,32 @@ te_arr = None
 tblgm_map = None
 t2bl = None
 t2gm = None
+# Batch processing variables
+batch_start = None
+batch_end = None
+y_axis = None
+x_axis = None
+
+
+def _calculate_optimal_batch_size(x_axis, y_axis, z_axis, cores, mb_per_core=500):
+    """Calculate optimal batch size based on available memory and volume dimensions.
+
+    Args:
+        x_axis (int): Width dimension of the volume
+        y_axis (int): Height dimension of the volume
+        z_axis (int): Depth dimension of the volume
+        cores (int): Number of CPU cores to be used
+        mb_per_core (int, optional): Memory allocation per core in MB
+
+    Returns:
+        int: Optimal batch size (number of slices per batch)
+    """
+    available_mem = psutil.virtual_memory().available / (1024 * 1024)  # MB
+    # Estimate memory needed per slice (adjust based on testing)
+    est_mem_per_slice = y_axis * x_axis * 8 * 2 / (1024 * 1024)  # MB (8 bytes per float64, 2 arrays)
+    # Allocate ~50% of available memory, distributed across cores
+    batch_size = max(1, min(x_axis, int((available_mem * 0.5) / (est_mem_per_slice * cores))))
+    return batch_size
 
 
 class MultiTE_ASLMapping(MRIParameters):
@@ -189,10 +219,12 @@ class MultiTE_ASLMapping(MRIParameters):
         ub: list = [np.inf],
         lb: list = [0.0],
         par0: list = [400],
-        cores=cpu_count(),
+        cores: Union[int, str] = 'auto',
         smoothing=None,
         smoothing_params=None,
         suppress_warnings=True,
+        mb_per_core: int = 500,  # New parameter for memory allocation per core
+        batch_size=None,  # New parameter for batch processing
     ):
         """Create multi-TE ASL maps including T1 blood-gray matter exchange (T1blGM).
 
@@ -231,8 +263,9 @@ class MultiTE_ASLMapping(MRIParameters):
                 Should be positive for realistic T1 values.
             par0 (list, optional): Initial guess for T1blGM in milliseconds.
                 Defaults to [400]. Good starting values: 300-500 ms.
-            cores (int, optional): Number of CPU threads for parallel processing.
-                Defaults to all available cores.
+            cores (int or str, optional): Number of CPU threads for parallel processing.
+                If "auto" (default), automatically determines the optimal number based on 
+                available system memory. If an integer is provided, uses that specific number.
             smoothing (str, optional): Type of spatial smoothing filter to apply.
                 Options: None (default, no smoothing), 'gaussian', 'median'.
                 Smoothing is applied to all output maps after reconstruction.
@@ -241,6 +274,12 @@ class MultiTE_ASLMapping(MRIParameters):
                 For 'median': {'size': int} (default: 3)
             suppress_warnings (bool, optional): Whether to suppress warnings during
                 processing. Defaults to True.
+            mb_per_core (int, optional): Memory allocation per core in MB.
+                Only used when cores="auto". Default is 500MB per core.
+            batch_size (int, optional): Number of slices to process at once. 
+                If None (default), an optimal batch size is calculated based on
+                available memory. Smaller batch sizes reduce memory usage but
+                may increase processing time.
 
         Returns:
             dict: Dictionary containing:
@@ -304,19 +343,18 @@ class MultiTE_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
+        # Determine optimal number of cores based on available memory
+        actual_cores = get_optimal_core_count(cores, mb_per_core)
+        
         # Use context manager to suppress warnings if requested
         with warnings.catch_warnings():
             if suppress_warnings:
                 # Filter common warnings that might appear during fitting and processing
                 warnings.filterwarnings('ignore', category=RuntimeWarning)
                 warnings.filterwarnings('ignore', category=UserWarning)
-                warnings.filterwarnings(
-                    'ignore', category=np.VisibleDeprecationWarning
-                )
+                warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
-            self._basic_maps.set_brain_mask(
-                ImageIO(image_array=self._brain_mask)
-            )
+            self._basic_maps.set_brain_mask(ImageIO(image_array=self._brain_mask))
 
             basic_maps = {'cbf': self._cbf_map, 'att': self._att_map}
             if np.mean(self._cbf_map) == 0 or np.mean(self._att_map) == 0:
@@ -324,9 +362,17 @@ class MultiTE_ASLMapping(MRIParameters):
                 print(
                     '[blue][INFO] The CBF/ATT map were not provided. Creating these maps before next step...'
                 )
-                basic_maps = self._basic_maps.create_map()
+                # Pass memory optimization parameters to CBFMapping
+                basic_maps = self._basic_maps.create_map(
+                    cores=actual_cores,
+                    mb_per_core=mb_per_core
+                )
                 self._cbf_map = basic_maps['cbf'].get_as_numpy()
                 self._att_map = basic_maps['att'].get_as_numpy()
+                
+                # Clear cached results to free memory
+                basic_maps = None
+                gc.collect()
 
             global asl_data, brain_mask, cbf_map, att_map, t2bl, t2gm
             asl_data = self._asl_data
@@ -339,44 +385,63 @@ class MultiTE_ASLMapping(MRIParameters):
             t2bl = self.T2bl
             t2gm = self.T2gm
 
-            x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # height
-            y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
+            x_axis = self._asl_data('m0').get_as_numpy().shape[2]   # width
+            y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # height
             z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
 
-            tblgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+            # Calculate optimal batch size if not specified
+            if batch_size is None:
+                batch_size = _calculate_optimal_batch_size(x_axis, y_axis, z_axis, actual_cores, mb_per_core)
 
-            with Pool(
-                processes=cores,
-                initializer=_multite_init_globals,
-                initargs=(
-                    cbf_map,
-                    att_map,
-                    brain_mask,
-                    asl_data,
-                    ld_arr,
-                    pld_arr,
-                    te_arr,
-                    tblgm_map_shared,
-                    t2bl,
-                    t2gm,
-                ),
-            ) as pool:
-                with Progress() as progress:
-                    task = progress.add_task(
-                        'multiTE-ASL processing...', total=x_axis
-                    )
-                    results = [
-                        pool.apply_async(
-                            _tblgm_multite_process_slice,
-                            args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
-                            callback=lambda _: progress.update(
-                                task, advance=1
-                            ),
+            # Create shared memory array for the full volume
+            tblgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+            
+            # Process in batches to reduce memory usage
+            for batch_start in range(0, x_axis, batch_size):
+                batch_end = min(batch_start + batch_size, x_axis)
+                batch_slices = batch_end - batch_start
+                
+                print(f"[blue][INFO] Processing batch {batch_start//batch_size + 1}/{-(-x_axis//batch_size)}: slices {batch_start}-{batch_end-1}")
+                
+                with Pool(
+                    processes=actual_cores,
+                    initializer=_multite_init_globals_optimized,
+                    initargs=(
+                        cbf_map,
+                        att_map,
+                        brain_mask,
+                        asl_data,
+                        ld_arr,
+                        pld_arr,
+                        te_arr,
+                        tblgm_map_shared,
+                        t2bl,
+                        t2gm,
+                        batch_start,
+                        batch_end,
+                        y_axis,
+                        x_axis,
+                    ),
+                ) as pool:
+                    with Progress() as progress:
+                        task = progress.add_task(
+                            f'multiTE-ASL processing batch {batch_start//batch_size + 1}/{-(-x_axis//batch_size)}...',
+                            total=batch_slices
                         )
-                        for i in range(x_axis)
-                    ]
-                    for result in results:
-                        result.wait()
+                        results = [
+                            pool.apply_async(
+                                _tblgm_multite_process_slice_optimized,
+                                args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
+                                callback=lambda _: progress.update(task, advance=1),
+                            )
+                            for i in range(batch_start, batch_end)
+                        ]
+                        for result in results:
+                            result.wait()
+                
+                # Force garbage collection between batches
+                pool = None
+                gc.collect()
 
             self._t1blgm_map = np.frombuffer(tblgm_map_shared).reshape(
                 z_axis, y_axis, x_axis
@@ -454,7 +519,7 @@ def _multite_init_globals(
 
 
 def _tblgm_multite_process_slice(
-    i, x_axis, y_axis, z_axis, par0, lb, ub
+    i, x_axis, y_axis, z_axis, par0, lb, ub, batch_size
 ):   # pragma: no cover
     # indirect call method by CBFMapping().create_map()
     for j in range(y_axis):
@@ -520,3 +585,118 @@ def _multite_create_x_data(ld, pld, te):   # pragma: no cover
             count += 1
 
     return Xdata
+
+
+def _multite_init_globals_optimized(
+    cbf_map_,
+    att_map_,
+    brain_mask_,
+    asl_data_,
+    ld_arr_,
+    pld_arr_,
+    te_arr_,
+    tblgm_map_,
+    t2bl_,
+    t2gm_,
+    batch_start_,
+    batch_end_,
+    y_axis_,
+    x_axis_,
+):  # pragma: no cover
+    """Initialize global variables optimized for batch processing.
+    
+    Only loads the data needed for the current batch to minimize memory usage.
+    """
+    # Global variables optimized for memory usage
+    global cbf_map, att_map, brain_mask, asl_data, ld_arr, te_arr, pld_arr, tblgm_map, t2bl, t2gm
+    global batch_start, batch_end, y_axis, x_axis
+    
+    # Only load the data needed for the current batch
+    cbf_map = cbf_map_[:, :, batch_start_:batch_end_] if batch_start_ is not None else cbf_map_
+    att_map = att_map_[:, :, batch_start_:batch_end_] if batch_start_ is not None else att_map_
+    brain_mask = brain_mask_[:, :, batch_start_:batch_end_] if batch_start_ is not None else brain_mask_
+    
+    # Store the asl_data object reference but don't load all data
+    asl_data = asl_data_
+    
+    # These are small arrays, no need to optimize
+    ld_arr = ld_arr_
+    pld_arr = pld_arr_
+    te_arr = te_arr_
+    tblgm_map = tblgm_map_
+    t2bl = t2bl_
+    t2gm = t2gm_
+    
+    # Batch parameters
+    batch_start = batch_start_
+    batch_end = batch_end_
+    y_axis = y_axis_
+    x_axis = x_axis_
+
+
+def _tblgm_multite_process_slice_optimized(
+    i, x_axis, y_axis, z_axis, par0, lb, ub
+):  # pragma: no cover
+    """Process a slice with optimized memory usage.
+    
+    Works with batch processing by converting global slice index to local batch index.
+    """
+    # i is the global slice index, need to convert to local batch index
+    local_i = i - batch_start  # Convert global slice index to local batch index
+    
+    for j in range(y_axis):
+        for k in range(z_axis):
+            # Use local_i for the batch-specific brain_mask array
+            if brain_mask[k, j, local_i] != 0:
+                # For m0 and pcasl data, use the global index i
+                m0_px = asl_data('m0').get_as_numpy()[k, j, i]
+
+                def mod_2comp(Xdata, par1):
+                    return asl_model_multi_te(
+                        Xdata[:, 0],
+                        Xdata[:, 1],
+                        Xdata[:, 2],
+                        m0_px,
+                        cbf_map[k, j, local_i],  # Use local_i for batch data
+                        att_map[k, j, local_i],  # Use local_i for batch data
+                        par1,
+                        t2bl,
+                        t2gm,
+                    )
+
+                # Get ASL data for this voxel - only load what's needed
+                Ydata = (
+                    asl_data('pcasl')
+                    .get_as_numpy()[:, :, k, j, i]  # Use global i for pcasl data
+                    .reshape(
+                        (
+                            len(ld_arr) * len(te_arr),
+                            1,
+                        )
+                    )
+                    .flatten()
+                )
+
+                # Calculate global index in the shared output array
+                index = k * (y_axis * x_axis) + j * x_axis + i
+
+                try:
+                    Xdata = _multite_create_x_data(
+                        ld_arr,
+                        pld_arr,
+                        te_arr,
+                    )
+                    par_fit, _ = curve_fit(
+                        mod_2comp,
+                        Xdata,
+                        Ydata,
+                        p0=par0,
+                        bounds=(lb, ub),
+                    )
+                    tblgm_map[index] = par_fit[0]
+                except RuntimeError:  # pragma: no cover
+                    tblgm_map[index] = 0.0
+    
+    # Clean up local references to reduce memory pressure
+    del Xdata, Ydata
+    gc.collect()
