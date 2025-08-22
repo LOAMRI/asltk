@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: asltk-lint
+        name: Run asltk lint task
+        entry: poetry run task lint
+        language: system
+        pass_filenames: false
+        types: [python]
