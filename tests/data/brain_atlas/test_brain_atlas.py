@@ -118,8 +118,14 @@ def test_brain_atlas_creation_with_various_names(atlas_name):
     """
     Test creating BrainAtlas objects with different valid atlas names.
     """
-    atlas = BrainAtlas(atlas_name=atlas_name)
-    assert isinstance(atlas.get_atlas(), dict)
+    try:
+        atlas = BrainAtlas(atlas_name=atlas_name)
+        assert isinstance(atlas.get_atlas(), dict)
+    except ValueError as e:
+        if "429 Client Error: Too Many Requests" in str(e):
+            pytest.skip(f"Skipping test for {atlas_name} due to Kaggle API rate limit: {e}")
+        else:
+            raise
 
 
 @pytest.mark.parametrize(
@@ -140,10 +146,16 @@ def test_brain_atlas_creation_with_various_names(atlas_name):
 )
 def test_brain_atlas_creation_with_various_names_2mm_resolution(atlas_name):
     """
-    Test creating BrainAtlas objects with different valid atlas names.
+    Test creating BrainAtlas objects with different valid atlas names and 2mm resolution.
     """
-    atlas = BrainAtlas(atlas_name=atlas_name, resolution='2mm')
-    assert isinstance(atlas.get_atlas(), dict)
+    try:
+        atlas = BrainAtlas(atlas_name=atlas_name, resolution='2mm')
+        assert isinstance(atlas.get_atlas(), dict)
+    except ValueError as e:
+        if "429 Client Error: Too Many Requests" in str(e):
+            pytest.skip(f"Skipping test for {atlas_name} due to Kaggle API rate limit: {e}")
+        else:
+            raise
 
 
 @pytest.mark.parametrize(
