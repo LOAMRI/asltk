@@ -1,7 +1,9 @@
 import warnings
+from multiprocessing import cpu_count
 from typing import Any, Dict, Optional
 
 import numpy as np
+import psutil
 
 from asltk.smooth import isotropic_gaussian, isotropic_median
 from asltk.utils.io import ImageIO
@@ -155,3 +157,37 @@ def _apply_smoothing_to_maps(
             smoothed_maps[key] = map_array
 
     return smoothed_maps
+
+
+def get_optimal_core_count(
+    requested_cores: int = None, mb_per_core: int = 500
+):
+    """Determine optimal number of cores based on available memory.
+
+    This function calculates the appropriate number of CPU cores to use for
+    parallel processing based on the available system memory. It ensures
+    that the process won't exhaust the system's memory during computation.
+
+    This implementation is OS-agnostic and works consistently across
+    Windows, Linux, and macOS platforms.
+
+    Args:
+        requested_cores (int or str, optional): User-requested number of cores.
+            If an integer and > 0, uses this value (capped by system limits).
+            If "auto" or None, calculates based on available memory.
+        mb_per_core (int, optional): Memory required per core in MB.
+            Defaults to 500MB per core as a safe estimate.
+
+    Returns:
+        int: Optimal number of cores to use (at least 1)
+    """
+    # If specific cores requested (and not "auto"), respect that choice
+    if requested_cores not in (None, 'auto') and requested_cores > 0:
+        return min(requested_cores, cpu_count())
+
+    # Calculate based on available memory
+    free_memory_mb = psutil.virtual_memory().available / (1024 * 1024)
+    cores_by_memory = max(1, int(free_memory_mb / mb_per_core))
+
+    # Return the smaller of: cores based on memory or total available cores
+    return min(cores_by_memory, cpu_count())

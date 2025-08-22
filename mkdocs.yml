@@ -52,7 +52,7 @@ nav:
   - 'api/models.md'
   - 'api/reconstruction.md'
   - 'api/registration.md'
-  - 'scripts/script_methods.md'
+  - 'script_methods.md'
   - 'contribute.md'
 
 plugins:

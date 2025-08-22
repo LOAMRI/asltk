@@ -11,12 +11,12 @@ from asltk.logging_config import (
     get_logger,
     log_processing_step,
 )
-from asltk.reconstruction import MultiTE_ASLMapping
+from asltk.reconstruction import UltraLongTE_ASLMapping
 from asltk.utils.io import ImageIO
 
 parser = argparse.ArgumentParser(
-    prog='Multi-TE ASL Mapping',
-    description='Python script to calculate the Multi-TE ASL map for the T1 relaxation exchange between blood and Gray Matter (GM).',
+    prog='UltraLong-TE ASL Mapping',
+    description='Python script to calculate the UltraLong-TE ASL map for the T1 relaxation exchange between CSF and Gray Matter (GM).',
 )
 parser._action_groups.pop()
 required = parser.add_argument_group(title='Required parameters')
@@ -25,7 +25,7 @@ optional = parser.add_argument_group(title='Optional parameters')
 required.add_argument(
     'pcasl',
     type=str,
-    help='ASL raw data obtained from the MRI scanner. This must be the multi-TE ASL MRI acquisition protocol.',
+    help='ASL raw data obtained from the MRI scanner. This must be the ultralong-TE ASL MRI acquisition protocol.',
 )
 required.add_argument(
     'm0', type=str, help='M0 image reference used to calculate the ASL signal.'
@@ -63,7 +63,7 @@ optional.add_argument(
     type=str,
     nargs='+',
     required=False,
-    default=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+    default=[500, 1000, 1500, 2000, 2500, 4000],
     help='Posts Labeling Delay (PLD) trend, arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
 optional.add_argument(
@@ -71,7 +71,7 @@ optional.add_argument(
     type=str,
     nargs='+',
     required=False,
-    default=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+    default=[1000, 1000, 1500, 2000, 3000, 3000],
     help='Labeling Duration trend (LD), arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
 optional.add_argument(
@@ -79,7 +79,7 @@ optional.add_argument(
     type=str,
     nargs='+',
     required=False,
-    default=[13.56, 67.82, 122.08, 176.33, 230.59, 284.84, 339.1, 393.36],
+    default=[35, 315, 595, 875, 1155, 1435, 1715, 1995, 2275, 2555],
     help='Time of Echos (TE), arranged in a sequence of float numbers. If not passed, the default values will be used.',
 )
 optional.add_argument(
@@ -175,7 +175,7 @@ if not checkUpParameters():
 
 
 # Step 2: Show the input information to assist manual conference
-logger.info('Multi-TE ASL processing started')
+logger.info('UltraLong-TE ASL processing started')
 if args.verbose:
     print(' --- Script Input Data ---')
     print('ASL file path: ' + args.pcasl)
@@ -209,8 +209,8 @@ data = ASLData(
     average_m0=average_m0,
 )
 
-log_processing_step('Initializing Multi-TE ASL mapper')
-recon = MultiTE_ASLMapping(data)
+log_processing_step('Initializing UltraLong-TE ASL mapper')
+recon = UltraLongTE_ASLMapping(data)
 recon.set_brain_mask(mask_img)
 
 if isinstance(cbf_map, ImageIO) and isinstance(att_map, ImageIO):
@@ -219,10 +219,10 @@ if isinstance(cbf_map, ImageIO) and isinstance(att_map, ImageIO):
     recon.set_att_map(att_map)
 
 log_processing_step(
-    'Generating Multi-TE ASL maps', 'this may take several minutes'
+    'Generating UltraLong-TE ASL maps', 'this may take several minutes'
 )
 maps = recon.create_map()
-logger.info('Multi-TE ASL map generation completed successfully')
+logger.info('UltraLong-TE ASL map generation completed successfully')
 
 log_processing_step('Saving output maps')
 save_path = args.out_folder + os.path.sep + 'cbf_map.' + args.file_fmt
@@ -245,22 +245,22 @@ if args.verbose and att_map is not None:
 logger.info(f'Saving ATT map to: {save_path}')
 maps['att'].save_image(save_path)
 
-save_path = args.out_folder + os.path.sep + 'mte_t1blgm_map.' + args.file_fmt
+save_path = args.out_folder + os.path.sep + 'mte_t1csfgm_map.' + args.file_fmt
 if args.verbose:
-    print('Saving multiTE-ASL T1blGM map - Path: ' + save_path)
-logger.info(f'Saving T1blGM map to: {save_path}')
-maps['t1blgm'].save_image(save_path)
+    print('Saving ultralongTE-ASL T1csfGM map - Path: ' + save_path)
+logger.info(f'Saving T1csfGM map to: {save_path}')
+maps['t1csfgm'].save_image(save_path)
 
 if args.verbose:
     print('Execution: ' + parser.prog + ' finished successfully!')
-logger.info('Multi-TE ASL processing completed successfully')
+logger.info('UltraLong-TE ASL processing completed successfully')
 
 
 def main():
     """
-    Entry point function for the multi-TE Scalar ASL mapping command-line tool.
+    Entry point function for the ultralong-TE Scalar ASL mapping command-line tool.
 
-    This function is called when the `asltk_te_asl` command is run.
+    This function is called when the `asltk_ultralong_te_asl` command is run.
     All script logic is already defined at the module level.
     """
     # Script logic is already defined at the module level

@@ -180,7 +180,7 @@ class CBFMapping(MRIParameters):
         ub=[1.0, 5000.0],
         lb=[0.0, 0.0],
         par0=[1e-5, 1000],
-        cores: int = cpu_count(),
+        cores: int = int(cpu_count() / 2),
         smoothing=None,
         smoothing_params=None,
     ):
