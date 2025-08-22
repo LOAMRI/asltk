@@ -1,5 +1,6 @@
 import warnings
 from multiprocessing import Array, Pool, cpu_count
+from typing import Union
 
 import numpy as np
 import SimpleITK as sitk
@@ -8,7 +9,11 @@ from rich.progress import Progress
 from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
-from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
+from asltk.aux_methods import (
+    _apply_smoothing_to_maps,
+    _check_mask_values,
+    get_optimal_core_count,
+)
 from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
@@ -27,11 +32,11 @@ t2bl = None
 t2gm = None
 
 
-class MultiTE_ASLMapping(MRIParameters):
+class UltraLongTE_ASLMapping(MRIParameters):
     def __init__(self, asl_data: ASLData) -> None:
-        """Multi-Echo ASL mapping constructor for T1 tissue relaxometry.
+        """UltraLongTE ASL mapping constructor for T1 time exchange tissue relaxometry.
 
-        MultiTE_ASLMapping enables advanced ASL analysis by incorporating multiple
+        UltraLongTE_ASLMapping enables advanced ASL analysis by incorporating multiple
         echo times (TE) to estimate tissue-specific T1 relaxation times. This
         provides better characterization of blood vs. tissue compartments and
         improved CBF quantification.
@@ -39,17 +44,25 @@ class MultiTE_ASLMapping(MRIParameters):
         The class requires ASL data acquired with multiple echo times and performs:
         - Basic CBF and ATT mapping (via CBFMapping)
         - T1 relaxometry for blood-grey matter differentiation
-        - Multi-TE model fitting for enhanced tissue characterization
+        - Ultralong-TE model fitting for enhanced tissue characterization
 
         Notes:
             The ASLData object must contain `te_values` - a list of echo times
             used during ASL acquisition. These TE values are critical for the
             multi-echo model fitting and T1 estimation.
 
+        Notes:
+            This method is based from the original paper of:
+            Leonie Petitclerc, Lydiane Hirschler, Jack A. Wells, David L. Thomas,
+            Marianne A.A. van Walderveen, Mark A. van Buchem, Matthias J.P. van Osch,
+            "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide
+            blood-to-CSF water transport in humans", NeuroImage, ISSN 1053-8119,
+            https://doi.org/10.1016/j.neuroimage.2021.118755.
+
         Examples:
-            Basic multi-TE ASL mapping setup:
+            Basic Ultralong-TE ASL mapping setup:
             >>> from asltk.asldata import ASLData
-            >>> from asltk.reconstruction import MultiTE_ASLMapping
+            >>> from asltk.reconstruction import UltraLongTE_ASLMapping
             >>> # Create ASL data with multi-TE parameters
             >>> asl_data = ASLData(
             ...     pcasl='./tests/files/pcasl_mte.nii.gz',
@@ -58,15 +71,15 @@ class MultiTE_ASLMapping(MRIParameters):
             ...     ld_values=[1.8, 1.8, 1.8],
             ...     pld_values=[0.8, 1.8, 2.8]
             ... )
-            >>> mte_mapper = MultiTE_ASLMapping(asl_data)
+            >>> ulte_mapper = UltraLongTE_ASLMapping(asl_data)
             >>> # Access default MRI parameters
-            >>> mte_mapper.get_constant('T1csf')
+            >>> ulte_mapper.get_constant('T1csf')
             1400.0
 
             Custom MRI parameters for specific field strength:
             >>> # Adjust T1 values for 3T scanner
-            >>> mte_mapper.set_constant(1600.0, 'T1csf')  # CSF T1 at 3T
-            >>> mte_mapper.get_constant('T1csf')
+            >>> ulte_mapper.set_constant(1600.0, 'T1csf')  # CSF T1 at 3T
+            >>> ulte_mapper.get_constant('T1csf')
             1600.0
             >>> # Verify default parameters unchanged for other objects
             >>> from asltk.mri_parameters import MRIParameters
@@ -75,28 +88,33 @@ class MultiTE_ASLMapping(MRIParameters):
             1400.0
 
         Args:
-            asl_data (ASLData): The ASL data object containing multi-TE acquisition.
+            asl_data (ASLData): The ASL data object containing ultralong-TE acquisition.
                 Must include te_values, ld_values, and pld_values.
 
         Raises:
-            ValueError: If ASLData object lacks required TE values for multi-echo analysis.
+            ValueError: If ASLData object lacks required TE values for ultralong-TE analysis.
 
         See Also:
-            CBFMapping: For basic CBF/ATT mapping without multi-TE analysis
+            CBFMapping: For basic CBF/ATT mapping without multi-echo analysis
             MultiDW_ASLMapping: For diffusion-weighted ASL analysis
+            MultiTE_ASLMapping: For the multi-echo TE ASL analysis (the predecessor of this method)
         """
         super().__init__()
         self._asl_data = asl_data
         self._basic_maps = CBFMapping(asl_data)
         if self._asl_data.get_te() is None:
             raise ValueError(
-                'ASLData is incomplete. MultiTE_ASLMapping need a list of TE values.'
+                'ASLData is incomplete. UltraLongTE_ASLMapping need a list of TE values.'
             )
 
         self._brain_mask = np.ones(self._asl_data('m0').get_as_numpy().shape)
         self._cbf_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
         self._att_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
-        self._t1blgm_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._t1csfgm_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+
+        # Changing the T2csf and T2blood as requested in the original paper
+        self.set_constant(1500.0, 'T2csf')  # T2 relaxation time for CSF in ms
+        self.set_constant(100.0, 'T2bl')  # T2 relaxation time for blood in ms
 
     def set_brain_mask(self, brain_mask: ImageIO, label: int = 1):
         """Defines whether a brain a mask is applied to the CBFMapping
@@ -132,7 +150,7 @@ class MultiTE_ASLMapping(MRIParameters):
         """Get the brain mask image
 
         Returns:
-            (np.ndarray): The brain mask image
+            (ImageIO): The brain mask image
         """
         return self._brain_mask
 
@@ -141,7 +159,7 @@ class MultiTE_ASLMapping(MRIParameters):
 
         Note:
             The CBF maps must have the original scale in order to calculate the
-            T1blGM map correclty. Hence, if the CBF map was made using
+            T1 CSF-GM map correclty. Hence, if the CBF map was made using
             CBFMapping class, one can use the 'cbf' output.
 
         Args:
@@ -175,26 +193,26 @@ class MultiTE_ASLMapping(MRIParameters):
         """
         return self._att_map
 
-    def get_t1blgm_map(self):
-        """Get the T1blGM map storaged at the MultiTE_ASLMapping object
+    def get_t1csfgm_map(self):
+        """Get the T1csfGM map storaged at the MultiTE_ASLMapping object
 
         Returns:
-            (ImageIO): The T1blGM map that is storaged in the
+            (ImageIO): The T1csfGM map that is storaged in the
             MultiTE_ASLMapping object
         """
-        return self._t1blgm_map
+        return self._t1csfgm_map
 
     def create_map(
         self,
         ub: list = [np.inf],
         lb: list = [0.0],
         par0: list = [400],
-        cores=cpu_count(),
+        cores: Union[int, str] = 'auto',
         smoothing=None,
         smoothing_params=None,
         suppress_warnings=True,
     ):
-        """Create multi-TE ASL maps including T1 blood-gray matter exchange (T1blGM).
+        """Create ultra-long-TE ASL maps including T1 csf-gray matter exchange (T1csfGM).
 
         This method performs advanced multi-echo ASL analysis to generate tissue-specific
         T1 relaxation maps that characterize blood-to-gray matter water exchange. The
@@ -212,27 +230,28 @@ class MultiTE_ASLMapping(MRIParameters):
 
         Note:
             The CBF map must be in original scale (not normalized) to perform the
-            correct multiTE-ASL model fitting. Use the 'cbf' output from CBFMapping,
+            correct ultralong-TE-ASL model fitting. Use the 'cbf' output from CBFMapping,
             not the 'cbf_norm' version.
 
-        The method assumes the T1blGM values are well-characterized by the initial
+        The method assumes the T1csfGM values are well-characterized by the initial
         guess parameter. Results are filtered to include only positive values and
         values below 4 times the initial guess to remove unrealistic outliers.
 
         Note:
-            Consider applying spatial smoothing to the output T1blGM map to improve
+            Consider applying spatial smoothing to the output T1csfGM map to improve
             SNR. The create_map() method does not apply filtering by default to
             preserve spatial resolution.
 
         Args:
-            ub (list, optional): Upper bounds for T1blGM fitting. Defaults to [np.inf].
+            ub (list, optional): Upper bounds for T1csfGM fitting. Defaults to [np.inf].
                 Typically 800-1200 ms for healthy gray matter at 3T.
-            lb (list, optional): Lower bounds for T1blGM fitting. Defaults to [0.0].
+            lb (list, optional): Lower bounds for T1csfGM fitting. Defaults to [0.0].
                 Should be positive for realistic T1 values.
-            par0 (list, optional): Initial guess for T1blGM in milliseconds.
+            par0 (list, optional): Initial guess for T1csfGM in milliseconds.
                 Defaults to [400]. Good starting values: 300-500 ms.
-            cores (int, optional): Number of CPU threads for parallel processing.
-                Defaults to all available cores.
+            cores (int or str, optional): Number of CPU threads for parallel processing.
+                If "auto" (default), automatically determines the optimal number based on
+                available system memory. If an integer is provided, uses that specific number.
             smoothing (str, optional): Type of spatial smoothing filter to apply.
                 Options: None (default, no smoothing), 'gaussian', 'median'.
                 Smoothing is applied to all output maps after reconstruction.
@@ -247,13 +266,13 @@ class MultiTE_ASLMapping(MRIParameters):
                 - 'cbf': Basic CBF map in original units (ImageIO)
                 - 'cbf_norm': Normalized CBF in mL/100g/min (ImageIO)
                 - 'att': Arterial transit time in ms (ImageIO)
-                - 't1blgm': T1 blood-gray matter exchange time in ms (ImageIO)
+                - 't1csfgm': T1 csf-gray matter exchange time in ms (ImageIO)
                 All maps are smoothed if smoothing is enabled.
 
         Examples:
             Basic multi-TE ASL analysis:
             >>> from asltk.asldata import ASLData
-            >>> from asltk.reconstruction import MultiTE_ASLMapping
+            >>> from asltk.reconstruction import UltraLongTE_ASLMapping
             >>> from asltk.utils.io import ImageIO
             >>> import numpy as np
             >>> # Load multi-TE ASL data
@@ -264,17 +283,17 @@ class MultiTE_ASLMapping(MRIParameters):
             ...     ld_values=[1.8, 1.8, 1.8],
             ...     pld_values=[0.8, 1.8, 2.8]
             ... )
-            >>> mte_mapper = MultiTE_ASLMapping(asl_data)
+            >>> ulte_mapper = UltraLongTE_ASLMapping(asl_data)
             >>> # Set brain mask for faster processing
             >>> brain_mask = ImageIO(image_array=np.ones(asl_data('m0').get_as_numpy().shape))
-            >>> mte_mapper.set_brain_mask(brain_mask)
+            >>> ulte_mapper.set_brain_mask(brain_mask)
             >>> # Generate all maps
-            >>> results = mte_mapper.create_map() # doctest: +SKIP
+            >>> results = ulte_mapper.create_map() # doctest: +SKIP
 
 
             Custom parameters for specific analysis:
-            >>> # For expected shorter T1blGM values (faster exchange)
-            >>> results = mte_mapper.create_map(
+            >>> # For expected shorter T1csfGM values (faster exchange)
+            >>> results = ulte_mapper.create_map(
             ...     ub=[600.0],        # Lower upper bound
             ...     lb=[50.0],         # Minimum realistic T1
             ...     par0=[300.0]       # Lower initial guess
@@ -282,16 +301,16 @@ class MultiTE_ASLMapping(MRIParameters):
 
             Apply spatial smoothing to improve SNR:
             >>> # Gaussian smoothing with default sigma=1.0
-            >>> results_smooth = mte_mapper.create_map(
+            >>> results_smooth = ulte_mapper.create_map(
             ...     smoothing='gaussian'
             ... ) # doctest: +SKIP
             >>> # Custom smoothing parameters
-            >>> results_custom = mte_mapper.create_map(
+            >>> results_custom = ulte_mapper.create_map(
             ...     smoothing='gaussian',
             ...     smoothing_params={'sigma': 1.5}
             ... ) # doctest: +SKIP
             >>> # Median filtering for edge preservation
-            >>> results_median = mte_mapper.create_map(
+            >>> results_median = ulte_mapper.create_map(
             ...     smoothing='median',
             ...     smoothing_params={'size': 5}
             ... ) # doctest: +SKIP
@@ -304,6 +323,9 @@ class MultiTE_ASLMapping(MRIParameters):
             set_att_map(): Provide pre-computed ATT map
             CBFMapping: For basic CBF/ATT mapping
         """
+        # Determine optimal number of cores based on available memory
+        actual_cores = get_optimal_core_count(cores)
+
         # Use context manager to suppress warnings if requested
         with warnings.catch_warnings():
             if suppress_warnings:
@@ -343,10 +365,12 @@ class MultiTE_ASLMapping(MRIParameters):
             y_axis = self._asl_data('m0').get_as_numpy().shape[1]   # width
             z_axis = self._asl_data('m0').get_as_numpy().shape[0]   # depth
 
-            tblgm_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+            tcsfgm_map_shared = Array(
+                'd', z_axis * y_axis * x_axis, lock=False
+            )
 
             with Pool(
-                processes=cores,
+                processes=actual_cores,
                 initializer=_multite_init_globals,
                 initargs=(
                     cbf_map,
@@ -356,18 +380,18 @@ class MultiTE_ASLMapping(MRIParameters):
                     ld_arr,
                     pld_arr,
                     te_arr,
-                    tblgm_map_shared,
+                    tcsfgm_map_shared,
                     t2bl,
                     t2gm,
                 ),
             ) as pool:
                 with Progress() as progress:
                     task = progress.add_task(
-                        'multiTE-ASL processing...', total=x_axis
+                        'ultralongTE-ASL processing...', total=x_axis
                     )
                     results = [
                         pool.apply_async(
-                            _tblgm_multite_process_slice,
+                            _tcsfgm_multite_process_slice,
                             args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
                             callback=lambda _: progress.update(
                                 task, advance=1
@@ -378,13 +402,13 @@ class MultiTE_ASLMapping(MRIParameters):
                     for result in results:
                         result.wait()
 
-            self._t1blgm_map = np.frombuffer(tblgm_map_shared).reshape(
+            self._t1csfgm_map = np.frombuffer(tcsfgm_map_shared).reshape(
                 z_axis, y_axis, x_axis
             )
 
             # Adjusting output image boundaries
-            self._t1blgm_map = self._adjust_image_limits(
-                self._t1blgm_map, par0[0]
+            self._t1csfgm_map = self._adjust_image_limits(
+                self._t1csfgm_map, par0[0]
             )
 
             # Prepare output maps
@@ -399,15 +423,15 @@ class MultiTE_ASLMapping(MRIParameters):
             att_map_image = ImageIO(self._asl_data('m0').get_image_path())
             att_map_image.update_image_data(self._att_map)
 
-            t1blgm_map_image = ImageIO(self._asl_data('m0').get_image_path())
-            t1blgm_map_image.update_image_data(self._t1blgm_map)
+            t1csfgm_map_image = ImageIO(self._asl_data('m0').get_image_path())
+            t1csfgm_map_image.update_image_data(self._t1csfgm_map)
 
             # Create output maps dictionary
             output_maps = {
                 'cbf': cbf_map_image,
                 'cbf_norm': cbf_map_norm_image,
                 'att': att_map_image,
-                't1blgm': t1blgm_map_image,
+                't1csfgm': t1csfgm_map_image,
             }
 
             # Apply smoothing if requested
@@ -453,7 +477,7 @@ def _multite_init_globals(
     t2gm = t2gm_
 
 
-def _tblgm_multite_process_slice(
+def _tcsfgm_multite_process_slice(
     i, x_axis, y_axis, z_axis, par0, lb, ub
 ):   # pragma: no cover
     # indirect call method by CBFMapping().create_map()

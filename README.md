@@ -1,10 +1,11 @@
 <img src="https://raw.githubusercontent.com/LOAMRI/asltk/refs/heads/develop/docs/assets/asltk-logo.png" width=200>
 
 [![Documentation Stable](https://readthedocs.org/projects/asltk/badge/?version=main)](https://asltk.readthedocs.io/en/main/?badge=main)
+![Website](https://img.shields.io/website?url=https%3A%2F%2Fasltk.readthedocs.io%2Fen%2Fmain%2F&up_message=asltk%20documentation&link=https%3A%2F%2Fasltk.readthedocs.io%2Fen%2Fmain%2F)
 [![codecov](https://codecov.io/gh/LOAMRI/asltk/graph/badge.svg?token=1W8GQ7SLU9)](https://codecov.io/gh/LOAMRI/asltk)
 [![CI_main](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_main.yaml)
 [![CI_develop](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml/badge.svg)](https://github.com/LOAMRI/asltk/actions/workflows/ci_develop.yaml)
-![Python Versions](https://img.shields.io/badge/python-3.9%20|+-blue)
+![Python Versions](https://img.shields.io/badge/python-3.10%20|+-blue)
 [![PyPI downloads](https://img.shields.io/pypi/dm/asltk?label=PyPI%20downloads)](https://pypi.org/project/asltk/)
 ![Contributors](https://img.shields.io/github/contributors/LOAMRI/asltk)
 [![GitHub issues](https://img.shields.io/github/issues-raw/LOAMRI/asltk.svg?maxAge=2592000)]()

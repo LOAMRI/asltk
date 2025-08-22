@@ -1,12 +1,13 @@
 import copy
 import os
 import warnings
+from typing import Union
 
 import numpy as np
 
-from asltk.logging_config import get_logger, log_data_info, log_function_call
+from asltk.logging_config import get_logger, log_data_info
 from asltk.utils.image_manipulation import collect_data_volumes
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 
 class ASLData:
@@ -69,40 +70,53 @@ class ASLData:
             if isinstance(kwargs.get('pcasl'), str):
                 pcasl_path = kwargs.get('pcasl')
                 logger.info(f'Loading ASL image from: {pcasl_path}')
-                self._asl_image = load_image(pcasl_path)
+                self._asl_image = ImageIO(image_path=pcasl_path)
                 if self._asl_image is not None:
                     log_data_info(
-                        'ASL image', self._asl_image.shape, pcasl_path
+                        'ASL image',
+                        self._asl_image.get_as_numpy().shape,
+                        pcasl_path,
                     )
             elif isinstance(kwargs.get('pcasl'), np.ndarray):
-                self._asl_image = kwargs.get('pcasl')
-                logger.info('ASL image loaded as numpy array')
+                self._asl_image = ImageIO(image_array=kwargs.get('pcasl'))
+                logger.info('ASL image loaded')
                 log_data_info(
-                    'ASL image', self._asl_image.shape, 'numpy array'
+                    'ASL image', self._asl_image.get_as_numpy().shape
                 )
 
         if kwargs.get('m0') is not None:
+            average_m0 = kwargs.get('average_m0', False)
+
             if isinstance(kwargs.get('m0'), str):
                 m0_path = kwargs.get('m0')
                 logger.info(f'Loading M0 image from: {m0_path}')
-                self._m0_image = load_image(m0_path)
+                self._m0_image = ImageIO(
+                    image_path=m0_path, average_m0=average_m0
+                )
 
                 # Check if M0 image is 4D and warn if so
                 if (
                     self._m0_image is not None
-                    and len(self._m0_image.shape) > 3
+                    and len(self._m0_image.get_as_numpy().shape) > 3
                 ):
                     warnings.warn('M0 image has more than 3 dimensions.')
 
                 if self._m0_image is not None:
-                    log_data_info('M0 image', self._m0_image.shape, m0_path)
+                    log_data_info(
+                        'M0 image',
+                        self._m0_image.get_as_numpy().shape,
+                        m0_path,
+                    )
             elif isinstance(kwargs.get('m0'), np.ndarray):
-                self._m0_image = kwargs.get('m0')
+                self._m0_image = ImageIO(
+                    image_array=kwargs.get('m0'), average_m0=average_m0
+                )
                 logger.info('M0 image loaded as numpy array')
-                log_data_info('M0 image', self._m0_image.shape, 'numpy array')
-
-        if kwargs.get('average_m0', False):
-            self._m0_image = np.mean(self._m0_image, axis=0)
+                log_data_info(
+                    'M0 image',
+                    self._m0_image.get_as_numpy().shape,
+                    'numpy array',
+                )
 
         self._parameters['ld'] = (
             [] if kwargs.get('ld_values') is None else kwargs.get('ld_values')
@@ -133,8 +147,8 @@ class ASLData:
 
         logger.debug('ASLData object created successfully')
 
-    def set_image(self, image, spec: str):
-        """Insert a image necessary to define de ASL data processing.
+    def set_image(self, image: Union[str, np.ndarray], spec: str, **kwargs):
+        """Insert an image necessary to define the ASL data processing.
 
         The `spec` parameters specifies what is the type of image to be used in
         ASL processing step. Choose one of the options: `m0` for the M0 volume,
@@ -152,7 +166,7 @@ class ASLData:
             >>> data = ASLData()
             >>> path_m0 = './tests/files/m0.nii.gz' # M0 file with shape (5,35,35)
             >>> data.set_image(path_m0, spec='m0')
-            >>> data('m0').shape
+            >>> data('m0').get_as_numpy().shape
             (5, 35, 35)
 
         Args:
@@ -161,10 +175,18 @@ class ASLData:
         """
         if isinstance(image, str) and os.path.exists(image):
             if spec == 'm0':
-                self._m0_image = load_image(image)
+                self._m0_image = ImageIO(image, **kwargs)
             elif spec == 'pcasl':
-                self._asl_image = load_image(image)
+                self._asl_image = ImageIO(image, **kwargs)
         elif isinstance(image, np.ndarray):
+            warnings.warn(
+                'Using numpy array as image input does not preserve metadata or image properties.'
+            )
+            if spec == 'm0':
+                self._m0_image = ImageIO(image_array=image, **kwargs)
+            elif spec == 'pcasl':
+                self._asl_image = ImageIO(image_array=image, **kwargs)
+        elif isinstance(image, ImageIO):
             if spec == 'm0':
                 self._m0_image = image
             elif spec == 'pcasl':
@@ -277,9 +299,11 @@ class ASLData:
         Examples:
             >>> data = ASLData(pcasl='./tests/files/t1-mri.nrrd')
             >>> type(data('pcasl'))
+            <class 'asltk.utils.io.ImageIO'>
+            >>> type(data('pcasl').get_as_numpy())
             <class 'numpy.ndarray'>
 
-            >>> np.min(data('pcasl'))
+            >>> np.min(data('pcasl').get_as_numpy())
             0
 
         Returns:
@@ -327,7 +351,7 @@ class ASLData:
             )
 
     def _check_m0_dimension(self):
-        if len(self._m0_image.shape) > 3:
+        if len(self._m0_image.get_as_numpy().shape) > 3:
             warnings.warn(
                 'M0 image has more than 3 dimensions. '
                 'This may cause issues in processing. '

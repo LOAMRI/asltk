@@ -1,3 +1,4 @@
+import warnings
 from multiprocessing import Array, Pool, cpu_count
 
 import numpy as np
@@ -9,6 +10,7 @@ from asltk.asldata import ASLData
 from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.logging_config import get_logger, log_processing_step
 from asltk.mri_parameters import MRIParameters
+from asltk.utils.io import ImageIO
 
 # Global variables for multiprocessing
 t2_map_shared = None
@@ -45,11 +47,13 @@ class T2Scalar_ASLMapping(MRIParameters):
         if self._asl_data.get_dw() is not None:
             raise ValueError('ASLData must not include DW values.')
 
-        self._brain_mask = np.ones(self._asl_data('m0').shape)
+        self._brain_mask = ImageIO(
+            image_array=np.ones(self._asl_data('m0').get_as_numpy().shape)
+        )
         self._t2_maps = None  # Will be 4D: (N_PLDS, Z, Y, X)
         self._mean_t2s = None
 
-    def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
+    def set_brain_mask(self, brain_mask: ImageIO, label: int = 1):
         """
         Set a brain mask to restrict T2 fitting to specific voxels.
 
@@ -59,8 +63,14 @@ class T2Scalar_ASLMapping(MRIParameters):
 
         The mask should be a 3D numpy array matching the spatial dimensions of the ASL data.
         """
-        _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
-        binary_mask = (brain_mask == label).astype(np.uint8) * label
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
+
+        binary_mask = ImageIO(
+            image_array=(brain_mask.get_as_numpy() == label).astype(np.uint8)
+            * label
+        )
         self._brain_mask = binary_mask
 
     def get_t2_maps(self):
@@ -81,7 +91,11 @@ class T2Scalar_ASLMapping(MRIParameters):
         return self._mean_t2s
 
     def create_map(
-        self, cores=cpu_count(), smoothing=None, smoothing_params=None
+        self,
+        cores=cpu_count(),
+        smoothing=None,
+        smoothing_params=None,
+        suppress_warnings=False,
     ):
         """
         Compute T2 maps using multi-echo ASL data and a brain mask, with multiprocessing.
@@ -102,69 +116,100 @@ class T2Scalar_ASLMapping(MRIParameters):
         logger = get_logger('t2_mapping')
         logger.info('Starting T2 map creation')
 
-        data = self._asl_data('pcasl')
-        mask = self._brain_mask
-        TEs = np.array(self._te_values)
-        PLDs = np.array(self._pld_values)
-        n_tes, n_plds, z_axis, y_axis, x_axis = data.shape
+        # Optionally suppress warnings
+        if suppress_warnings:
+            warnings_context = warnings.catch_warnings()
+            warnings_context.__enter__()
+            warnings.filterwarnings('ignore', category=RuntimeWarning)
+            warnings.filterwarnings('ignore', category=UserWarning)
+            logger.info('Warnings suppressed during T2 mapping')
 
-        t2_maps_all = []
-        mean_t2s = []
+        try:
+            data = self._asl_data('pcasl').get_as_numpy()
+            mask = self._brain_mask.get_as_numpy()
+            TEs = np.array(self._te_values)
+            PLDs = np.array(self._pld_values)
+            n_tes, n_plds, z_axis, y_axis, x_axis = data.shape
 
-        for pld_idx in range(n_plds):
-            logger.info(f'Processing PLD index {pld_idx} ({PLDs[pld_idx]} ms)')
-            t2_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
-            log_processing_step(
-                'Running voxel-wise T2 fitting',
-                'this may take several minutes',
-            )
-            with Pool(
-                processes=cores,
-                initializer=_t2_init_globals,
-                initargs=(t2_map_shared, mask, data, TEs),
-            ) as pool:
-                with Progress() as progress:
-                    task = progress.add_task(
-                        f'T2 fitting (PLD {PLDs[pld_idx]} ms)...', total=x_axis
-                    )
-                    results = [
-                        pool.apply_async(
-                            _t2_process_slice,
-                            args=(i, x_axis, y_axis, z_axis, pld_idx),
-                            callback=lambda _: progress.update(
-                                task, advance=1
-                            ),
+            t2_maps_all = []
+            mean_t2s = []
+
+            for pld_idx in range(n_plds):
+                logger.info(
+                    f'Processing PLD index {pld_idx} ({PLDs[pld_idx]} ms)'
+                )
+                t2_map_shared = Array(
+                    'd', z_axis * y_axis * x_axis, lock=False
+                )
+                log_processing_step(
+                    'Running voxel-wise T2 fitting',
+                    'this may take several minutes',
+                )
+                with Pool(
+                    processes=cores,
+                    initializer=_t2_init_globals,
+                    initargs=(t2_map_shared, mask, data, TEs),
+                ) as pool:
+                    with Progress() as progress:
+                        task = progress.add_task(
+                            f'T2 fitting (PLD {PLDs[pld_idx]} ms)...',
+                            total=x_axis,
                         )
-                        for i in range(x_axis)
-                    ]
-                    for result in results:
-                        result.wait()
+                        results = [
+                            pool.apply_async(
+                                _t2_process_slice,
+                                args=(i, x_axis, y_axis, z_axis, pld_idx),
+                                callback=lambda _: progress.update(
+                                    task, advance=1
+                                ),
+                            )
+                            for i in range(x_axis)
+                        ]
+                        for result in results:
+                            result.wait()
 
-            t2_map = np.frombuffer(t2_map_shared).reshape(
-                z_axis, y_axis, x_axis
+                t2_map = np.frombuffer(t2_map_shared).reshape(
+                    z_axis, y_axis, x_axis
+                )
+                t2_maps_all.append(t2_map)
+                mean_t2s.append(np.nanmean(t2_map))
+
+            t2_maps_stacked = np.array(t2_maps_all)  # shape: (N_PLDS, Z, Y, X)
+            self._t2_maps = t2_maps_stacked
+            self._mean_t2s = mean_t2s
+
+            logger.info('T2 mapping completed successfully')
+            logger.info(
+                f'T2 statistics - Mean: {np.mean(self._t2_maps):.4f}, Std: {np.std(self._t2_maps):.4f}'
             )
-            t2_maps_all.append(t2_map)
-            mean_t2s.append(np.nanmean(t2_map))
 
-        t2_maps_stacked = np.stack(
-            t2_maps_all, axis=0
-        )  # shape: (N_PLDS, Z, Y, X)
-        self._t2_maps = t2_maps_stacked
-        self._mean_t2s = mean_t2s
+            # Prepare output maps
+            # TODO At the moment, the T2 maps and mean T2 maps are as ImageIO object, however, the Spacing, Dimension are not given as a 4D array. Ceck if can be imported from the m0 image is 3D.
+            t2_maps_image = ImageIO(
+                image_array=np.array(
+                    [
+                        self._asl_data('m0').get_as_numpy()
+                        for _ in range(len(t2_maps_all))
+                    ]
+                )
+            )
+            t2_maps_image.update_image_data(self._t2_maps)
 
-        logger.info('T2 mapping completed successfully')
-        logger.info(
-            f'T2 statistics - Mean: {np.mean(self._t2_maps):.4f}, Std: {np.std(self._t2_maps):.4f}'
-        )
+            # Update the _t2_maps attribute to be an ImageIO object
+            self._t2_maps = t2_maps_image
 
-        output_maps = {
-            't2': self._t2_maps,
-            'mean_t2': self._mean_t2s,
-        }
+            output_maps = {
+                't2': t2_maps_image,
+                'mean_t2': self._mean_t2s,
+            }
 
-        return _apply_smoothing_to_maps(
-            output_maps, smoothing, smoothing_params
-        )
+            return _apply_smoothing_to_maps(
+                output_maps, smoothing, smoothing_params
+            )
+        finally:
+            # Ensure warnings are restored if suppressed
+            if suppress_warnings:
+                warnings_context.__exit__(None, None, None)
 
 
 def _fit_voxel(signal, TEs):  # pragma: no cover

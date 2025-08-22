@@ -10,6 +10,7 @@ from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.logging_config import get_logger, log_processing_step
 from asltk.models.signal_dynamic import asl_model_buxton
 from asltk.mri_parameters import MRIParameters
+from asltk.utils.io import ImageIO
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -55,11 +56,11 @@ class CBFMapping(MRIParameters):
                 'ASLData is incomplete. CBFMapping need pcasl and m0 images.'
             )
 
-        self._brain_mask = np.ones(self._asl_data('m0').shape)
-        self._cbf_map = np.zeros(self._asl_data('m0').shape)
-        self._att_map = np.zeros(self._asl_data('m0').shape)
+        self._brain_mask = np.ones(self._asl_data('m0').get_as_numpy().shape)
+        self._cbf_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
+        self._att_map = np.zeros(self._asl_data('m0').get_as_numpy().shape)
 
-    def set_brain_mask(self, brain_mask: np.ndarray, label: int = 1):
+    def set_brain_mask(self, brain_mask: ImageIO, label: int = 1):
         """Defines a brain mask to limit CBF mapping calculations to specific regions.
 
         A brain mask significantly improves processing speed by limiting calculations
@@ -93,28 +94,30 @@ class CBFMapping(MRIParameters):
             ... )
             >>> cbf_mapper = CBFMapping(asl_data)
             >>> # Create a simple brain mask (center region only)
-            >>> mask_shape = asl_data('m0').shape  # Get M0 dimensions
-            >>> brain_mask = np.zeros(mask_shape)
-            >>> brain_mask[2:6, 10:25, 10:25] = 1  # Define brain region
+            >>> mask_shape = asl_data('m0').get_as_numpy().shape  # Get M0 dimensions
+            >>> brain_mask = ImageIO(image_array=np.zeros(mask_shape))
+            >>> adjusted_brain_mask = brain_mask.get_as_numpy().copy()
+            >>> adjusted_brain_mask[2:6, 10:25, 10:25] = 1  # Define brain region
+            >>> brain_mask.update_image_data(adjusted_brain_mask)
             >>> cbf_mapper.set_brain_mask(brain_mask)
 
             Load and use an existing brain mask:
             >>> # Load pre-computed brain mask
-            >>> from asltk.utils.io import load_image
-            >>> brain_mask = load_image('./tests/files/m0_brain_mask.nii.gz')
+            >>> from asltk.utils.io import ImageIO
+            >>> brain_mask = ImageIO('./tests/files/m0_brain_mask.nii.gz')
             >>> cbf_mapper.set_brain_mask(brain_mask)
 
             Use multi-label mask (select specific region):
             >>> # Assuming a segmentation mask with different tissue labels
-            >>> segmentation_mask = np.random.randint(0, 4, mask_shape)  # Example
+            >>> segmentation_mask = ImageIO(image_array=np.random.randint(0, 4, mask_shape))  # Example
             >>> # Use only label 2 (e.g., grey matter)
             >>> cbf_mapper.set_brain_mask(segmentation_mask, label=2)
 
             Automatic thresholding of M0 image as mask:
             >>> # Use M0 intensity to create brain mask
-            >>> m0_data = asl_data('m0')
+            >>> m0_data = asl_data('m0').get_as_numpy()
             >>> threshold = np.percentile(m0_data, 20)  # Bottom 20% as background
-            >>> auto_mask = (m0_data > threshold).astype(np.uint8)
+            >>> auto_mask = ImageIO(image_array=(m0_data > threshold).astype(np.uint8))
             >>> cbf_mapper.set_brain_mask(auto_mask)
 
         Raises:
@@ -123,9 +126,18 @@ class CBFMapping(MRIParameters):
         logger = get_logger('cbf_mapping')
         logger.info(f'Setting brain mask with label {label}')
 
-        _check_mask_values(brain_mask, label, self._asl_data('m0').shape)
+        if not isinstance(brain_mask, ImageIO):
+            raise ValueError(
+                f'mask is not an ImageIO object. Type {type(brain_mask)}'
+            )
 
-        binary_mask = (brain_mask == label).astype(np.uint8) * label
+        brain_mask_array = brain_mask.get_as_numpy()
+
+        _check_mask_values(
+            brain_mask, label, self._asl_data('m0').get_as_numpy().shape
+        )
+
+        binary_mask = (brain_mask_array == label).astype(np.uint8) * label
         self._brain_mask = binary_mask
 
         mask_volume = np.sum(binary_mask > 0)
@@ -154,8 +166,10 @@ class CBFMapping(MRIParameters):
             >>> current_mask = cbf_mapper.get_brain_mask()
 
             Verify brain mask after setting:
-            >>> brain_mask = np.ones(asl_data('m0').shape)
-            >>> brain_mask[0:4, :, :] = 0  # Remove some slices
+            >>> brain_mask = ImageIO(image_array=np.ones(asl_data('m0').get_as_numpy().shape))
+            >>> new_brain_mask = brain_mask.get_as_numpy().copy()
+            >>> new_brain_mask[0:4, :, :] = 0  # Remove some slices
+            >>> brain_mask.update_image_data(new_brain_mask)
             >>> cbf_mapper.set_brain_mask(brain_mask)
             >>> updated_mask = cbf_mapper.get_brain_mask()
         """
@@ -166,7 +180,7 @@ class CBFMapping(MRIParameters):
         ub=[1.0, 5000.0],
         lb=[0.0, 0.0],
         par0=[1e-5, 1000],
-        cores: int = cpu_count(),
+        cores: int = int(cpu_count() / 2),
         smoothing=None,
         smoothing_params=None,
     ):
@@ -215,6 +229,7 @@ class CBFMapping(MRIParameters):
         Examples:  # doctest: +SKIP
             Basic CBF mapping with default parameters:
             >>> from asltk.asldata import ASLData
+            >>> from asltk.utils.io import ImageIO
             >>> from asltk.reconstruction import CBFMapping
             >>> import numpy as np
             >>> # Load ASL data with LD/PLD values
@@ -226,7 +241,7 @@ class CBFMapping(MRIParameters):
             ... )
             >>> cbf_mapper = CBFMapping(asl_data)
             >>> # Set brain mask (recommended for faster processing)
-            >>> brain_mask = np.ones((5, 35, 35))  # Example mask
+            >>> brain_mask = ImageIO(image_array=np.ones((5, 35, 35)))  # Example mask
             >>> cbf_mapper.set_brain_mask(brain_mask)
             >>> # Generate maps
             >>> results = cbf_mapper.create_map() # doctest: +SKIP
@@ -290,9 +305,9 @@ class CBFMapping(MRIParameters):
         BuxtonX = [self._asl_data.get_ld(), self._asl_data.get_pld()]
 
         x_axis, y_axis, z_axis = (
-            self._asl_data('m0').shape[2],
-            self._asl_data('m0').shape[1],
-            self._asl_data('m0').shape[0],
+            self._asl_data('m0').get_as_numpy().shape[2],
+            self._asl_data('m0').get_as_numpy().shape[1],
+            self._asl_data('m0').get_as_numpy().shape[0],
         )
 
         logger.info(
@@ -351,10 +366,20 @@ class CBFMapping(MRIParameters):
             f'ATT statistics - Mean: {np.mean(att_values):.4f}, Std: {np.std(att_values):.4f}'
         )
 
+        # Prepare output maps
+        cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_image.update_image_data(self._cbf_map)
+
+        cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_norm_image.update_image_data(self._cbf_map * (60 * 60 * 1000))
+
+        att_map_image = ImageIO(self._asl_data('m0').get_image_path())
+        att_map_image.update_image_data(self._att_map)
+
         output_maps = {
-            'cbf': self._cbf_map,
-            'cbf_norm': self._cbf_map * (60 * 60 * 1000),
-            'att': self._att_map,
+            'cbf': cbf_map_image,
+            'cbf_norm': cbf_map_norm_image,
+            'att': att_map_image,
         }
 
         # Apply smoothing if requested
@@ -381,14 +406,14 @@ def _cbf_process_slice(
     for j in range(y_axis):
         for k in range(z_axis):
             if brain_mask[k, j, i] != 0:
-                m0_px = asl_data('m0')[k, j, i]
+                m0_px = asl_data('m0').get_as_numpy()[k, j, i]
 
                 def mod_buxton(Xdata, par1, par2):
                     return asl_model_buxton(
                         Xdata[0], Xdata[1], m0_px, par1, par2
                     )
 
-                Ydata = asl_data('pcasl')[0, :, k, j, i]
+                Ydata = asl_data('pcasl').get_as_numpy()[0, :, k, j, i]
 
                 # Calculate the processing index for the 3D space
                 index = k * (y_axis * x_axis) + j * x_axis + i

@@ -11,7 +11,10 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Image Processing",
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
@@ -24,14 +27,14 @@ classifiers = [
 
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 SimpleITK = "^2.4.0"
 numpy = "^1.22.4"
 rich = "^13.8.1"
 scipy = "^1.13.1"
 dill = "^0.3.9"
 pybids = "^0.17.2"
-antspyx = "^0.5.4"
+antspyx = "^0.6.1"
 kagglehub = "^0.3.12"
 
 
@@ -43,6 +46,7 @@ isort = "^5.13.2"
 taskipy = "^1.13.0"
 pytest-mock = "^3.14.1"
 bump2version = "^1.0.1"
+pre-commit = "^4.3.0"
 
 [tool.poetry.group.doc.dependencies]
 mkdocs-material = "^9.5.34"
@@ -67,7 +71,7 @@ test = "pytest --ignore-glob='./asltk/scripts/*.py' -s -x --cov=asltk -vv --disa
 post_test = "coverage html"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
@@ -75,3 +79,4 @@ asltk_cbf = "asltk.scripts.cbf:main"
 asltk_hadamard = "asltk.scripts.generate_subtracted_asl_image:main"
 asltk_t2_asl = "asltk.scripts.t2_maps:main"
 asltk_te_asl = "asltk.scripts.te_asl:main"
+asltk_ultralong_te_asl = "asltk.scripts.ultralong_te_asl:main"

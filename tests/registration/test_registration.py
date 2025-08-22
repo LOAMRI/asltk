@@ -12,7 +12,7 @@ from asltk.registration import (
     space_normalization,
 )
 from asltk.registration.asl_normalization import head_movement_correction
-from asltk.utils.io import load_image
+from asltk.utils.io import ImageIO
 
 SEP = os.sep
 M0_ORIG = (
@@ -33,10 +33,12 @@ M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
 
 def test_head_movement_correction_build_asldata_success():
     pcasl_orig = ASLData(pcasl=PCASL_MTE, m0=M0)
-
     asldata, _ = head_movement_correction(pcasl_orig)
 
-    assert asldata('pcasl').shape == pcasl_orig('pcasl').shape
+    assert (
+        asldata('pcasl').get_as_numpy().shape
+        == pcasl_orig('pcasl').get_as_numpy().shape
+    )
 
 
 def test_head_movement_correction_error_input_is_not_ASLData_object():
@@ -65,10 +67,18 @@ def test_head_movement_correction_success():
         pcasl_orig, verbose=True
     )
 
-    assert pcasl_corrected('pcasl').shape == pcasl_orig('pcasl').shape
+    assert (
+        pcasl_corrected('pcasl').get_as_numpy().shape
+        == pcasl_orig('pcasl').get_as_numpy().shape
+    )
     assert (
         np.abs(
-            np.mean(np.subtract(pcasl_corrected('pcasl'), pcasl_orig('pcasl')))
+            np.mean(
+                np.subtract(
+                    pcasl_corrected('pcasl').get_as_numpy(),
+                    pcasl_orig('pcasl').get_as_numpy(),
+                )
+            )
         )
         != 0
     )
@@ -76,31 +86,34 @@ def test_head_movement_correction_success():
 
 
 def test_rigid_body_registration_run_sucess():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     resampled_image, _ = rigid_body_registration(img_orig, img_rot)
 
-    assert np.mean(np.subtract(img_orig, resampled_image)) < np.mean(img_orig)
+    assert np.mean(
+        np.subtract(img_orig.get_as_numpy(), resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 @pytest.mark.parametrize(
     'img_rot', [('invalid_image'), ([1, 2, 3]), (['a', 1, 5.23])]
 )
 def test_rigid_body_registration_error_fixed_image_is_not_numpy_array(img_rot):
-    img_orig = load_image(M0_ORIG)
+    img_orig = ImageIO(M0_ORIG)
 
     with pytest.raises(Exception) as e:
         rigid_body_registration(img_orig, img_rot)
 
     assert (
-        str(e.value) == 'fixed_image and moving_image must be a numpy array.'
+        str(e.value)
+        == 'fixed_image and moving_image must be an ImageIO object.'
     )
 
 
 def test_rigid_body_registration_output_registration_matrix_success():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     _, trans_matrix = rigid_body_registration(img_orig, img_rot)
 
@@ -108,25 +121,25 @@ def test_rigid_body_registration_output_registration_matrix_success():
 
 
 def test_rigid_body_registration_raise_exception_if_moving_mask_not_numpy():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     with pytest.raises(Exception) as e:
         rigid_body_registration(img_orig, img_rot, moving_mask='invalid_mask')
 
-    assert str(e.value) == 'moving_mask must be a numpy array.'
+    assert str(e.value) == 'moving_mask must be an ImageIO object.'
 
 
 def test_rigid_body_registration_raise_exception_if_template_mask_not_numpy():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     with pytest.raises(Exception) as e:
         rigid_body_registration(
             img_orig, img_rot, template_mask='invalid_mask'
         )
 
-    assert str(e.value) == 'template_mask must be a numpy array.'
+    assert str(e.value) == 'template_mask must be an ImageIO object.'
 
 
 def test_space_normalization_success():
@@ -139,8 +152,8 @@ def test_space_normalization_success():
         verbose=True,
     )
 
-    assert isinstance(normalized_image, np.ndarray)
-    assert normalized_image.shape == (182, 218, 182)
+    assert isinstance(normalized_image, ImageIO)
+    assert normalized_image.get_as_numpy().shape == (182, 218, 182)
     assert len(transform) == 1
 
 
@@ -152,8 +165,8 @@ def test_space_normalization_success_transform_type_Affine():
         pcasl_orig('m0'), template_image='MNI2009', transform_type='Affine'
     )
 
-    assert isinstance(normalized_image, np.ndarray)
-    assert normalized_image.shape == (182, 218, 182)
+    assert isinstance(normalized_image, ImageIO)
+    assert normalized_image.get_as_numpy().shape == (182, 218, 182)
     assert len(transform) == 1
 
 
@@ -165,8 +178,8 @@ def test_space_normalization_success_transform_type_Affine():
         pcasl_orig('m0'), template_image='MNI2009', transform_type='Affine'
     )
 
-    assert isinstance(normalized_image, np.ndarray)
-    assert normalized_image.shape == (182, 218, 182)
+    assert isinstance(normalized_image, ImageIO)
+    assert normalized_image.get_as_numpy().shape == (182, 218, 182)
     assert len(transform) == 1
 
 
@@ -175,13 +188,13 @@ def test_space_normalization_raise_exception_if_fixed_image_not_numpy():
         space_normalization('invalid_image', template_image='MNI2009')
 
     assert (
-        'moving_image must be a numpy array and template_image must be a BrainAtlas object'
+        'moving_image must be an ImageIO object and template_image must be a BrainAtlas object'
         in str(e.value)
     )
 
 
 def test_space_normalization_raise_exception_if_template_image_not_a_valid_BrainAtlas_option():
-    img_orig = load_image(M0_ORIG)
+    img_orig = ImageIO(M0_ORIG)
 
     with pytest.raises(Exception) as e:
         space_normalization(img_orig, template_image='invalid_image')
@@ -190,20 +203,20 @@ def test_space_normalization_raise_exception_if_template_image_not_a_valid_Brain
 
 
 def test_space_normalization_success_passing_template_image_as_BrainAtlas_option():
-    img_orig = load_image(M0_ORIG)
+    img_orig = ImageIO(M0_ORIG)
 
     # Use the BrainAtlas object directly
     normalized_image, transform = space_normalization(
         img_orig, template_image='MNI2009'
     )
 
-    assert isinstance(normalized_image, np.ndarray)
-    assert normalized_image.shape == (182, 218, 182)
+    assert isinstance(normalized_image, ImageIO)
+    assert normalized_image.get_as_numpy().shape == (182, 218, 182)
     assert len(transform) == 2
 
 
 def test_space_normalization_success_passing_template_image_as_BrainAtlas_object():
-    img_orig = load_image(M0_ORIG)
+    img_orig = ImageIO(M0_ORIG)
     atlas = BrainAtlas(atlas_name='MNI2009')
 
     # Use the BrainAtlas object directly
@@ -211,119 +224,129 @@ def test_space_normalization_success_passing_template_image_as_BrainAtlas_object
         img_orig, template_image=atlas
     )
 
-    assert isinstance(normalized_image, np.ndarray)
-    assert normalized_image.shape == (182, 218, 182)
+    assert isinstance(normalized_image, ImageIO)
+    assert normalized_image.get_as_numpy().shape == (182, 218, 182)
     assert len(transform) == 2
 
 
 def test_affine_registration_success():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     resampled_image, _ = affine_registration(img_orig, img_rot)
 
-    assert np.mean(np.subtract(img_orig, resampled_image)) < np.mean(img_orig)
+    assert np.mean(
+        np.subtract(img_orig.get_as_numpy(), resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 def test_affine_registration_raise_exception_if_fixed_image_not_numpy():
-    img_rot = load_image(M0_RIGID)
+    img_rot = ImageIO(M0_RIGID)
 
     with pytest.raises(Exception) as e:
         affine_registration('invalid_image', img_rot)
 
     assert (
-        str(e.value) == 'fixed_image and moving_image must be a numpy array.'
+        str(e.value)
+        == 'fixed_image and moving_image must be an ImageIO object.'
     )
 
 
 def test_affine_registration_raise_exception_if_moving_image_not_numpy():
-    img_orig = load_image(M0_ORIG)
+    img_orig = ImageIO(M0_ORIG)
 
     with pytest.raises(Exception) as e:
         affine_registration(img_orig, 'invalid_image')
 
     assert (
-        str(e.value) == 'fixed_image and moving_image must be a numpy array.'
+        str(e.value)
+        == 'fixed_image and moving_image must be an ImageIO object.'
     )
 
 
 def test_affine_registration_raise_exception_if_moving_mask_not_numpy():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     with pytest.raises(Exception) as e:
         affine_registration(img_orig, img_rot, moving_mask='invalid_mask')
 
-    assert str(e.value) == 'moving_mask must be a numpy array.'
+    assert str(e.value) == 'moving_mask must be an ImageIO object.'
 
 
 def test_affine_registration_raise_exception_if_template_mask_not_numpy():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     with pytest.raises(Exception) as e:
         affine_registration(img_orig, img_rot, template_mask='invalid_mask')
 
-    assert str(e.value) == 'template_mask must be a numpy array.'
+    assert str(e.value) == 'template_mask must be an ImageIO object.'
 
 
 def test_affine_registration_fast_method():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     resampled_image, _ = affine_registration(
         img_orig, img_rot, fast_method=True
     )
 
-    assert isinstance(resampled_image, np.ndarray)
-    assert resampled_image.shape == img_rot.shape
-    assert np.mean(np.abs(img_orig - resampled_image)) < np.mean(img_orig)
+    assert isinstance(resampled_image, ImageIO)
+    assert resampled_image.get_as_numpy().shape == img_rot.get_as_numpy().shape
+    assert np.mean(
+        np.abs(img_orig.get_as_numpy() - resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 def test_affine_registration_slow_method():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
 
     resampled_image, _ = affine_registration(
         img_orig, img_rot, fast_method=False
     )
 
-    assert isinstance(resampled_image, np.ndarray)
-    assert resampled_image.shape == img_rot.shape
-    assert np.mean(np.abs(img_orig - resampled_image)) < np.mean(img_orig)
+    assert isinstance(resampled_image, ImageIO)
+    assert resampled_image.get_as_numpy().shape == img_rot.get_as_numpy().shape
+    assert np.mean(
+        np.abs(img_orig.get_as_numpy() - resampled_image.get_as_numpy())
+    ) < np.mean(img_orig.get_as_numpy())
 
 
 def test_apply_transformation_success():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
     # Get transformation matrix from rigid registration
     _, trans_matrix = rigid_body_registration(img_orig, img_rot)
     # Apply transformation
     transformed_img = apply_transformation(img_rot, img_orig, trans_matrix)
-    assert isinstance(transformed_img, np.ndarray)
-    assert transformed_img.shape == img_rot.shape
-    assert np.mean(np.abs(transformed_img - img_rot)) < np.mean(img_rot)
+    assert isinstance(transformed_img, ImageIO)
+    assert transformed_img.get_as_numpy().shape == img_rot.get_as_numpy().shape
+    assert np.mean(
+        np.abs(transformed_img.get_as_numpy() - img_rot.get_as_numpy())
+    ) < np.mean(img_rot.get_as_numpy())
 
 
 def test_apply_transformation_invalid_fixed_image():
-    img_rot = load_image(M0_RIGID)
+    img_rot = ImageIO(M0_RIGID)
     _, trans_matrix = rigid_body_registration(img_rot, img_rot)
     with pytest.raises(Exception) as e:
         apply_transformation('invalid_image', img_rot, trans_matrix)
-    assert 'moving image must be numpy array' in str(e.value)
+    assert 'moving image must be an ImageIO object' in str(e.value)
 
 
 def test_apply_transformation_invalid_moving_image():
-    img_orig = load_image(M0_ORIG)
+    img_orig = ImageIO(M0_ORIG)
     _, trans_matrix = rigid_body_registration(img_orig, img_orig)
     with pytest.raises(Exception) as e:
         apply_transformation(img_orig, 'invalid_image', trans_matrix)
-    assert 'reference_image must be a numpy array' in str(e.value)
+    assert 'reference_image must be an ImageIO object' in str(e.value)
 
 
 def test_apply_transformation_invalid_transformation_matrix():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
     with pytest.raises(Exception) as e:
         apply_transformation(img_orig, img_rot, 'invalid_matrix')
     assert 'transforms must be a list of transformation matrices' in str(
@@ -332,37 +355,37 @@ def test_apply_transformation_invalid_transformation_matrix():
 
 
 def test_apply_transformation_with_mask():
-    img_orig = load_image(M0_ORIG)
-    img_rot = load_image(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
     mask = np.ones_like(img_orig, dtype=bool)
     _, trans_matrix = rigid_body_registration(img_orig, img_rot)
     transformed_img = apply_transformation(
         img_orig, img_rot, trans_matrix, mask=mask
     )
-    assert isinstance(transformed_img, np.ndarray)
-    assert transformed_img.shape == img_rot.shape
+    assert isinstance(transformed_img, ImageIO)
+    assert transformed_img.get_as_numpy().shape == img_rot.get_as_numpy().shape
 
 
 def test_apply_transformation_with_BrainAtlas_reference_input_error():
-    img_rot = load_image(M0_RIGID)
-    img_orig = load_image(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
     _, trans_matrix = rigid_body_registration(img_orig, img_rot)
     with pytest.raises(Exception) as e:
         apply_transformation(img_rot, 'invalid atlas', trans_matrix)
 
     assert (
-        'reference_image must be a numpy array or a BrainAtlas object'
+        'reference_image must be an ImageIO object or a BrainAtlas object'
         in str(e.value)
     )
 
 
 def test_apply_transformation_with_BrainAtlas_reference_input_sucess():
-    img_rot = load_image(M0_RIGID)
-    img_orig = load_image(M0_ORIG)
+    img_rot = ImageIO(M0_RIGID)
+    img_orig = ImageIO(M0_ORIG)
     _, trans_matrix = rigid_body_registration(img_orig, img_rot)
     atlas = BrainAtlas(atlas_name='MNI2009')
-    atlas_img = load_image(atlas.get_atlas()['t1_data'])
+    atlas_img = ImageIO(atlas.get_atlas()['t1_data'])
     corr_img = apply_transformation(img_rot, atlas, trans_matrix)
 
-    assert isinstance(corr_img, np.ndarray)
-    assert corr_img.shape == atlas_img.shape
+    assert isinstance(corr_img, ImageIO)
+    assert corr_img.get_as_numpy().shape == atlas_img.get_as_numpy().shape

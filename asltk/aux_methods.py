@@ -1,18 +1,43 @@
 import warnings
+from multiprocessing import cpu_count
 from typing import Any, Dict, Optional
 
 import numpy as np
+import psutil
 
 from asltk.smooth import isotropic_gaussian, isotropic_median
+from asltk.utils.io import ImageIO
 
 
-def _check_mask_values(mask, label, ref_shape):
-    # Check wheter mask input is an numpy array
-    if not isinstance(mask, np.ndarray):
-        raise TypeError(f'mask is not an numpy array. Type {type(mask)}')
+def _check_mask_values(mask: ImageIO, label, ref_shape):
+    """Validate mask array for brain mask processing.
+
+    This function performs comprehensive validation of brain mask data to ensure
+    it meets the requirements for ASL processing. It checks data type, binary
+    format compliance, label presence, and dimensional compatibility.
+
+    Args:
+        mask (np.ndarray): The brain mask image to validate.
+        label (int or float): The label value to search for in the mask.
+        ref_shape (tuple): The reference shape that the mask should match.
+
+    Raises:
+        TypeError: If mask is not a numpy array or dimensions don't match.
+        ValueError: If the specified label value is not found in the mask.
+
+    Warnings:
+        UserWarning: If mask contains more than 2 unique values (not strictly binary).
+    """
+    # Check wheter mask input is an ImageIO object
+    if not isinstance(mask, ImageIO):
+        raise TypeError(
+            f'mask is not an ImageIO object. Type {type(mask)} is not allowed.'
+        )
+
+    mask_array = mask.get_as_numpy()
 
     # Check whether the mask provided is a binary image
-    unique_values = np.unique(mask)
+    unique_values = np.unique(mask_array)
     if unique_values.size > 2:
         warnings.warn(
             'Mask image is not a binary image. Any value > 0 will be assumed as brain label.',
@@ -29,7 +54,7 @@ def _check_mask_values(mask, label, ref_shape):
         raise ValueError('Label value is not found in the mask provided.')
 
     # Check whether the dimensions between mask and input volume matches
-    mask_shape = mask.shape
+    mask_shape = mask_array.shape
     if mask_shape != ref_shape:
         raise TypeError(
             f'Image mask dimension does not match with input 3D volume. Mask shape {mask_shape} not equal to {ref_shape}'
@@ -37,10 +62,10 @@ def _check_mask_values(mask, label, ref_shape):
 
 
 def _apply_smoothing_to_maps(
-    maps: Dict[str, np.ndarray],
+    maps: Dict[str, ImageIO],
     smoothing: Optional[str] = None,
     smoothing_params: Optional[Dict[str, Any]] = None,
-) -> Dict[str, np.ndarray]:
+) -> Dict[str, ImageIO]:
     """Apply smoothing filter to all maps in the dictionary.
 
     This function applies the specified smoothing filter to all map arrays
@@ -117,7 +142,7 @@ def _apply_smoothing_to_maps(
     # Apply smoothing to all maps
     smoothed_maps = {}
     for key, map_array in maps.items():
-        if isinstance(map_array, np.ndarray):
+        if isinstance(map_array, ImageIO):
             try:
                 smoothed_maps[key] = smooth_func(map_array, **smoothing_params)
             except Exception as e:
@@ -132,3 +157,37 @@ def _apply_smoothing_to_maps(
             smoothed_maps[key] = map_array
 
     return smoothed_maps
+
+
+def get_optimal_core_count(
+    requested_cores: int = None, mb_per_core: int = 500
+):
+    """Determine optimal number of cores based on available memory.
+
+    This function calculates the appropriate number of CPU cores to use for
+    parallel processing based on the available system memory. It ensures
+    that the process won't exhaust the system's memory during computation.
+
+    This implementation is OS-agnostic and works consistently across
+    Windows, Linux, and macOS platforms.
+
+    Args:
+        requested_cores (int or str, optional): User-requested number of cores.
+            If an integer and > 0, uses this value (capped by system limits).
+            If "auto" or None, calculates based on available memory.
+        mb_per_core (int, optional): Memory required per core in MB.
+            Defaults to 500MB per core as a safe estimate.
+
+    Returns:
+        int: Optimal number of cores to use (at least 1)
+    """
+    # If specific cores requested (and not "auto"), respect that choice
+    if requested_cores not in (None, 'auto') and requested_cores > 0:
+        return min(requested_cores, cpu_count())
+
+    # Calculate based on available memory
+    free_memory_mb = psutil.virtual_memory().available / (1024 * 1024)
+    cores_by_memory = max(1, int(free_memory_mb / mb_per_core))
+
+    # Return the smaller of: cores based on memory or total available cores
+    return min(cores_by_memory, cpu_count())

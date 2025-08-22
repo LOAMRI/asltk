@@ -118,8 +118,74 @@ def test_brain_atlas_creation_with_various_names(atlas_name):
     """
     Test creating BrainAtlas objects with different valid atlas names.
     """
-    atlas = BrainAtlas(atlas_name=atlas_name)
-    assert isinstance(atlas.get_atlas(), dict)
+    try:
+        atlas = BrainAtlas(atlas_name=atlas_name)
+        assert isinstance(atlas.get_atlas(), dict)
+    except ValueError as e:
+        if '429 Client Error: Too Many Requests' in str(e):
+            pytest.skip(
+                f'Skipping test for {atlas_name} due to Kaggle API rate limit: {e}'
+            )
+        else:
+            raise
+
+
+@pytest.mark.parametrize(
+    'atlas_name',
+    [
+        'MNI2009',
+        'AAL32024',
+        'HOCSA2006',
+        'AAT2022',
+        'AICHA2021',
+        'DKA2006',
+        'FCA7N2011',
+        'HA2003',
+        'JHA2005',
+        'LGPHCC2022',
+        'AAT2022',
+    ],
+)
+def test_brain_atlas_creation_with_various_names_2mm_resolution(atlas_name):
+    """
+    Test creating BrainAtlas objects with different valid atlas names and 2mm resolution.
+    """
+    try:
+        atlas = BrainAtlas(atlas_name=atlas_name, resolution='2mm')
+        assert isinstance(atlas.get_atlas(), dict)
+    except ValueError as e:
+        if '429 Client Error: Too Many Requests' in str(e):
+            pytest.skip(
+                f'Skipping test for {atlas_name} due to Kaggle API rate limit: {e}'
+            )
+        else:
+            raise
+
+
+@pytest.mark.parametrize(
+    'wrong_resolution',
+    [
+        ('1'),
+        ('2'),
+        ('3mm'),
+        ('1.5mm'),
+        ('4mm'),
+        ('1x1x1'),
+        ('2x2x2'),
+        (1),
+        (2),
+    ],
+)
+def test_brain_atlas_constructor_raise_error_wrong_resolution(
+    wrong_resolution,
+):
+    """
+    Test that the BrainAtlas constructor raises an error for invalid resolution.
+    """
+    with pytest.raises(ValueError) as e:
+        BrainAtlas(resolution=wrong_resolution)
+
+    assert 'Invalid resolution' in str(e.value)
 
 
 def test_atlas_download_failure(mocker):
@@ -159,3 +225,21 @@ def test_atlas_url_raises_error_when_atlas_not_set():
 
     # Verify the error message
     assert 'is not set or does not have a dataset URL' in str(e.value)
+
+
+def test_brain_atlas_get_resolution():
+    """
+    Test the get_resolution method of the BrainAtlas class.
+    """
+    atlas = BrainAtlas()
+    atlas.set_resolution('2mm')
+    assert atlas.get_resolution() == '2mm'
+
+
+def test_brain_atlas_set_resolution():
+    """
+    Test the set_resolution method of the BrainAtlas class.
+    """
+    atlas = BrainAtlas()
+    atlas.set_resolution('2mm')
+    assert atlas.get_resolution() == '2mm'
