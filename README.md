@@ -29,11 +29,20 @@ Also, feel free to contribute directly to the project! Check it out the [issues]
 A quick to use install is via `pip`, as follows:
 
 > [!NOTE]
-> The installation requires Python 3.9 or higher
+> The installation requires Python 3.10 or higher
 
 ```bash
 pip install asltk
 ```
+
+## What it can done with ASLtk
+
+The ASLtk library provides a wide range of functionalities for processing Arterial Spin Labeling (ASL) MRI images, including:
+
+- **Preprocessing**: Tools for denoising, motion correction, and normalization of ASL images.
+- **Quantification**: Methods for calculating perfusion maps and other quantitative metrics from ASL data.
+- **Visualization**: Utilities for visualizing ASL images and results in an intuitive manner.
+- **Model Implementation**: Access to state-of-the-art models for ASL image analysis, allowing users to leverage advanced techniques without deep expertise in the field.
 
 ## Special thanks for all the contributors
 
