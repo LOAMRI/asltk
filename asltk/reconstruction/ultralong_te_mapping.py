@@ -57,7 +57,12 @@ class UltraLongTE_ASLMapping(MRIParameters):
             Marianne A.A. van Walderveen, Mark A. van Buchem, Matthias J.P. van Osch,
             "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide
             blood-to-CSF water transport in humans", NeuroImage, ISSN 1053-8119,
-            https://doi.org/10.1016/j.neuroimage.2021.118755.
+            doi: [10.1016/j.neuroimage.2021.118755](http://doi.org/10.1016/j.neuroimage.2021.118755).
+
+        Important:
+            Although this method applies a parallel CPU processing, it still a
+            highly time and memory consuming procedure. Take this into account
+            when working with large datasets or high-resolution images.
 
         Examples:
             Basic Ultralong-TE ASL mapping setup:
@@ -218,10 +223,11 @@ class UltraLongTE_ASLMapping(MRIParameters):
         T1 relaxation maps that characterize blood-to-gray matter water exchange. The
         analysis uses multiple echo times to separate blood and tissue signal contributions.
 
-        The method implements the multi-compartment TE ASL model described in:
-        "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide
-        blood-to-CSF water transport in humans", NeuroImage, 2022.
-        doi: 10.1016/j.neuroimage.2021.118755
+        Note:
+            The method implements the multi-compartment TE ASL model described in:
+            "Ultra-long-TE arterial spin labeling reveals rapid and brain-wide
+            blood-to-CSF water transport in humans", NeuroImage, 2022.
+            doi: [10.1016/j.neuroimage.2021.118755](http://doi.org/10.1016/j.neuroimage.2021.118755)
 
         Note:
             The CBF and ATT maps can be provided before calling this method,
@@ -369,6 +375,10 @@ class UltraLongTE_ASLMapping(MRIParameters):
                 'd', z_axis * y_axis * x_axis, lock=False
             )
 
+            # Make a copy of base information
+            m0_array = asl_data('m0').get_as_numpy()
+            pcasl_array = asl_data('pcasl').get_as_numpy()
+
             with Pool(
                 processes=actual_cores,
                 initializer=_multite_init_globals,
@@ -392,7 +402,17 @@ class UltraLongTE_ASLMapping(MRIParameters):
                     results = [
                         pool.apply_async(
                             _tcsfgm_multite_process_slice,
-                            args=(i, x_axis, y_axis, z_axis, par0, lb, ub),
+                            args=(
+                                i,
+                                x_axis,
+                                y_axis,
+                                z_axis,
+                                par0,
+                                lb,
+                                ub,
+                                m0_array,
+                                pcasl_array,
+                            ),
                             callback=lambda _: progress.update(
                                 task, advance=1
                             ),
@@ -478,13 +498,13 @@ def _multite_init_globals(
 
 
 def _tcsfgm_multite_process_slice(
-    i, x_axis, y_axis, z_axis, par0, lb, ub
+    i, x_axis, y_axis, z_axis, par0, lb, ub, m0, pcasl
 ):   # pragma: no cover
     # indirect call method by CBFMapping().create_map()
     for j in range(y_axis):
         for k in range(z_axis):
             if brain_mask[k, j, i] != 0:
-                m0_px = asl_data('m0').get_as_numpy()[k, j, i]
+                m0_px = m0[k, j, i]
 
                 def mod_2comp(Xdata, par1):
                     return asl_model_multi_te(
@@ -500,8 +520,7 @@ def _tcsfgm_multite_process_slice(
                     )
 
                 Ydata = (
-                    asl_data('pcasl')
-                    .get_as_numpy()[:, :, k, j, i]
+                    pcasl[:, :, k, j, i]
                     .reshape(
                         (
                             len(ld_arr) * len(te_arr),

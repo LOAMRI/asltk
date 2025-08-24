@@ -1,12 +1,16 @@
 from multiprocessing import Array, Pool, cpu_count
 
 import numpy as np
-import SimpleITK as sitk
 from rich.progress import Progress
 from scipy.optimize import curve_fit
 
 from asltk.asldata import ASLData
-from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
+from asltk.aux_methods import (
+    _apply_smoothing_to_maps,
+    _check_mask_values,
+    estimate_memory_usage,
+    get_optimal_core_count,
+)
 from asltk.logging_config import get_logger, log_processing_step
 from asltk.models.signal_dynamic import asl_model_buxton
 from asltk.mri_parameters import MRIParameters
@@ -180,7 +184,7 @@ class CBFMapping(MRIParameters):
         ub=[1.0, 5000.0],
         lb=[0.0, 0.0],
         par0=[1e-5, 1000],
-        cores: int = int(cpu_count() / 2),
+        cores='auto',
         smoothing=None,
         smoothing_params=None,
     ):
@@ -280,12 +284,28 @@ class CBFMapping(MRIParameters):
         logger = get_logger('cbf_mapping')
         logger.info('Starting CBF map creation')
 
-        if (cores < 0) or (cores > cpu_count()) or not isinstance(cores, int):
-            error_msg = 'Number of proecess must be at least 1 and less than maximum cores availble.'
-            logger.error(
-                f'{error_msg} Requested: {cores}, Available: {cpu_count()}'
+        if not isinstance(cores, str):
+            if (
+                (cores < 0)
+                or (cores > cpu_count())
+                or not isinstance(cores, int)
+            ):
+                error_msg = 'Number of CPU cores must be at least 1 and less than maximum cores available.'
+                logger.error(
+                    f'{error_msg} Requested: {cores}, Available: {cpu_count()}'
+                )
+                raise ValueError(error_msg)
+        elif isinstance(cores, str):
+            if cores not in ['auto']:
+                error_msg = (
+                    'Cores parameter must be either "auto" or a integer.'
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+        else:
+            raise ValueError(
+                'Cores parameter must be either "auto" or a integer.'
             )
-            raise ValueError(error_msg)
 
         if (
             len(self._asl_data.get_ld()) == 0
@@ -314,14 +334,31 @@ class CBFMapping(MRIParameters):
             f'Processing volume dimensions: {z_axis}x{y_axis}x{x_axis}'
         )
 
-        cbf_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
-        att_map_shared = Array('d', z_axis * y_axis * x_axis, lock=False)
+        cbf_map_shared = Array('f', z_axis * y_axis * x_axis, lock=False)
+        att_map_shared = Array('f', z_axis * y_axis * x_axis, lock=False)
+
+        # Estimate all the memory usage needed for each core processing
+        asldata_memory = estimate_memory_usage(
+            self._asl_data('pcasl').get_as_numpy()
+        )
+        brain_mask_memory = estimate_memory_usage(self._brain_mask)
+        cbf_memory = estimate_memory_usage(self._cbf_map)
+        att_memory = estimate_memory_usage(self._att_map)
+
+        actual_cores = get_optimal_core_count(
+            cores,
+            sum([asldata_memory, brain_mask_memory, cbf_memory, att_memory]),
+        )
+
+        # Make a copy of base information
+        m0_array = asl_data('m0').get_as_numpy()
+        pcasl_array = asl_data('pcasl').get_as_numpy()
 
         log_processing_step(
             'Running voxel-wise CBF fitting', 'this may take several minutes'
         )
         with Pool(
-            processes=cores,
+            processes=actual_cores,
             initializer=_cbf_init_globals,
             initargs=(cbf_map_shared, att_map_shared, brain_mask, asl_data),
         ) as pool:
@@ -339,6 +376,8 @@ class CBFMapping(MRIParameters):
                             par0,
                             lb,
                             ub,
+                            m0_array,
+                            pcasl_array,
                         ),
                         callback=lambda _: progress.update(task, advance=1),
                     )
@@ -347,12 +386,12 @@ class CBFMapping(MRIParameters):
                 for result in results:
                     result.wait()
 
-        self._cbf_map = np.frombuffer(cbf_map_shared).reshape(
-            z_axis, y_axis, x_axis
-        )
-        self._att_map = np.frombuffer(att_map_shared).reshape(
-            z_axis, y_axis, x_axis
-        )
+        self._cbf_map = np.frombuffer(
+            cbf_map_shared, dtype=np.float32
+        ).reshape(z_axis, y_axis, x_axis)
+        self._att_map = np.frombuffer(
+            att_map_shared, dtype=np.float32
+        ).reshape(z_axis, y_axis, x_axis)
 
         # Log completion statistics
         cbf_values = self._cbf_map[brain_mask > 0]
@@ -400,20 +439,20 @@ def _cbf_init_globals(
 
 
 def _cbf_process_slice(
-    i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub
+    i, x_axis, y_axis, z_axis, BuxtonX, par0, lb, ub, m0, pcasl
 ):   # pragma: no cover
     # indirect call method by CBFMapping().create_map()
     for j in range(y_axis):
         for k in range(z_axis):
             if brain_mask[k, j, i] != 0:
-                m0_px = asl_data('m0').get_as_numpy()[k, j, i]
+                m0_px = m0[k, j, i]
 
                 def mod_buxton(Xdata, par1, par2):
                     return asl_model_buxton(
                         Xdata[0], Xdata[1], m0_px, par1, par2
                     )
 
-                Ydata = asl_data('pcasl').get_as_numpy()[0, :, k, j, i]
+                Ydata = pcasl[0, :, k, j, i]
 
                 # Calculate the processing index for the 3D space
                 index = k * (y_axis * x_axis) + j * x_axis + i
@@ -422,8 +461,8 @@ def _cbf_process_slice(
                     par_fit, _ = curve_fit(
                         mod_buxton, BuxtonX, Ydata, p0=par0, bounds=(lb, ub)
                     )
-                    cbf_map[index] = par_fit[0]
-                    att_map[index] = par_fit[1]
+                    cbf_map[index] = np.float32(par_fit[0])
+                    att_map[index] = np.float32(par_fit[1])
                 except RuntimeError:
                     cbf_map[index] = 0.0
                     att_map[index] = 0.0

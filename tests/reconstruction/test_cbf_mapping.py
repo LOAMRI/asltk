@@ -183,7 +183,7 @@ def test_cbf_raise_error_cores_not_valid(core_value):
 
     assert (
         e.value.args[0]
-        == 'Number of proecess must be at least 1 and less than maximum cores availble.'
+        == 'Number of CPU cores must be at least 1 and less than maximum cores available.'
     )
 
 
