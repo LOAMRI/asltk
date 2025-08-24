@@ -191,3 +191,25 @@ def get_optimal_core_count(
 
     # Return the smaller of: cores based on memory or total available cores
     return min(cores_by_memory, cpu_count())
+
+
+def estimate_memory_usage(data: np.ndarray) -> float:
+    """Estimate memory usage of a numpy array in MB.
+
+    This function calculates the memory footprint of a given numpy array
+    by determining its size in bytes and converting it to megabytes (MB).
+
+    Args:
+        data (np.ndarray): The numpy array for which to estimate memory usage.
+
+    Returns:
+        float: Estimated memory usage in megabytes (MB).
+    """
+    if not isinstance(data, np.ndarray):
+        raise TypeError(
+            f'Input must be a numpy array, got {type(data)} instead.'
+        )
+
+    total_bytes = data.nbytes
+    total_mb = total_bytes / (1024**2)  # Convert bytes to MB
+    return total_mb
