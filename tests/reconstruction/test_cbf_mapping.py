@@ -194,3 +194,29 @@ def test_cbf_map_normalized_flag_true_result_cbf_map_rescaled():
     out_norm_array[out_norm_array == 0] = np.nan
     mean_px_value = np.nanmean(out_norm_array)
     assert mean_px_value < 500 and mean_px_value > 50
+
+
+def test_cbf_object_create_map_success_using_average_m0_option(tmp_path):
+    base_m0 = ImageIO(M0).get_as_numpy()
+    m04d = np.stack([base_m0 for _ in range(3)], axis=0)
+    # Save m04d into a temporary .nii.gz file
+    ImageIO(image_array=m04d).save_image(
+        os.path.join(tmp_path, 'm0_4d.nii.gz')
+    )
+
+    asldata4d = ASLData(
+        pcasl=PCASL_MTE,
+        m0=os.path.join(tmp_path, 'm0_4d.nii.gz'),
+        ld_values=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+        pld_values=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+        average_m0=True,
+    )
+    mte = CBFMapping(asldata4d)
+    mask = ImageIO(M0_BRAIN_MASK)
+
+    mte.set_brain_mask(mask)
+
+    output = mte.create_map()
+
+    assert output['cbf'].get_as_numpy().shape == base_m0.shape
+    assert output['att'].get_as_numpy().shape == base_m0.shape
