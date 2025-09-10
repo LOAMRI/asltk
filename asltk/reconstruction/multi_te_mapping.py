@@ -12,7 +12,7 @@ from asltk.aux_methods import _apply_smoothing_to_maps, _check_mask_values
 from asltk.models.signal_dynamic import asl_model_multi_te
 from asltk.mri_parameters import MRIParameters
 from asltk.reconstruction import CBFMapping
-from asltk.utils.io import ImageIO
+from asltk.utils.io import ImageIO, clone_image
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -388,19 +388,27 @@ class MultiTE_ASLMapping(MRIParameters):
             )
 
             # Prepare output maps
-            cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
-            cbf_map_image.update_image_data(self._cbf_map)
-
-            cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
-            cbf_map_norm_image.update_image_data(
-                self._cbf_map * (60 * 60 * 1000)
+            base_volume = ImageIO(self._asl_data('m0').get_image_path())
+            cbf_map_image = clone_image(base_volume)
+            cbf_map_image.update_image_data(
+                self._cbf_map, self._asl_data._asl_image._average_m0
             )
 
-            att_map_image = ImageIO(self._asl_data('m0').get_image_path())
-            att_map_image.update_image_data(self._att_map)
+            cbf_map_norm_image = clone_image(base_volume)
+            cbf_map_norm_image.update_image_data(
+                self._cbf_map * (60 * 60 * 1000),
+                self._asl_data._asl_image._average_m0,
+            )
 
-            t1blgm_map_image = ImageIO(self._asl_data('m0').get_image_path())
-            t1blgm_map_image.update_image_data(self._t1blgm_map)
+            att_map_image = clone_image(base_volume)
+            att_map_image.update_image_data(
+                self._att_map, self._asl_data._asl_image._average_m0
+            )
+
+            t1blgm_map_image = clone_image(base_volume)
+            t1blgm_map_image.update_image_data(
+                self._t1blgm_map, self._asl_data._asl_image._average_m0
+            )
 
             # Create output maps dictionary
             output_maps = {
