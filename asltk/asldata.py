@@ -86,6 +86,7 @@ class ASLData:
 
         if kwargs.get('m0') is not None:
             average_m0 = kwargs.get('average_m0', False)
+            self._asl_image._average_m0 = average_m0
 
             if isinstance(kwargs.get('m0'), str):
                 m0_path = kwargs.get('m0')
