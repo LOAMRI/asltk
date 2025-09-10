@@ -209,3 +209,42 @@ def test_multite_asl_object_create_map_using_provided_cbf_att_maps(capfd):
     if re.search('multiTE-ASL', out):
         test_pass = True
     assert test_pass
+
+
+def test_multite_asl_object_create_map_success_using_average_m0_option(
+    tmp_path,
+):
+    base_m0 = ImageIO(M0).get_as_numpy()
+    m04d = np.stack([base_m0 for _ in range(3)], axis=0)
+    # Save m04d into a temporary .nii.gz file
+    ImageIO(image_array=m04d).save_image(
+        os.path.join(tmp_path, 'm0_4d.nii.gz')
+    )
+
+    asldata4d = ASLData(
+        pcasl=PCASL_MTE,
+        m0=os.path.join(tmp_path, 'm0_4d.nii.gz'),
+        ld_values=[100.0, 100.0, 150.0, 150.0, 400.0, 800.0, 1800.0],
+        pld_values=[170.0, 270.0, 370.0, 520.0, 670.0, 1070.0, 1870.0],
+        te_values=[
+            13.56,
+            67.82,
+            122.08,
+            176.33,
+            230.59,
+            284.84,
+            339.100,
+            393.36,
+        ],
+        average_m0=True,
+    )
+    mte = MultiTE_ASLMapping(asldata4d)
+    mask = ImageIO(M0_BRAIN_MASK)
+
+    mte.set_brain_mask(mask)
+
+    output = mte.create_map()
+
+    assert output['cbf'].get_as_numpy().shape == base_m0.shape
+    assert output['att'].get_as_numpy().shape == base_m0.shape
+    assert output['t1blgm'].get_as_numpy().shape == base_m0.shape
