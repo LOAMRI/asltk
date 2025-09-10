@@ -14,7 +14,7 @@ from asltk.aux_methods import (
 from asltk.logging_config import get_logger, log_processing_step
 from asltk.models.signal_dynamic import asl_model_buxton
 from asltk.mri_parameters import MRIParameters
-from asltk.utils.io import ImageIO
+from asltk.utils.io import ImageIO, clone_image
 
 # Global variables to assist multi cpu threading
 cbf_map = None
@@ -406,14 +406,22 @@ class CBFMapping(MRIParameters):
         )
 
         # Prepare output maps
-        cbf_map_image = ImageIO(self._asl_data('m0').get_image_path())
-        cbf_map_image.update_image_data(self._cbf_map)
+        base_volume = ImageIO(self._asl_data('m0').get_image_path())
+        cbf_map_image = clone_image(base_volume)
+        cbf_map_image.update_image_data(
+            self._cbf_map, self._asl_data._asl_image._average_m0
+        )
 
-        cbf_map_norm_image = ImageIO(self._asl_data('m0').get_image_path())
-        cbf_map_norm_image.update_image_data(self._cbf_map * (60 * 60 * 1000))
+        cbf_map_norm_image = clone_image(base_volume)
+        cbf_map_norm_image.update_image_data(
+            self._cbf_map * (60 * 60 * 1000),
+            self._asl_data._asl_image._average_m0,
+        )
 
-        att_map_image = ImageIO(self._asl_data('m0').get_image_path())
-        att_map_image.update_image_data(self._att_map)
+        att_map_image = clone_image(base_volume)
+        att_map_image.update_image_data(
+            self._att_map, self._asl_data._asl_image._average_m0
+        )
 
         output_maps = {
             'cbf': cbf_map_image,
