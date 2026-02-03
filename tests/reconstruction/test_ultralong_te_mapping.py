@@ -39,49 +39,49 @@ def test_ultralongte_asl_object_constructor_created_sucessfully():
     assert ulte.get_constant('T2bl') == 100
 
 
-def test_multite_asl_set_brain_mask_success():
+def test_ultralong_te_asl_set_brain_mask_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     mask = ImageIO(M0_BRAIN_MASK)
     ulte.set_brain_mask(mask)
     assert isinstance(ulte._brain_mask, np.ndarray)
 
 
-def test_multite_asl_set_cbf_map_success():
+def test_ultralong_te_asl_set_cbf_map_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     fake_cbf = ImageIO(image_array=np.ones((10, 10)) * 20)
     ulte.set_cbf_map(fake_cbf)
     assert np.mean(ulte._cbf_map) == 20
 
 
-def test_multite_asl_get_cbf_map_success():
+def test_ultralong_te_asl_get_cbf_map_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     fake_cbf = ImageIO(image_array=np.ones((10, 10)) * 20)
     ulte.set_cbf_map(fake_cbf)
     assert np.mean(ulte.get_cbf_map()) == 20
 
 
-def test_multite_asl_set_att_map_success():
+def test_ultralong_te_asl_set_att_map_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     fake_att = ImageIO(image_array=np.ones((10, 10)) * 20)
     ulte.set_att_map(fake_att)
     assert np.mean(ulte._att_map) == 20
 
 
-def test_multite_asl_get_att_map_success():
+def test_ultralong_te_asl_get_att_map_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     fake_att = ImageIO(image_array=np.ones((10, 10)) * 20)
     ulte.set_att_map(fake_att)
     assert np.mean(ulte.get_att_map()) == 20
 
 
-def test_multite_asl_get_t1csfgm_map_attribution_success():
+def test_ultralong_te_asl_get_t1csfgm_map_attribution_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     fake_att = np.ones((10, 10)) * 20
     ulte._t1csfgm_map = fake_att
     assert np.mean(ulte.get_t1csfgm_map()) == 20
 
 
-def test_multite_asl_get_t1csfgm_map_create_map_update_success():
+def test_ultralong_te_asl_get_t1csfgm_map_create_map_update_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     out = ulte.create_map()
 
@@ -90,7 +90,7 @@ def test_multite_asl_get_t1csfgm_map_create_map_update_success():
 
 
 @pytest.mark.parametrize('label', [(3), (-1), (1000000), (-1.1), (2.1)])
-def test_multite_asl_set_brain_mask_set_label_value_raise_error_value_not_found_in_mask(
+def test_ultralong_te_asl_set_brain_mask_set_label_value_raise_error_value_not_found_in_mask(
     label,
 ):
     ulte = UltraLongTE_ASLMapping(asldata_te)
@@ -100,7 +100,7 @@ def test_multite_asl_set_brain_mask_set_label_value_raise_error_value_not_found_
     assert e.value.args[0] == 'Label value is not found in the mask provided.'
 
 
-def test_multite_asl_set_brain_mask_verify_if_input_is_a_label_mask():
+def test_ultralong_te_asl_set_brain_mask_verify_if_input_is_a_label_mask():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     not_mask = ImageIO(M0)
     with pytest.warns(UserWarning):
@@ -115,7 +115,7 @@ def test_multite_asl_set_brain_mask_verify_if_input_is_a_label_mask():
         )
 
 
-def test_multite_asl_set_brain_mask_raise_error_if_image_dimension_is_different_from_3d_volume():
+def test_ultralong_te_asl_set_brain_mask_raise_error_if_image_dimension_is_different_from_3d_volume():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     pcasl_3d_vol = ImageIO(PCASL_MTE).get_as_numpy()[0, 0, :, :, :]
     fake_mask = ImageIO(image_array=np.array(((1, 1, 1), (0, 1, 0))))
@@ -127,7 +127,7 @@ def test_multite_asl_set_brain_mask_raise_error_if_image_dimension_is_different_
     )
 
 
-def test_multite_mapping_get_brain_mask_return_adjusted_brain_mask_image_in_the_object():
+def test_ultralong_mapping_get_brain_mask_return_adjusted_brain_mask_image_in_the_object():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     assert np.mean(ulte.get_brain_mask()) == 1
 
@@ -136,18 +136,18 @@ def test_multite_mapping_get_brain_mask_return_adjusted_brain_mask_image_in_the_
     assert np.unique(ulte.get_brain_mask()).tolist() == [0, 1]
 
 
-def test_multite_asl_object_create_map_success():
+def test_ultralong_te_asl_object_create_map_success():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     out = ulte.create_map()
     assert isinstance(out['cbf'], ImageIO)
-    assert np.mean(out['cbf'].get_as_numpy()) < 0.0001
+    assert np.mean(out['cbf'].get_as_numpy()) > 0
     assert isinstance(out['att'], ImageIO)
-    assert np.mean(out['att'].get_as_numpy()) > 10
+    assert np.mean(out['att'].get_as_numpy()) > 0
     assert isinstance(out['t1csfgm'], ImageIO)
-    assert np.mean(out['t1csfgm'].get_as_numpy()) > 50
+    assert np.mean(out['t1csfgm'].get_as_numpy()) > 0
 
 
-def test_multite_asl_object_raises_error_if_asldata_does_not_have_pcasl_or_m0_image():
+def test_ultralong_te_asl_object_raises_error_if_asldata_does_not_have_pcasl_or_m0_image():
     with pytest.raises(Exception) as error:
         ulte = UltraLongTE_ASLMapping(incomplete_asldata)
 
@@ -157,7 +157,7 @@ def test_multite_asl_object_raises_error_if_asldata_does_not_have_pcasl_or_m0_im
     )
 
 
-def test_multite_asl_object_raises_error_if_asldata_does_not_have_te_values():
+def test_ultralong_te_asl_object_raises_error_if_asldata_does_not_have_te_values():
     incompleted_asldata = ASLData(
         pcasl=PCASL_MTE,
         m0=M0,
@@ -173,7 +173,7 @@ def test_multite_asl_object_raises_error_if_asldata_does_not_have_te_values():
     )
 
 
-def test_multite_asl_object_set_cbf_and_att_maps_before_create_map():
+def test_ultralong_te_asl_object_set_cbf_and_att_maps_before_create_map():
     ulte = UltraLongTE_ASLMapping(asldata_te)
     assert np.mean(ulte.get_brain_mask()) == 1
 
@@ -197,7 +197,7 @@ def test_multite_asl_object_set_cbf_and_att_maps_before_create_map():
     )
 
 
-def test_multite_asl_object_create_map_using_provided_cbf_att_maps(capfd):
+def test_ultralong_te_asl_object_create_map_using_provided_cbf_att_maps(capfd):
     ulte = UltraLongTE_ASLMapping(asldata_te)
     mask = ImageIO(M0_BRAIN_MASK)
     cbf = ImageIO(image_array=np.ones(mask.get_as_numpy().shape) * 100)

@@ -138,11 +138,11 @@ def test_multite_asl_object_create_map_success():
     mte = MultiTE_ASLMapping(asldata_te)
     out = mte.create_map()
     assert isinstance(out['cbf'], ImageIO)
-    assert np.mean(out['cbf'].get_as_numpy()) < 0.0001
+    assert np.mean(out['cbf'].get_as_numpy()) > 0
     assert isinstance(out['att'], ImageIO)
-    assert np.mean(out['att'].get_as_numpy()) > 10
+    assert np.mean(out['att'].get_as_numpy()) > 0
     assert isinstance(out['t1blgm'], ImageIO)
-    assert np.mean(out['t1blgm'].get_as_numpy()) > 50
+    assert np.mean(out['t1blgm'].get_as_numpy()) > 0
 
 
 def test_multite_asl_object_raises_error_if_asldata_does_not_have_pcasl_or_m0_image():

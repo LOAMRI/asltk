@@ -211,7 +211,7 @@ class UltraLongTE_ASLMapping(MRIParameters):
         self,
         ub: list = [np.inf],
         lb: list = [0.0],
-        par0: list = [400],
+        par0: list = [80000],
         cores: Union[int, str] = 'auto',
         smoothing=None,
         smoothing_params=None,
@@ -427,6 +427,7 @@ class UltraLongTE_ASLMapping(MRIParameters):
             )
 
             # Adjusting output image boundaries
+            # TODO O ADJUST_LIMITS TEM QUE SER TESTADO E AJUSTADO PARA O CASO DO CSF-GM --> OK para a nova forma de adjust_image. Fazer a mesma coisa para multiTE e commitar o codigo
             self._t1csfgm_map = self._adjust_image_limits(
                 self._t1csfgm_map, par0[0]
             )
@@ -460,15 +461,31 @@ class UltraLongTE_ASLMapping(MRIParameters):
             )
 
     def _adjust_image_limits(self, map, init_guess):
-        img = sitk.GetImageFromArray(map)
-        thr_filter = sitk.ThresholdImageFilter()
-        thr_filter.SetUpper(
-            4 * init_guess
-        )   # assuming upper to 4x the initial guess
-        thr_filter.SetLower(0.0)
-        img = thr_filter.Execute(img)
+        """Adjust image limits by rescaling values within realistic bounds.
 
-        return sitk.GetArrayFromImage(img)
+        This method removes outliers and rescales T1csfGM values to a realistic
+        physiological range based on the initial guess parameter.
+
+        Args:
+            map (np.ndarray): The T1csfGM map to adjust
+            init_guess (float): Initial guess value used for determining bounds
+
+        Returns:
+            np.ndarray: Adjusted map with values rescaled to [0, 2*init_guess]
+        """
+        # Remove voxels that failed fitting (still at initial guess)
+        img = sitk.GetImageFromArray(map * (map != init_guess))
+
+        upper_limit = 2 * init_guess
+        lower_limit = 0.0
+
+        rescaler = sitk.RescaleIntensityImageFilter()
+        rescaler.SetOutputMaximum(upper_limit)
+        rescaler.SetOutputMinimum(lower_limit)
+
+        img_rescaled = rescaler.Execute(img)
+
+        return sitk.GetArrayFromImage(img_rescaled)
 
 
 def _multite_init_globals(
