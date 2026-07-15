@@ -1,7 +1,13 @@
 import os
 import tempfile
 
-import ants
+try:
+    import ants
+
+    ANTS_AVAILABLE = True
+except ImportError:
+    ANTS_AVAILABLE = False
+
 import numpy as np
 import pytest
 import SimpleITK as sitk
@@ -375,6 +381,7 @@ def test_ImageIO_get_as_sitk_raise_error_no_image_loaded():
     )
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason='antspyx not installed')
 def test_ImageIO_get_as_ants_sucess():
     """Test getting the image as an ANTs object."""
     img = ImageIO(T1_MRI)
@@ -384,6 +391,7 @@ def test_ImageIO_get_as_ants_sucess():
     assert isinstance(ants_img, ants.ANTsImage)
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason='antspyx not installed')
 def test_ImageIO_get_as_ants_raise_error_no_image_loaded():
     """Test getting the image as ANTs when no image is loaded."""
     img = ImageIO(image_array=np.ones((5, 5, 5)))
@@ -474,29 +482,36 @@ def test_ImageIO_save_image_raise_error_no_image_loaded():
     assert 'The directory of the full path' in e.value.args[0]
 
 
-@pytest.mark.parametrize(
-    'input_data, ref_data',
-    [
-        (
-            np.random.rand(10, 10, 10),
-            ImageIO(image_array=np.random.rand(10, 10, 10)),
-        ),
-        (
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
-        ),
-        (
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)).get_as_sitk(),
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
-        ),
+check_image_properties_params = [
+    (
+        np.random.rand(10, 10, 10),
+        ImageIO(image_array=np.random.rand(10, 10, 10)),
+    ),
+    (
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
+    ),
+    (
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)).get_as_sitk(),
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
+    ),
+    (ImageIO(T1_MRI), ImageIO(image_path=T1_MRI)),
+    (ImageIO(PCASL_MTE), ImageIO(image_path=PCASL_MTE)),
+    (ImageIO(M0), ImageIO(image_path=M0)),
+]
+
+if ANTS_AVAILABLE:
+    check_image_properties_params.append(
         (
             ImageIO(image_array=np.random.rand(10, 10, 10)).get_as_ants(),
             ImageIO(image_array=np.random.rand(10, 10, 10)),
-        ),
-        (ImageIO(T1_MRI), ImageIO(image_path=T1_MRI)),
-        (ImageIO(PCASL_MTE), ImageIO(image_path=PCASL_MTE)),
-        (ImageIO(M0), ImageIO(image_path=M0)),
-    ],
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    'input_data, ref_data',
+    check_image_properties_params,
 )
 def test_check_image_properties_does_not_raises_errors_for_valid_image(
     input_data, ref_data
@@ -506,6 +521,7 @@ def test_check_image_properties_does_not_raises_errors_for_valid_image(
     assert True  # If no exception is raised, the test passes
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason='antspyx not installed')
 def test_clone_image_sucess():
     """Test cloning an image."""
     img = ImageIO(T1_MRI)
@@ -517,6 +533,7 @@ def test_clone_image_sucess():
     assert cloned_img.get_as_ants().dimension == img.get_as_ants().dimension
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason='antspyx not installed')
 def test_clone_image_sucess_with_copied_path():
     """Test cloning an image."""
     img = ImageIO(T1_MRI)

@@ -11,6 +11,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -27,15 +28,18 @@ classifiers = [
 
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
 SimpleITK = "^2.4.0"
 numpy = "^1.22.4"
 rich = "^13.8.1"
 scipy = "^1.13.1"
 dill = "^0.3.9"
 pybids = "^0.17.2"
-antspyx = "^0.6.1"
+antspyx = { version = "^0.6.1", optional = true }
 kagglehub = "^0.3.12"
+
+[tool.poetry.extras]
+registration = ["antspyx"]
 
 
 [tool.poetry.group.dev.dependencies]
@@ -57,6 +61,9 @@ pymdown-extensions = "^10.11.2"
 [tool.pytest.ini_options]
 pythonpath = "."
 addopts = "--doctest-modules"
+markers = [
+    "integration: tests that require Kaggle or other external services",
+]
 
 [tool.isort]
 profile = "black"
@@ -67,7 +74,7 @@ lint = "blue . && isort ."
 lint-check = "blue --check . && isort --check ."
 docs = "mkdocs serve"
 pre_test="task lint-check"
-test = "pytest --ignore-glob='./asltk/scripts/*.py' -s -x --cov=asltk -vv --disable-warnings"
+test = "pytest -m \"not integration\" --ignore-glob='./asltk/scripts/*.py' -s -x --cov=asltk -vv --disable-warnings"
 post_test = "coverage html"
 
 [build-system]

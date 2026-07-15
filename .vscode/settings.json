@@ -8,5 +8,12 @@
         {
             "text": "Use conventional commit message format and be as precise and clear as possible. Try to include relevante information that will be useful to create the project realease note. Also use the following prefix patters: ENH: for commits that gives general enhancements and improvements in the code, DOC: commits that give majority documentation and explanations contributios, BUG: commits that fixes bugs or general errors, STY: commits that adjust code styling."
         }
+    ],
+    "python-envs.pythonProjects": [
+        {
+            "path": ".",
+            "envManager": "ms-python.python:poetry",
+            "packageManager": "ms-python.python:poetry"
+        }
     ]
 }

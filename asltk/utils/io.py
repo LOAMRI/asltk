@@ -1,14 +1,22 @@
+from __future__ import annotations
+
 import copy
 import fnmatch
 import os
 import warnings
 from typing import Union
 
-import ants
+try:
+    import ants
+    from ants.utils.sitk_to_ants import from_sitk
+
+    ANTS_AVAILABLE = True
+except ImportError:
+    ANTS_AVAILABLE = False
+
 import dill
 import numpy as np
 import SimpleITK as sitk
-from ants.utils.sitk_to_ants import from_sitk
 from bids import BIDSLayout
 from rich import print
 
@@ -173,9 +181,18 @@ class ImageIO:
             The methods returns a copy of the ANTsPy image object.
             This is to ensure that the original image is not modified unintentionally.
 
+        Note:
+            Requires 'antspyx' package. Install with: pip install asltk[registration]
+
         Returns:
             ants.image: The image as an ANTsPy image object.
         """
+        if not ANTS_AVAILABLE:
+            raise RuntimeError(
+                'get_as_ants() requires antspyx package. '
+                'Install with: pip install asltk[registration]'
+            )
+
         self._check_image_representation('ants')
 
         return self._image_as_ants.clone()
@@ -195,6 +212,13 @@ class ImageIO:
         self._check_image_representation('numpy')
 
         return self._image_as_numpy.copy()
+
+    def _refresh_ants_representation(self):
+        """Refresh the ANTs representation when ANTsPy is available."""
+        if ANTS_AVAILABLE and self._image_as_numpy.ndim <= 3:
+            self._image_as_ants = from_sitk(self._image_as_sitk)
+        else:
+            self._image_as_ants = None
 
     def load_image(self):
         """
@@ -265,8 +289,7 @@ class ImageIO:
                 self._image_as_numpy = sitk.GetArrayFromImage(
                     self._image_as_sitk
                 )
-                if self._image_as_numpy.ndim <= 3:
-                    self._image_as_ants = from_sitk(self._image_as_sitk)
+                self._refresh_ants_representation()
             else:
                 # If the full path is a directory, then use BIDSLayout to find the file
                 selected_file = self._get_file_from_folder_layout()
@@ -274,8 +297,7 @@ class ImageIO:
                 self._image_as_numpy = sitk.GetArrayFromImage(
                     self._image_as_sitk
                 )
-                if self._image_as_numpy.ndim <= 3:
-                    self._image_as_ants = from_sitk(self._image_as_sitk)
+                self._refresh_ants_representation()
         elif self._image_as_numpy is not None:
             # If the image is already provided as a numpy array, convert it to SimpleITK
             # is_vector = True
@@ -285,8 +307,7 @@ class ImageIO:
             self._image_as_sitk = sitk.GetImageFromArray(
                 self._image_as_numpy, isVector=False
             )
-            if self._image_as_numpy.ndim <= 3:
-                self._image_as_ants = from_sitk(self._image_as_sitk)
+            self._refresh_ants_representation()
         else:
             raise ValueError(
                 'Either image_path or image_array must be provided to load the image.'
@@ -317,8 +338,7 @@ class ImageIO:
 
         # Update internal numpy representation
         self._image_as_numpy = sitk.GetArrayFromImage(self._image_as_sitk)
-        if self._image_as_numpy.ndim <= 3:
-            self._image_as_ants = from_sitk(self._image_as_sitk)
+        self._refresh_ants_representation()
 
     def update_image_origin(self, new_origin: tuple):
         """
@@ -338,8 +358,7 @@ class ImageIO:
 
         # Update internal numpy representation
         self._image_as_numpy = sitk.GetArrayFromImage(self._image_as_sitk)
-        if self._image_as_numpy.ndim <= 3:
-            self._image_as_ants = from_sitk(self._image_as_sitk)
+        self._refresh_ants_representation()
 
     def update_image_direction(self, new_direction: tuple):
         """
@@ -359,8 +378,7 @@ class ImageIO:
 
         # Update internal numpy representation
         self._image_as_numpy = sitk.GetArrayFromImage(self._image_as_sitk)
-        if self._image_as_numpy.ndim <= 3:
-            self._image_as_ants = from_sitk(self._image_as_sitk)
+        self._refresh_ants_representation()
 
     def update_image_data(
         self, new_array: np.ndarray, enforce_new_dimension=False
@@ -445,9 +463,7 @@ class ImageIO:
         # Update internal representations
         self._image_as_numpy = new_array
         self._image_as_sitk = new_sitk_img
-        if new_array.ndim <= 3:
-            # ANTsPy does not support higher dimension images, so we skip conversion for lower than 3D arrays
-            self._image_as_ants = from_sitk(new_sitk_img)
+        self._refresh_ants_representation()
 
     def save_image(
         self,
@@ -536,10 +552,16 @@ class ImageIO:
             raise ValueError(
                 'Image is not loaded as SimpleITK. Please load the image first.'
             )
-        elif representation == 'ants' and self._image_as_ants is None:
-            raise ValueError(
-                'Image is not loaded as ANTsPy. Please load the image first.'
-            )
+        elif representation == 'ants':
+            if not ANTS_AVAILABLE:
+                raise RuntimeError(
+                    'ANTsPy representation requires antspyx package. '
+                    'Install with: pip install asltk[registration]'
+                )
+            if self._image_as_ants is None:
+                raise ValueError(
+                    'Image is not loaded as ANTsPy. Please load the image first.'
+                )
         elif representation == 'numpy' and self._image_as_numpy is None:
             raise ValueError(
                 'Image is not loaded as numpy array. Please load the image first.'
@@ -657,7 +679,7 @@ def check_image_properties(
             'Numpy arrays does not has spacing and origin image information.'
         )
 
-    elif isinstance(first_image, ants.ANTsImage):
+    elif ANTS_AVAILABLE and isinstance(first_image, ants.ANTsImage):
         ref_ants = (
             ref_image._image_as_ants
             if isinstance(ref_image, ImageIO)

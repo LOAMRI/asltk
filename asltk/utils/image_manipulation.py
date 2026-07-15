@@ -1,7 +1,13 @@
 import os
 from typing import Dict, List, Optional, Tuple, Union
 
-import ants
+try:
+    import ants
+
+    ANTS_AVAILABLE = True
+except ImportError:
+    ANTS_AVAILABLE = False
+
 import numpy as np
 import SimpleITK as sitk
 from rich import print
