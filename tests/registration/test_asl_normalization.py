@@ -1,5 +1,10 @@
 import os
 
+try:
+    from asltk.registration import REGISTRATION_AVAILABLE
+except ImportError:
+    REGISTRATION_AVAILABLE = False
+
 import numpy as np
 import pytest
 
@@ -23,6 +28,12 @@ M0_RIGID = (
 )
 PCASL_MTE = f'tests' + SEP + 'files' + SEP + 'pcasl_mte.nii.gz'
 M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
+
+# Skip all tests in this module if registration is not available
+pytestmark = pytest.mark.skipif(
+    not REGISTRATION_AVAILABLE,
+    reason="antspyx not installed"
+)
 
 
 def test_asl_template_registration_success():

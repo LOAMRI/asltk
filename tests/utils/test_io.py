@@ -1,7 +1,12 @@
 import os
 import tempfile
 
-import ants
+try:
+    import ants
+    ANTS_AVAILABLE = True
+except ImportError:
+    ANTS_AVAILABLE = False
+
 import numpy as np
 import pytest
 import SimpleITK as sitk
@@ -375,6 +380,7 @@ def test_ImageIO_get_as_sitk_raise_error_no_image_loaded():
     )
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason="antspyx not installed")
 def test_ImageIO_get_as_ants_sucess():
     """Test getting the image as an ANTs object."""
     img = ImageIO(T1_MRI)
@@ -384,6 +390,7 @@ def test_ImageIO_get_as_ants_sucess():
     assert isinstance(ants_img, ants.ANTsImage)
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason="antspyx not installed")
 def test_ImageIO_get_as_ants_raise_error_no_image_loaded():
     """Test getting the image as ANTs when no image is loaded."""
     img = ImageIO(image_array=np.ones((5, 5, 5)))
@@ -506,6 +513,7 @@ def test_check_image_properties_does_not_raises_errors_for_valid_image(
     assert True  # If no exception is raised, the test passes
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason="antspyx not installed")
 def test_clone_image_sucess():
     """Test cloning an image."""
     img = ImageIO(T1_MRI)
@@ -517,6 +525,7 @@ def test_clone_image_sucess():
     assert cloned_img.get_as_ants().dimension == img.get_as_ants().dimension
 
 
+@pytest.mark.skipif(not ANTS_AVAILABLE, reason="antspyx not installed")
 def test_clone_image_sucess_with_copied_path():
     """Test cloning an image."""
     img = ImageIO(T1_MRI)

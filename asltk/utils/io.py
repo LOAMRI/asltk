@@ -4,11 +4,16 @@ import os
 import warnings
 from typing import Union
 
-import ants
+try:
+    import ants
+    from ants.utils.sitk_to_ants import from_sitk
+    ANTS_AVAILABLE = True
+except ImportError:
+    ANTS_AVAILABLE = False
+
 import dill
 import numpy as np
 import SimpleITK as sitk
-from ants.utils.sitk_to_ants import from_sitk
 from bids import BIDSLayout
 from rich import print
 
@@ -172,10 +177,19 @@ class ImageIO:
         Important:
             The methods returns a copy of the ANTsPy image object.
             This is to ensure that the original image is not modified unintentionally.
+            
+        Note:
+            Requires 'antspyx' package. Install with: pip install asltk[registration]
 
         Returns:
             ants.image: The image as an ANTsPy image object.
         """
+        if not ANTS_AVAILABLE:
+            raise RuntimeError(
+                "get_as_ants() requires antspyx package. "
+                "Install with: pip install asltk[registration]"
+            )
+        
         self._check_image_representation('ants')
 
         return self._image_as_ants.clone()
@@ -265,7 +279,7 @@ class ImageIO:
                 self._image_as_numpy = sitk.GetArrayFromImage(
                     self._image_as_sitk
                 )
-                if self._image_as_numpy.ndim <= 3:
+                if self._image_as_numpy.ndim <= 3 and ANTS_AVAILABLE:
                     self._image_as_ants = from_sitk(self._image_as_sitk)
             else:
                 # If the full path is a directory, then use BIDSLayout to find the file
@@ -274,7 +288,7 @@ class ImageIO:
                 self._image_as_numpy = sitk.GetArrayFromImage(
                     self._image_as_sitk
                 )
-                if self._image_as_numpy.ndim <= 3:
+                if self._image_as_numpy.ndim <= 3 and ANTS_AVAILABLE:
                     self._image_as_ants = from_sitk(self._image_as_sitk)
         elif self._image_as_numpy is not None:
             # If the image is already provided as a numpy array, convert it to SimpleITK
@@ -285,7 +299,7 @@ class ImageIO:
             self._image_as_sitk = sitk.GetImageFromArray(
                 self._image_as_numpy, isVector=False
             )
-            if self._image_as_numpy.ndim <= 3:
+            if self._image_as_numpy.ndim <= 3 and ANTS_AVAILABLE:
                 self._image_as_ants = from_sitk(self._image_as_sitk)
         else:
             raise ValueError(
@@ -447,7 +461,10 @@ class ImageIO:
         self._image_as_sitk = new_sitk_img
         if new_array.ndim <= 3:
             # ANTsPy does not support higher dimension images, so we skip conversion for lower than 3D arrays
-            self._image_as_ants = from_sitk(new_sitk_img)
+            if ANTS_AVAILABLE:
+                self._image_as_ants = from_sitk(new_sitk_img)
+            else:
+                self._image_as_ants = None
 
     def save_image(
         self,
@@ -536,10 +553,16 @@ class ImageIO:
             raise ValueError(
                 'Image is not loaded as SimpleITK. Please load the image first.'
             )
-        elif representation == 'ants' and self._image_as_ants is None:
-            raise ValueError(
-                'Image is not loaded as ANTsPy. Please load the image first.'
-            )
+        elif representation == 'ants':
+            if not ANTS_AVAILABLE:
+                raise RuntimeError(
+                    'ANTsPy representation requires antspyx package. '
+                    'Install with: pip install asltk[registration]'
+                )
+            if self._image_as_ants is None:
+                raise ValueError(
+                    'Image is not loaded as ANTsPy. Please load the image first.'
+                )
         elif representation == 'numpy' and self._image_as_numpy is None:
             raise ValueError(
                 'Image is not loaded as numpy array. Please load the image first.'

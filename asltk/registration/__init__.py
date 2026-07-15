@@ -1,4 +1,9 @@
-import ants
+try:
+    import ants
+    REGISTRATION_AVAILABLE = True
+except ImportError:
+    REGISTRATION_AVAILABLE = False
+
 import numpy as np
 import SimpleITK as sitk
 
@@ -8,6 +13,15 @@ from asltk.logging_config import get_logger
 
 # from asltk.utils.image_manipulation import check_and_fix_orientation
 from asltk.utils.io import ImageIO, clone_image
+
+logger = get_logger(__name__)
+
+if not REGISTRATION_AVAILABLE:
+    logger.warning(
+        "Registration module requires 'antspyx' (Python 3.10+). "
+        "Image registration functionality will not be available. "
+        "Install with: pip install asltk[registration]"
+    )
 
 
 def space_normalization(
@@ -82,7 +96,16 @@ def space_normalization(
         The moving image transformed into the template image space.
     transform : list
         A list of transformation mapping from moving to template space.
+        
+    Note:
+        Requires 'antspyx' package. Install with: pip install asltk[registration]
     """
+    if not REGISTRATION_AVAILABLE:
+        raise RuntimeError(
+            "space_normalization() requires antspyx package. "
+            "Install with: pip install asltk[registration]"
+        )
+    
     if not isinstance(moving_image, ImageIO) or not isinstance(
         template_image, (BrainAtlas, str, ImageIO)
     ):
@@ -300,7 +323,16 @@ def apply_transformation(
     Returns:
         transformed_image: np.ndarray
             The transformed image.
+            
+    Note:
+        Requires 'antspyx' package. Install with: pip install asltk[registration]
     """
+    if not REGISTRATION_AVAILABLE:
+        raise RuntimeError(
+            "apply_transformation() requires antspyx package. "
+            "Install with: pip install asltk[registration]"
+        )
+    
     if not isinstance(moving_image, ImageIO):
         raise TypeError('moving image must be an ImageIO object.')
 
