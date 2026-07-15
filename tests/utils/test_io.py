@@ -481,6 +481,7 @@ def test_ImageIO_save_image_raise_error_no_image_loaded():
         img.save_image(str(save_path))
     assert 'The directory of the full path' in e.value.args[0]
 
+
 check_image_properties_params = [
     (
         np.random.rand(10, 10, 10),
