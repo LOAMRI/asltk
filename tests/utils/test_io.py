@@ -481,30 +481,36 @@ def test_ImageIO_save_image_raise_error_no_image_loaded():
         img.save_image(str(save_path))
     assert 'The directory of the full path' in e.value.args[0]
 
+check_image_properties_params = [
+    (
+        np.random.rand(10, 10, 10),
+        ImageIO(image_array=np.random.rand(10, 10, 10)),
+    ),
+    (
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
+    ),
+    (
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)).get_as_sitk(),
+        ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
+    ),
+    (ImageIO(T1_MRI), ImageIO(image_path=T1_MRI)),
+    (ImageIO(PCASL_MTE), ImageIO(image_path=PCASL_MTE)),
+    (ImageIO(M0), ImageIO(image_path=M0)),
+]
 
-@pytest.mark.parametrize(
-    'input_data, ref_data',
-    [
-        (
-            np.random.rand(10, 10, 10),
-            ImageIO(image_array=np.random.rand(10, 10, 10)),
-        ),
-        (
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
-        ),
-        (
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)).get_as_sitk(),
-            ImageIO(image_array=np.random.rand(10, 10, 10, 5)),
-        ),
+if ANTS_AVAILABLE:
+    check_image_properties_params.append(
         (
             ImageIO(image_array=np.random.rand(10, 10, 10)).get_as_ants(),
             ImageIO(image_array=np.random.rand(10, 10, 10)),
-        ),
-        (ImageIO(T1_MRI), ImageIO(image_path=T1_MRI)),
-        (ImageIO(PCASL_MTE), ImageIO(image_path=PCASL_MTE)),
-        (ImageIO(M0), ImageIO(image_path=M0)),
-    ],
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    'input_data, ref_data',
+    check_image_properties_params,
 )
 def test_check_image_properties_does_not_raises_errors_for_valid_image(
     input_data, ref_data
