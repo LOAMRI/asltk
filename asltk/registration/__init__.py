@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 if not REGISTRATION_AVAILABLE:
     logger.warning(
-        "Registration module requires 'antspyx' (Python 3.10+). "
+        "Registration module requires 'antspyx' package (Python 3.10+ only). "
         "Image registration functionality will not be available. "
         "Install with: pip install asltk[registration]"
     )

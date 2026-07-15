@@ -20,7 +20,7 @@ If your doubt is not found in this page, please be free to open an [Issue](https
 <details>
   <summary>Which version of Python is required to use `asltk`?</summary>
   
-  `asltk` requires Python 3.10 or higher. You can check your Python version by running:
+  `asltk` requires Python 3.9 or higher. For the registration module (image alignment), Python 3.10+ is required. You can check your Python version by running:
 
   ```bash
   python --version
@@ -51,8 +51,17 @@ If your doubt is not found in this page, please be free to open an [Issue](https
   
   If it’s not installed, follow the instructions in the Installation Guide. If you're using a virtual environment, ensure it is activated.  
 </details>
+<details>
+  <summary>How do I install the registration module for image alignment?</summary>
+  
+  The registration module is an optional extra that requires Python 3.10 or higher and the `antspyx` package. To install asltk with registration support, run:
 
-
+  ```bash
+  pip install asltk[registration]
+  ```
+  
+  If you only need basic ASL processing (CBF, ATT mapping, etc.), you can use the standard installation (`pip install asltk`) which supports Python 3.9+.
+</details>
 <details>
   <summary>Can I use asltk in commercial projects?</summary>
   

@@ -4,7 +4,7 @@
 
 Before installing `asltk`, ensure you have the following: 
 
-* Python version 3.10 or higher:
+* Python version 3.9 or higher:
 
 You can verify your Python version by running:
 ```bash
@@ -55,3 +55,35 @@ pip freeze | grep asltk
 ```
 
 If the installation was successful, this command should print the version number of `asltk`.
+
+## Optional Installation: Registration Module
+
+The registration module enables image alignment and normalization to standard templates. This module is optional and requires Python 3.10 or higher.
+
+To install `asltk` with registration support:
+
+```bash
+pip install asltk[registration]
+```
+
+If you encounter an error related to `antspyx` compatibility, ensure you're using Python 3.10 or higher:
+
+```bash
+python --version
+```
+
+### Why is Registration Optional?
+
+The registration module depends on `antspyx`, which requires Python 3.10+. By making it optional, `asltk` can run on Python 3.9, which is compatible with 3D Slicer and other environments with stricter Python version requirements.
+
+### What Functions Require Registration?
+
+The following functions require the registration module:
+- `asltk.registration.space_normalization()`
+- `asltk.registration.rigid_body_registration()`
+- `asltk.registration.affine_registration()`
+- `asltk.registration.apply_transformation()`
+- `asltk.registration.asl_normalization.asl_template_registration()`
+- `asltk.registration.asl_normalization.head_movement_correction()`
+
+If you try to use these functions without installing the registration module, you'll get a helpful error message with installation instructions.
