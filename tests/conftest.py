@@ -1,9 +1,8 @@
 from pathlib import Path
 
+import kagglehub
 import pytest
 import SimpleITK as sitk
-
-import kagglehub
 
 from asltk.data.brain_atlas import BrainAtlas
 

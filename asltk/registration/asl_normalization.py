@@ -2,6 +2,7 @@ from typing import List, Union
 
 try:
     import ants
+
     REGISTRATION_AVAILABLE = True
 except ImportError:
     REGISTRATION_AVAILABLE = False
@@ -70,16 +71,16 @@ def asl_template_registration(
 
     Returns:
         tuple: ASLData object with corrected volumes and a list of transformation matrices.
-        
+
     Note:
         Requires 'antspyx' package. Install with: pip install asltk[registration]
     """
     if not REGISTRATION_AVAILABLE:
         raise RuntimeError(
-            "asl_template_registration() requires antspyx package. "
-            "Install with: pip install asltk[registration]"
+            'asl_template_registration() requires antspyx package. '
+            'Install with: pip install asltk[registration]'
         )
-    
+
     if not isinstance(asl_data, ASLData):
         raise TypeError('Input must be an ASLData object.')
 

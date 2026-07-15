@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 try:
     import ants
+
     ANTS_AVAILABLE = True
 except ImportError:
     ANTS_AVAILABLE = False

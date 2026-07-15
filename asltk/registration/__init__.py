@@ -1,5 +1,6 @@
 try:
     import ants
+
     REGISTRATION_AVAILABLE = True
 except ImportError:
     REGISTRATION_AVAILABLE = False
@@ -19,8 +20,8 @@ logger = get_logger(__name__)
 if not REGISTRATION_AVAILABLE:
     logger.warning(
         "Registration module requires 'antspyx' package (Python 3.10+ only). "
-        "Image registration functionality will not be available. "
-        "Install with: pip install asltk[registration]"
+        'Image registration functionality will not be available. '
+        'Install with: pip install asltk[registration]'
     )
 
 
@@ -96,16 +97,16 @@ def space_normalization(
         The moving image transformed into the template image space.
     transform : list
         A list of transformation mapping from moving to template space.
-        
+
     Note:
         Requires 'antspyx' package. Install with: pip install asltk[registration]
     """
     if not REGISTRATION_AVAILABLE:
         raise RuntimeError(
-            "space_normalization() requires antspyx package. "
-            "Install with: pip install asltk[registration]"
+            'space_normalization() requires antspyx package. '
+            'Install with: pip install asltk[registration]'
         )
-    
+
     if not isinstance(moving_image, ImageIO) or not isinstance(
         template_image, (BrainAtlas, str, ImageIO)
     ):
@@ -323,16 +324,16 @@ def apply_transformation(
     Returns:
         transformed_image: np.ndarray
             The transformed image.
-            
+
     Note:
         Requires 'antspyx' package. Install with: pip install asltk[registration]
     """
     if not REGISTRATION_AVAILABLE:
         raise RuntimeError(
-            "apply_transformation() requires antspyx package. "
-            "Install with: pip install asltk[registration]"
+            'apply_transformation() requires antspyx package. '
+            'Install with: pip install asltk[registration]'
         )
-    
+
     if not isinstance(moving_image, ImageIO):
         raise TypeError('moving image must be an ImageIO object.')
 

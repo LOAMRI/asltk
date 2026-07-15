@@ -7,6 +7,7 @@ from typing import Union
 try:
     import ants
     from ants.utils.sitk_to_ants import from_sitk
+
     ANTS_AVAILABLE = True
 except ImportError:
     ANTS_AVAILABLE = False
@@ -177,7 +178,7 @@ class ImageIO:
         Important:
             The methods returns a copy of the ANTsPy image object.
             This is to ensure that the original image is not modified unintentionally.
-            
+
         Note:
             Requires 'antspyx' package. Install with: pip install asltk[registration]
 
@@ -186,10 +187,10 @@ class ImageIO:
         """
         if not ANTS_AVAILABLE:
             raise RuntimeError(
-                "get_as_ants() requires antspyx package. "
-                "Install with: pip install asltk[registration]"
+                'get_as_ants() requires antspyx package. '
+                'Install with: pip install asltk[registration]'
             )
-        
+
         self._check_image_representation('ants')
 
         return self._image_as_ants.clone()

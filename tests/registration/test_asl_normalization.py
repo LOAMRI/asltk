@@ -31,8 +31,7 @@ M0 = f'tests' + SEP + 'files' + SEP + 'm0.nii.gz'
 
 # Skip all tests in this module if registration is not available
 pytestmark = pytest.mark.skipif(
-    not REGISTRATION_AVAILABLE,
-    reason="antspyx not installed"
+    not REGISTRATION_AVAILABLE, reason='antspyx not installed'
 )
 
 
