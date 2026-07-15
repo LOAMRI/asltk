@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import fnmatch
 import os
@@ -681,7 +683,7 @@ def check_image_properties(
             'Numpy arrays does not has spacing and origin image information.'
         )
 
-    elif isinstance(first_image, ants.ANTsImage):
+    elif ANTS_AVAILABLE and isinstance(first_image, ants.ANTsImage):
         ref_ants = (
             ref_image._image_as_ants
             if isinstance(ref_image, ImageIO)
