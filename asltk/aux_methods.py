@@ -1,9 +1,32 @@
+import os
 import warnings
+
+try:
+    import psutil
+except ModuleNotFoundError:
+    psutil = None
+
+
+def get_cpu_count():
+    """Return the number of available CPU cores.
+
+    Falls back to os.cpu_count() when psutil is not installed.
+    """
+    if psutil is not None:
+        try:
+            count = psutil.cpu_count(logical=True)
+            if count:
+                return count
+        except Exception:
+            pass
+
+    return os.cpu_count() or 1
+
+
 from multiprocessing import cpu_count
 from typing import Any, Dict, Optional
 
 import numpy as np
-import psutil
 
 from asltk.smooth import isotropic_gaussian, isotropic_median
 from asltk.utils.io import ImageIO
