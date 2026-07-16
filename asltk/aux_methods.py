@@ -209,6 +209,12 @@ def get_optimal_core_count(
         return min(requested_cores, cpu_count())
 
     # Calculate based on available memory
+    if psutil is None:
+        warnings.warn(
+            'psutil module not found. Falling back to os.cpu_count() for core count estimation.',
+            UserWarning,
+        )
+        return cpu_count()
     free_memory_mb = psutil.virtual_memory().available / (1024 * 1024)
     cores_by_memory = max(1, int(free_memory_mb / mb_per_core))
 
